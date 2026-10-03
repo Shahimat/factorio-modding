@@ -1,12 +1,15 @@
+import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 import { validateChangelog } from './changelog.ts';
 import { THUMBNAIL_SIZE } from './conventions.ts';
 import { validateInfoJson, type InfoJson } from './info-json.ts';
+import { scanLuaDialect } from './lua-dialect.ts';
 import { error, warning, type Problem } from './problems.ts';
 import {
   fileExists,
   isExpectedThumbnailSize,
+  listFilesBySuffix,
   readPngSize,
   REPO_ROOT,
 } from './packages.ts';
@@ -80,6 +83,18 @@ export async function validateMod(modDir: string): Promise<ModValidation> {
         'LICENSE обязателен в составе мода, см. convention licensing',
       ),
     );
+  }
+
+  // Диалект Lua: игра исполняет 5.2, локальный интерпретатор новее и
+  // лишнего не запрещает. Convention `testing`, раздел «Диалект Lua».
+  for (const luaPath of await listFilesBySuffix(modDir, '.lua')) {
+    let text: string;
+    try {
+      text = await readFile(luaPath, 'utf8');
+    } catch {
+      continue;
+    }
+    problems.push(...scanLuaDialect(relative(REPO_ROOT, luaPath), text));
   }
 
   return { info, problems };

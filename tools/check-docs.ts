@@ -25,7 +25,7 @@ async function main(): Promise<void> {
     { title: 'context/index.yml', problems: await checkIndex(layers) },
     { title: 'context/project.yml', problems: await checkProject() },
     { title: 'context/modules/', problems: await checkModules() },
-    { title: 'context/views/ (цели)', problems: await checkGoals() },
+    { title: 'context/views/ (цели)', problems: await checkGoals(layers) },
   ];
 
   let errorsTotal = 0;

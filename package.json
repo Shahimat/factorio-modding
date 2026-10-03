@@ -15,11 +15,15 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tools/**/*.test.ts\"",
+    "test:mod": "node tools/lua-test.ts",
+    "test:lua:all": "node tools/lua-test.ts --all",
     "check-docs": "node tools/check-docs.ts",
+    "check-lua": "node tools/check-lua.ts",
     "check-secrets": "node tools/check-secrets.ts",
     "validate": "node tools/validate.ts",
     "pack": "node tools/pack.ts",
-    "check": "npm run typecheck && npm test && npm run check-secrets && npm run check-docs && npm run validate"
+    "check": "npm run typecheck && npm test && npm run check-secrets && npm run check-docs && npm run validate",
+    "check:mod": "node tools/check-mod.ts"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",

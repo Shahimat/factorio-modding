@@ -27,7 +27,7 @@ tasks:
   high:
     - 'параметризовать корнем check-docs-layers и check-docs-context вместо константы REPO_ROOT и покрыть тестами → convention testing, раздел «Известный пробел» → фаза refactor, затем test → блокеров нет'
   medium:
-    - 'написать link-local: симлинк пакета мода в каталог модов игры, по test-mod-locally.md, шаг 1 → фаза chore → игра установлена, нужен первый пакет мода (цель first-mod)'
+    - 'написать link-local: симлинк в каталог модов игры, принимает и mods/, и poc/ → test-mod-locally.md, шаг 1 → фаза chore → нужен первый пакет или щуп (цель first-mod)'
     - 'настроить FMTK вместо своего publish → setup-dev-environment.md, раздел «Редактор» → фаза chore → ключ выпущен, блокеров нет'
   low:
     - 'прогнать validate и pack на первом реальном моде и переподтвердить verified у mod-zip-matches-portal-rules → фаза docs → зависит от цели first-mod'

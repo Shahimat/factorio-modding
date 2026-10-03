@@ -8,10 +8,10 @@
  */
 import { execFile } from 'node:child_process';
 import { cp, mkdir, rm } from 'node:fs/promises';
-import { basename, join, relative, sep } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import { promisify } from 'node:util';
 
-import { PACK_EXCLUDED } from './lib/conventions.ts';
+import { isExcludedFromPack } from './lib/pack-filter.ts';
 import { countErrors, formatProblem } from './lib/problems.ts';
 import { listModDirs, REPO_ROOT } from './lib/packages.ts';
 import { validateMod } from './lib/validate-mod.ts';
@@ -22,13 +22,7 @@ const DIST = join(REPO_ROOT, 'dist');
 const STAGING = join(DIST, '.staging');
 
 function isExcluded(modDir: string, source: string): boolean {
-  const rel = relative(modDir, source);
-  if (rel === '') return false;
-  const segments = rel.split(sep);
-  if (segments.some((s) => (PACK_EXCLUDED as readonly string[]).includes(s))) {
-    return true;
-  }
-  return rel.endsWith('.zip');
+  return isExcludedFromPack(relative(modDir, source));
 }
 
 async function ensureZipAvailable(): Promise<void> {

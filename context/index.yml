@@ -78,6 +78,8 @@ base_conventions:
     one_liner: устройство, статусы и жизненный цикл целей и программ
   - key: goal-consistency
     one_liner: кросс-целевая проверка непротиворечивости
+  - key: spec-program
+    one_liner: работа по спеке как программа — DoD, одна точка согласования на подцель, пруфы в .work/, цикл ревью
 
 specs:
   - path: specs/03102026_spec_logistic_buildings.md
@@ -90,5 +92,21 @@ specs:
     note: >-
       Имя файла не следует шаблону `<mod-key>.md` — ТЗ пришло от владельца со
       своим именем, поэтому `mod_key` объявлен здесь явно.
+
+# Скиллы агента. Процедуры, не правила: правда живёт в conventions, скилл
+# только ведёт по ней. Поля специально `name` / `path`, а не `id` / `key` —
+# иначе `check-docs` будет искать для них файлы слоёв.
+skills:
+  - name: plan-spec
+    path: .claude/skills/plan-spec/SKILL.md
+    one_liner: разложить ТЗ из specs/ по слоям и завести программу с подцелями и DoD
+    conventions:
+      - spec-intake
+      - spec-program
+  - name: review
+    path: .claude/skills/review/SKILL.md
+    one_liner: проверить застейженную подцель против её DoD и записать раунд в .work/review/
+    conventions:
+      - spec-program
 
 modules: []

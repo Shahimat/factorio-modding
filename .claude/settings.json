@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lua:*)",
+      "Bash(luajit:*)",
+      "Bash(unzip:*)",
+      "Bash(mktemp:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

@@ -9,11 +9,21 @@
 import { basename } from 'node:path';
 
 import { countErrors, formatProblem } from './lib/problems.ts';
-import { listModDirs } from './lib/packages.ts';
+import { listModDirs, resolveModDirs } from './lib/packages.ts';
 import { validateMod } from './lib/validate-mod.ts';
 
 async function main(): Promise<void> {
-  const modDirs = await listModDirs();
+  const requested = process.argv.slice(2);
+  let modDirs: string[];
+  if (requested.length === 0) {
+    modDirs = await listModDirs();
+  } else {
+    const { dirs, unknown } = await resolveModDirs(requested);
+    if (unknown.length > 0) {
+      throw new Error(`нет таких модов в mods/: ${unknown.join(', ')}`);
+    }
+    modDirs = dirs;
+  }
 
   if (modDirs.length === 0) {
     console.log('Модов в mods/ нет — проверять нечего.');
@@ -46,4 +56,9 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+try {
+  await main();
+} catch (cause: unknown) {
+  console.error(cause instanceof Error ? cause.message : String(cause));
+  process.exitCode = 1;
+}

@@ -55,6 +55,10 @@ export const MUST_BE_IGNORED = [
   'secrets/key.txt',
   'node_modules/x',
   'dist/x',
+  // Рабочее пространство пруфов и ревью, convention `spec-program`.
+  // Внутри — логи игры и скриншоты с абсолютными путями.
+  '.work/proofs/program/goal/d1-log.txt',
+  '.work/review/goal/round-01.md',
 ] as const;
 
 /** Пути, которые обязаны НЕ игнорироваться. */

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -7,8 +7,12 @@ import { deflateSync } from 'node:zlib';
 
 import { THUMBNAIL_SIZE } from './conventions.ts';
 import {
+  dirExists,
   fileExists,
   isExpectedThumbnailSize,
+  listFilesBySuffix,
+  matchModName,
+  packageCandidatePaths,
   readPngSize,
 } from './packages.ts';
 
@@ -84,6 +88,80 @@ test('readPngSize читает размеры из IHDR и отбивает не
     assert.equal(await readPngSize(join(dir, 'missing.png')), null);
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('matchModName понимает имя с приставкой и без', () => {
+  const names = ['shm-logistic-buildings', 'shm-other'];
+  assert.equal(
+    matchModName(names, 'shm-logistic-buildings'),
+    'shm-logistic-buildings',
+  );
+  assert.equal(
+    matchModName(names, 'logistic-buildings'),
+    'shm-logistic-buildings',
+  );
+  assert.equal(matchModName(names, 'нет-такого'), null);
+  assert.equal(matchModName([], 'logistic-buildings'), null);
+});
+
+test('packageCandidatePaths перебирает корни и приставку в нужном порядке', () => {
+  assert.deepEqual(packageCandidatePaths(['/r/mods', '/r/poc'], 'probe'), [
+    '/r/mods/probe',
+    '/r/mods/shm-probe',
+    '/r/poc/probe',
+    '/r/poc/shm-probe',
+  ]);
+  // Имя уже с приставкой тоже даёт кандидата без двойного shm-shm-.
+  assert.deepEqual(packageCandidatePaths(['/r/poc'], 'shm-probe'), [
+    '/r/poc/shm-probe',
+    '/r/poc/shm-shm-probe',
+  ]);
+  assert.deepEqual(packageCandidatePaths([], 'probe'), []);
+});
+
+test('dirExists отличает каталог от файла и отсутствия', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'fm-dir-'));
+  try {
+    await mkdir(join(root, 'sub'));
+    await writeFile(join(root, 'f.txt'), 'x');
+    assert.equal(await dirExists(join(root, 'sub')), true);
+    assert.equal(await dirExists(join(root, 'f.txt')), false);
+    assert.equal(await dirExists(join(root, 'нет')), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('listFilesBySuffix обходит рекурсивно и пропускает служебное', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'fm-walk-'));
+  try {
+    await mkdir(join(root, 'tests'), { recursive: true });
+    await mkdir(join(root, 'node_modules', 'dep'), { recursive: true });
+    await mkdir(join(root, '.hidden'), { recursive: true });
+
+    await writeFile(join(root, 'control.lua'), '-- x');
+    await writeFile(join(root, 'tests', 'a.test.lua'), '-- x');
+    await writeFile(join(root, 'tests', 'helper.lua'), '-- x');
+    await writeFile(join(root, 'node_modules', 'dep', 'b.test.lua'), '-- x');
+    await writeFile(join(root, '.hidden', 'c.test.lua'), '-- x');
+    await writeFile(join(root, 'info.json'), '{}');
+
+    const tests = await listFilesBySuffix(root, '.test.lua');
+    assert.deepEqual(
+      tests.map((p) => p.slice(root.length + 1)),
+      [join('tests', 'a.test.lua')],
+    );
+
+    const lua = await listFilesBySuffix(root, '.lua');
+    assert.deepEqual(
+      lua.map((p) => p.slice(root.length + 1)),
+      ['control.lua', join('tests', 'a.test.lua'), join('tests', 'helper.lua')],
+    );
+
+    assert.deepEqual(await listFilesBySuffix(join(root, 'нет'), '.lua'), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

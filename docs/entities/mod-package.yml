@@ -32,10 +32,30 @@ layout:
     - scenarios/
     - campaigns/
     - tutorials/
+  repo_only:
+    - package.json
+    - tests/
   note: |
     Перечень распознаваемых игрой файлов и папок — по официальной спеке
     mod-structure. Произвольные подпапки игра не читает сама, их подключает
     Lua через `require`.
+
+    `repo_only` живёт в репозитории, но в zip релиза не попадает:
+    `package.json` делает каталог npm-workspace и держит скрипт `test`
+    своего скоупа, `tests/` — Lua-тесты мода. Исключение из упаковки
+    задано в `tools/lib/conventions.ts` (`PACK_EXCLUDED`,
+    `PACK_EXCLUDED_SUFFIXES`), правила — conventions `testing` и
+    `spec-program`.
+
+test_script: |
+  Скрипт `test` в `package.json` мода указывает на общий раннер с собственным
+  каталогом как скоупом:
+
+      { "scripts": { "test": "node ../../tools/lua-test.ts ." } }
+
+  Так `npm test -w shm-<mod-key>` гоняет тесты только этого мода, а корневой
+  `npm test` в моды не заходит вообще — convention `testing`, раздел
+  «Скоупы запуска».
 
 info_json_fields:
   mandatory:

@@ -64,13 +64,29 @@ export const CHANGELOG_KNOWN_CATEGORIES = [
   'Compatibility',
 ] as const;
 
-/** Файлы и каталоги, которые не попадают в zip релиза. */
+/**
+ * Каталоги и файлы, которые не попадают в zip релиза. `tests` и
+ * `package.json` — по convention `testing`: они лежат в пакете мода, но
+ * игроку не нужны, см. `repo_only` в entity `mod-package`.
+ */
 export const PACK_EXCLUDED = [
   'node_modules',
   '.git',
   '.DS_Store',
   'dist',
+  'tests',
+  'package.json',
+  'package-lock.json',
 ] as const;
+
+/**
+ * Суффиксы путей, которые не попадают в zip. `.test.lua` страхует случай,
+ * когда тест лежит не в `tests/`, а рядом с модулем.
+ */
+export const PACK_EXCLUDED_SUFFIXES = ['.zip', '.test.lua'] as const;
+
+/** Суффикс файла Lua-теста, convention `testing`. */
+export const LUA_TEST_SUFFIX = '.test.lua';
 
 /** Ожидаемый размер thumbnail.png в пикселях. */
 export const THUMBNAIL_SIZE = 144;

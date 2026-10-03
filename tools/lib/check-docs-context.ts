@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { parse } from 'yaml';
 
+import { checkDod } from './dod.ts';
 import {
   asRecord,
   asString,
@@ -168,9 +169,12 @@ interface GoalFile {
   readonly file: string;
   readonly dependsOn: string[];
   readonly tasks: string[];
+  readonly isProgram: boolean;
+  /** `key` программы для подцели, иначе `null`. */
+  readonly program: string | null;
 }
 
-export async function checkGoals(): Promise<Problem[]> {
+export async function checkGoals(layers: LayerCheck): Promise<Problem[]> {
   const problems: Problem[] = [];
   const indexPath = join(DIRS.views, 'goals.yaml');
   const indexRel = 'context/views/goals.yaml';
@@ -243,10 +247,28 @@ export async function checkGoals(): Promise<Problem[]> {
       problems.push(error(rel, 'нет поля "key"'));
       continue;
     }
-    const prefix = fileName.startsWith('program--') ? 'program--' : 'goal--';
+    const isProgram = fileName.startsWith('program--');
+    const prefix = isProgram ? 'program--' : 'goal--';
     if (fileName !== `${prefix}${key}.yaml`) {
       problems.push(error(rel, `имя файла не совпадает с key "${key}"`));
     }
+
+    // Подцель программы объявляет принадлежность полем `program`,
+    // convention `goals`.
+    const program = asString(data['program']);
+    if (program !== null && isProgram) {
+      problems.push(
+        error(rel, 'файл программы не может сам ссылаться на программу'),
+      );
+    }
+    problems.push(
+      ...checkDod(data, {
+        file: rel,
+        isProgram,
+        isSubgoal: program !== null,
+        behaviorIds: layers.behaviorIds,
+      }),
+    );
 
     const status = asString(data['status']);
     if (status === null || !['active', 'planned', 'paused'].includes(status)) {
@@ -293,7 +315,21 @@ export async function checkGoals(): Promise<Problem[]> {
       file: rel,
       dependsOn: asStringArray(data['depends_on']),
       tasks,
+      isProgram,
+      program,
     });
+  }
+
+  // Подцель ссылается на существующую программу.
+  const programKeys = new Set(
+    goals.filter((g) => g.isProgram).map((g) => g.key),
+  );
+  for (const goal of goals) {
+    if (goal.program !== null && !programKeys.has(goal.program)) {
+      problems.push(
+        error(goal.file, `program: нет программы с key "${goal.program}"`),
+      );
+    }
   }
 
   const keys = new Set(goals.map((g) => g.key));

@@ -11,9 +11,12 @@ summary: |
 structure:
   mods/: пакеты модов, один каталог на мод, он же npm-workspace
   tools/: TypeScript-инструменты (валидация, упаковка, публикация)
+  tools/lua/: харнесс и заглушки для Lua-тестов модов — единственный Lua в tools/
   specs/: входящие ТЗ автора, см. convention spec-intake
+  poc/: моды-щупы для проверки допущений спеки, вне mods/, см. convention spec-program
   docs/: слои manual и домен
   context/: слой агента
+  .work/: пруфы и раунды ревью, вне git, см. convention spec-program
 
 language_split:
   mod_sources: lua
@@ -23,6 +26,11 @@ language_split:
     Lua; транспиляция (TypeScriptToLua + typed-factorio) добавляет слой,
     который ломается на обновлениях API. При этом npm всё равно нужен под
     упаковку и публикацию, поэтому инструменты пишем на TypeScript.
+
+    Единственный Lua внутри `tools/` — харнесс и заглушки в `tools/lua/`:
+    тесты мода исполняет тот же язык, что и игра, иначе они не проверяли бы
+    настоящий код. Обнаружение файлов и разбор результата при этом остались
+    в TypeScript, см. convention `testing`.
 
 typescript_requirements:
   strict: true
@@ -40,9 +48,19 @@ runtime:
   external_cli:
     zip: нужен для сборки архива релиза; на macOS и типовых Linux есть из коробки
     jq: нужен страховочному hook, см. manual setup-safety-hooks
+    lua: |
+      нужен для Lua-тестов модов (`npm run check:mod`). Локально 5.5, в игре
+      патченный 5.2; формул `lua@5.2` / `lua@5.3` в Homebrew нет. Бинарь
+      переопределяется переменной `LUA_BIN`. Разницу диалектов ловит
+      `tools/lib/lua-dialect.ts`, граница гарантии — convention `testing`.
 
 tools_implemented:
-  npm-scripts: typecheck, test, check-secrets, check-docs, validate, pack, check
+  npm-scripts: |
+    typecheck, test, test:mod, test:lua:all, check-secrets, check-docs,
+    check-lua, validate, pack, check, check:mod. Скоупы разделены
+    сознательно: `check` не заходит в моды, `check:mod -- <mod-key>`
+    проверяет один мод, `check-lua -- <скоуп>` требует явный скоуп —
+    convention `testing`, раздел «Скоупы запуска».
   tools/check-secrets.ts: |
     Защита публичного репозитория от утечек, convention `secrets`.
     Сканирует множество `git ls-files` + неигнорируемые untracked, то есть
@@ -58,7 +76,8 @@ tools_implemented:
     покрытие `context/index.yml` в обе стороны, регистрация файлов `specs/`,
     полнота блока `sync`, manifest'ы модулей, структура целей
     (индекс против файлов, осиротевшие зависимости, циклы, приоритет против
-    зависимости, дубли задач, секции приоритетов, длина строк), размеры
+    зависимости, дубли задач, секции приоритетов, длина строк), ссылка
+    подцели на существующую программу, полнота блока `dod`, размеры
     namespace. Часть «проверяется только головой» из convention не
     заменяет.
   tools/lib/conventions.ts: |
@@ -78,8 +97,47 @@ tools_implemented:
   tools/lib/validate-mod.ts: |
     Полная проверка пакета: info.json, changelog.txt, сверка верхней секции
     changelog с `version`, наличие и размер `thumbnail.png`, наличие
-    `LICENSE`.
-  tools/validate.ts: отчёт по всем модам, код возврата 1 при ошибках
+    `LICENSE`, диалект всех `*.lua` пакета.
+  tools/lib/lua-dialect.ts: |
+    Запрет конструкций, которых нет в Lua 5.2: `//`, побитовые операторы,
+    целочисленный math, `table.move`, `string.pack`, utf8, `<const>` и
+    `<close>`, `coroutine.close`, а также убранные в 5.2 `setfenv`,
+    `getfenv`, `loadstring` и глобальный `unpack`. Строки и комментарии
+    гасятся с сохранением номеров строк, поэтому `|` внутри строки находкой
+    не считается.
+  tools/lib/lua-test-runner.ts: |
+    Разбор вывода харнесса и правила находок. Отдельно проверяет, что
+    прогон дошёл до итоговой строки: молчаливое падение интерпретатора
+    иначе выглядело бы как успех.
+  tools/lib/lua-tests.ts: |
+    Обнаружение `*.test.lua` в пакете мода и запуск `tools/lua/run.lua`.
+    Отсутствие тестов — ошибка, а не «нечего делать».
+  tools/lib/dod.ts: |
+    Проверка блока `dod` в программах и подцелях: обязательные поля пункта,
+    набор `kind`, уникальность `id`, ссылка на существующий behavior и
+    требование хотя бы одного машинного пункта у подцели. Правила —
+    convention `spec-program`.
+  tools/lua/harness.lua: |
+    `describe` / `it` / сравнения с глубоким обходом таблиц. Тесты
+    исполняются сразу при объявлении; падение внутри `it` становится
+    записью, а не остановкой прогона.
+  tools/lua/run.lua: |
+    Ставит корень мода в `package.path`, выполняет файлы тестов, печатает
+    собственный формат `TEST ok|fail` + `TOTAL`. Файл, который не
+    загрузился, считается упавшим тестом.
+  tools/lua/stubs/factorio.lua: |
+    Минимальные заглушки `defines`, `script`, `storage`, `game`.
+    Расширяются по факту появления кода, который не изолируется обёрткой.
+  tools/lua-test.ts: Lua-тесты по скоупу — мод, список модов либо `--all`
+  tools/check-mod.ts: один мод целиком — его Lua-тесты плюс валидация пакета
+  tools/check-lua.ts: |
+    Линт диалекта по явному скоупу: имя (ищется в `mods/` и `poc/`, с
+    приставкой `shm-` и без), путь к любому каталогу либо `--all`. Нужен
+    прежде всего для щупов в `poc/`, куда `validate` не ходит. В
+    `npm run check` не входит: скоуп задаётся осознанно.
+  tools/validate.ts: |
+    Отчёт по всем модам либо по перечисленным в аргументах, код возврата 1
+    при ошибках
   tools/pack.ts: |
     Сборка `dist/{name}_{version}.zip` через staging-каталог: одна папка
     верхнего уровня, `info.json` в её корне, исключение `node_modules`,
@@ -150,5 +208,6 @@ behaviors:
   - tools-covered-by-unit-tests
 conventions:
   - spec-intake
+  - spec-program
   - secrets
   - testing
