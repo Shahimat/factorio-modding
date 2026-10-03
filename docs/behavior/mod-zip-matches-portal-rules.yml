@@ -1,0 +1,36 @@
+id: mod-zip-matches-portal-rules
+kind: behavior
+namespace: delivery
+entities: [mod-package, mod-portal]
+title: Собранный zip соответствует требованиям портала к артефакту релиза
+scenarios:
+  - given: пакет мода собран инструментом `pack`
+    when: проверяется имя файла
+    then: имя строго `{name}_{version}.zip`, где оба значения взяты из `info.json`
+  - given: собранный zip
+    when: открывается его содержимое
+    then: >-
+      внутри ровно одна папка верхнего уровня (имя произвольное), а `info.json`
+      лежит в корне этой папки, не в корне архива
+  - given: собранный zip
+    when: проверяется состав
+    then: >-
+      в архив попали `info.json`, `changelog.txt`, `thumbnail.png`, `LICENSE` и
+      исходники мода, но не попали `node_modules`, файлы ТЗ из `specs/` и
+      содержимое `context/`
+  - given: '`info.json` в архиве'
+    when: 'проверяется `factorio_version`'
+    then: значение из ровно двух чисел — портал отклоняет релиз с третьим числом
+  - given: '`thumbnail.png` в архиве'
+    when: проверяется изображение
+    then: размер 144x144 пикселя
+verified: true
+verified_at: 2026-10-03
+verified_note: >-
+  Прогнано на временной фикстуре `shm-fixture` 0.1.0 (удалена после проверки):
+  `npm run pack` собрал `dist/shm-fixture_0.1.0.zip`, `unzip -l` показал одну
+  папку верхнего уровня `shm-fixture/` с `info.json` в её корне и отсутствие
+  подложенного `node_modules/`. Проверки имени, `factorio_version` из двух
+  чисел и размера `thumbnail.png` отработал `npm run validate`. Требования
+  сверены с официальной спекой mod-structure. Переподтвердить на первом
+  реальном моде.

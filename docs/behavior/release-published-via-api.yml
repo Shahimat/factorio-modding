@@ -1,0 +1,42 @@
+id: release-published-via-api
+kind: behavior
+namespace: delivery
+entities: [mod-portal]
+title: Релиз уходит на портал через API двухшаговой загрузкой
+scenarios:
+  - given: новый мод, которого на портале ещё нет
+    when: выполняется POST `init_publish` с телом `mod=<name>` и заголовком Bearer
+    then: >-
+      в ответе приходит `upload_url`; POST на него с `file`, `description`,
+      `category`, `license=default_mit` и `source_url` возвращает
+      `success: true` и путь к странице мода
+  - given: мод уже существует на портале
+    when: выполняется POST `init_upload` и затем POST zip на выданный `upload_url`
+    then: 'ответ содержит `success: true`, новый релиз появляется в списке релизов мода'
+  - given: API-ключ без нужного scope
+    when: выполняется запрос
+    then: 'ответ содержит `error: Forbidden` либо `error: InvalidApiKey`, релиз не создаётся'
+  - given: имя мода уже занято на портале
+    when: выполняется `init_publish`
+    then: 'ответ содержит `error: ModAlreadyExists`'
+  - given: ошибка семейства InternalError или Unknown
+    when: инструмент публикации обрабатывает ответ
+    then: повтор идёт с exponential backoff, как просит Wube в usage guidelines
+  - given: мод с заполненной страницей на портале
+    when: >-
+      выполняется POST `edit_details` ключом с usage ModPortal Edit Mods
+    then: >-
+      summary, description, category, tags, license и source_url на странице
+      мода обновляются без выпуска нового релиза
+  - given: API-ключ
+    when: он используется инструментом
+    then: >-
+      ключ читается из переменной окружения и не попадает ни в git, ни в логи
+      инструмента
+verified: false
+verified_at: null
+verified_note: >-
+  API-ключ не выпущен, опубликованных модов 0 (проверено по
+  `/api/mods?page_size=max` 2026-10-03: автора `shahimat` среди владельцев
+  модов нет). Проверяемо только фактической публикацией по manual
+  `publish-new-mod`.

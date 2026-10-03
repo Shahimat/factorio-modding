@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# Секреты. Жёсткое правило — context/conventions/secrets.yml.
+# Репозиторий публичный: ключи и токены в git не попадают никогда.
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+player-data.json

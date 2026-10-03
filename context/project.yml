@@ -1,0 +1,86 @@
+name: factorio-modding
+summary: |
+  Монорепозиторий модов Factorio автора Shahimat. Модов несколько, каждый решает
+  свою задачу; моды могут зависеть друг от друга. Исходники модов — Lua,
+  инструменты сборки и публикации — TypeScript в strict-режиме под npm.
+
+author:
+  nickname: Shahimat
+  mod_portal_account: Shahimat
+  mod_name_prefix: shm-
+  note: |
+    Мод-портал игнорирует поле `author` из info.json и всегда показывает имя
+    аккаунта загрузившего. Авторская приписка живёт в `name`, `title` и
+    префиксах прототипов — см. convention `mod-naming`.
+
+stack:
+  - lua
+  - typescript
+  - node
+  - npm-workspaces
+
+target:
+  factorio_stable: "2.0"
+  factorio_next: "2.1"
+  note: |
+    Основная дорожка релизов — Factorio 2.0 (на 2026-10-03 stable 2.0.77).
+    2.1 (experimental 2.1.20) — подготовленная вторая дорожка; правила ведения
+    двух дорожек — в convention `factorio-version-track`.
+
+license:
+  own_code: MIT
+  mod_portal_enum: default_mit
+  note: |
+    MIT покрывает только собственный код и собственные ассеты. Производные от
+    ассетов Wube остаются собственностью Wube. См. convention `licensing`.
+
+namespaces:
+  platform: репозиторий, npm-workspaces, инструменты сборки на TypeScript
+  delivery: упаковка мода, мод-портал, релизы и публикация
+  mods: сами моды и их внутреннее устройство
+
+paths:
+  mods: mods/
+  tools: tools/
+  specs: specs/
+
+external:
+  mod_portal: https://mods.factorio.com/
+  mod_portal_profile: https://mods.factorio.com/user/Shahimat
+  api_keys: https://factorio.com/profile
+  lua_api_stable: https://lua-api.factorio.com/stable/
+  mod_structure_spec: https://lua-api.factorio.com/stable/auxiliary/mod-structure.html
+  changelog_format_spec: https://lua-api.factorio.com/stable/auxiliary/changelog-format.html
+  latest_releases_api: https://factorio.com/api/latest-releases
+  terms_of_service: https://factorio.com/terms-of-service
+  note: |
+    Детальные release notes самой игры и обсуждения на форуме в проектный
+    CHANGELOG.md не мигрируют — только ссылка здесь.
+
+sync:
+  index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
+  index_sha: e9217055c51a2b4f26ae1e33ad82a136cf1288a0a51322dd8b96dccf99fa7ff9
+  contract:
+    key: agent-operational-contract-v2
+    synced_sha: 6c1a9b00707a08203e0536db5f05a0e37c7dad22b1b47dc33b74505bb48fd863
+    synced_at: 2026-10-03
+  available_modules_not_connected:
+    - code-rules-fullstack-js-ts
+    - knowledge-external-gui
+  note: |
+    Модули перечислены как справка из индекса источника; ни один не подключён.
+    Подключение — только по явному запросу, см. раздел «Модули расширения»
+    контракта.
+
+deviations_from_contract:
+  - key: specs-directory
+    what: |
+      Каталог `specs/` в корне — пятый артефакт помимо четырёх слоёв контракта
+      (manual / домен / контекст / внешние ссылки).
+    why: |
+      ТЗ — входящее сырьё от автора, а не проектная правда: оно не описывает ни
+      «что есть», ни «как должно работать и проверено ли». Класть его в `docs/`
+      значит смешивать входящие требования со слоем общей правды.
+    how: |
+      Правила обращения с `specs/` зафиксированы в convention `spec-intake`,
+      содержимое каталога отражено в `context/index.yml`.

@@ -1,0 +1,32 @@
+id: mod-loads-in-target-factorio
+kind: behavior
+namespace: mods
+entities: [mod-package]
+title: Мод загружается в целевой мажорной версии игры и не загружается в чужой
+scenarios:
+  - given: 'мод с `factorio_version: "2.0"` лежит в каталоге модов'
+    when: запускается Factorio 2.0.x
+    then: мод виден в списке модов, включается и игра стартует без ошибок загрузки
+  - given: 'тот же мод с `factorio_version: "2.0"`'
+    when: запускается Factorio 2.1.x
+    then: >-
+      игра не принимает мод как совместимый — это ожидаемо, а не баг:
+      поддержка 2.1 выпускается отдельным релизом дорожки 2.1
+  - given: мод использует возможности Space Age
+    when: проверяется `info.json`
+    then: >-
+      включён соответствующий feature-флаг (`quality_required`,
+      `rail_bridges_required`, `spoiling_required`, `freezing_required`,
+      `segmented_units_required`, `expansion_shaders_required`,
+      `space_travel_required`), а не жёсткая зависимость от мода `space-age`,
+      если флага достаточно
+  - given: мод загружен
+    when: игра запущена с `--check-unused-prototype-data`
+    then: предупреждений о неиспользованных значениях прототипов мода нет
+verified: false
+verified_at: null
+verified_note: >-
+  Factorio установлена на Mac 2026-10-04 (Steam, `2.0.77`, `mac-arm64`),
+  каталог данных и `mods/` на месте. Проверять нечего: ни одного своего мода
+  ещё нет. Как появится первый пакет — ручной прогон по manual
+  `test-mod-locally`, включая шаг 4 с `--check-unused-prototype-data`.

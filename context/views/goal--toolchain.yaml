@@ -1,0 +1,34 @@
+key: toolchain
+title: Инструментальный контур репозитория
+status: active
+why: |
+  Без упаковки и валидации мод нельзя ни корректно собрать, ни выложить:
+  требования портала к имени zip, структуре архива и формату changelog.txt
+  жёсткие, а ошибки в них проявляются либо отказом API, либо молчаливой
+  записью в лог игры. Руками это проверять каждый релиз — источник ошибок.
+description: |
+  npm-workspaces монорепозиторий, пакеты модов в `mods/`, инструменты в
+  `tools/` на TypeScript в strict-режиме. Транспиляция Lua не используется:
+  исходники модов пишутся на Lua напрямую (см. entity repo-toolchain,
+  раздел language_split).
+
+  Валидация, упаковка и проверка непротиворечивости доки готовы и проверены.
+  Свой `publish` решено не писать: FMTK покрывает Upload и Details целиком,
+  см. entity `repo-toolchain`, блок `editor_tooling`. Осталось `link-local`
+  и настройка FMTK.
+
+  Риски: публикация необратима, поэтому первый выпуск идёт руками по manual
+  `publish-new-mod`, а не задачей редактора. Команда FMTK `Publish` сама
+  делает git commit, тег и push — её не используем. Формат payload hooks
+  Claude Code может меняться — отсюда обязательная проверка в manual
+  `setup-safety-hooks`. Открытых вопросов нет.
+tasks:
+  blocker: []
+  high:
+    - 'параметризовать корнем check-docs-layers и check-docs-context вместо константы REPO_ROOT и покрыть тестами → convention testing, раздел «Известный пробел» → фаза refactor, затем test → блокеров нет'
+  medium:
+    - 'написать link-local: симлинк пакета мода в каталог модов игры, по test-mod-locally.md, шаг 1 → фаза chore → игра установлена, нужен первый пакет мода (цель first-mod)'
+    - 'настроить FMTK вместо своего publish → setup-dev-environment.md, раздел «Редактор» → фаза chore → ключ выпущен, блокеров нет'
+  low:
+    - 'прогнать validate и pack на первом реальном моде и переподтвердить verified у mod-zip-matches-portal-rules → фаза docs → зависит от цели first-mod'
+depends_on: []

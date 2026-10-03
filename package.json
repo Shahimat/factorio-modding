@@ -1,0 +1,29 @@
+{
+  "name": "factorio-modding",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Монорепозиторий модов Factorio автора Shahimat",
+  "author": "Shahimat",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "workspaces": [
+    "mods/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tools/**/*.test.ts\"",
+    "check-docs": "node tools/check-docs.ts",
+    "check-secrets": "node tools/check-secrets.ts",
+    "validate": "node tools/validate.ts",
+    "pack": "node tools/pack.ts",
+    "check": "npm run typecheck && npm test && npm run check-secrets && npm run check-docs && npm run validate"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3",
+    "yaml": "^2.9.1"
+  }
+}

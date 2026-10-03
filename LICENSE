@@ -1,0 +1,66 @@
+MIT License
+
+Copyright (c) 2026 Shahimat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Notice on Factorio assets
+
+The MIT license above applies only to material owned by the author of this
+repository: the Lua source of the mods, the TypeScript tooling, and any
+graphics, sounds and locale files created by the author.
+
+It does **not** apply to assets of Factorio or to works derived from them.
+Under the Factorio Terms of Service (https://factorio.com/terms-of-service):
+
+- Adaptations and works derived from Factorio assets may be included in and
+  distributed as part of a mod, but Wube Software Ltd. retains all rights and
+  license to those assets and to the works derived from them, and reserves the
+  right to request their removal.
+- Distribution of original Factorio art assets is not permitted beyond what is
+  necessary to create one's own mods.
+- Any commercial use of Factorio source code or art assets requires the
+  express consent of Wube Software Ltd.
+
+Factorio is a trademark of Wube Software Ltd. This repository is not
+affiliated with, endorsed by, or sanctioned by Wube Software Ltd.
+
+---
+
+## Оговорка про ассеты Factorio (перевод)
+
+Лицензия MIT выше распространяется только на то, что принадлежит автору этого
+репозитория: Lua-исходники модов, инструменты на TypeScript, а также графику,
+звуки и файлы локалей, созданные автором.
+
+Она **не** распространяется на ассеты Factorio и на производные от них. По
+Terms of Service Factorio:
+
+- производные от ассетов Factorio разрешено включать и распространять в
+  составе мода, но все права на них остаются у Wube Software Ltd., и Wube
+  вправе потребовать их удаления;
+- распространение оригинальных ассетов Factorio вне необходимости для
+  создания собственных модов запрещено;
+- любое коммерческое использование исходников и ассетов Factorio — только по
+  отдельному согласию Wube Software Ltd.
+
+Factorio — торговая марка Wube Software Ltd. Этот репозиторий не связан с
+Wube Software Ltd. и не одобрен ею.

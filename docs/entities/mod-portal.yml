@@ -1,0 +1,142 @@
+id: mod-portal
+kind: entity
+namespace: delivery
+version: "api-v2"
+title: Мод-портал Factorio как внешняя система доставки
+summary: |
+  Единственный канал распространения модов. Требует аккаунта factorio.com с
+  купленной игрой: портал доступен только покупателям. Автором мода портал
+  всегда показывает имя аккаунта загрузившего.
+
+account:
+  username: Shahimat
+  profile: https://mods.factorio.com/user/Shahimat
+  published_mods: 0
+  confirmed_by: |
+    Поле `service-username` в `~/Library/Application Support/factorio/player-data.json`
+    равно `Shahimat` — в игре выполнен вход под этим аккаунтом (проверено
+    2026-10-04). Раньше принадлежность аккаунта была только предположением по
+    коду 200 на `/user/Shahimat`.
+  membership: |
+    Мод-портал требует платного членства. Покупка через Steam — аккаунты
+    должны быть связаны на странице профиля, иначе портал отвечает
+    «insufficient membership».
+  rename_possible: true
+  rename_limit: не чаще одного раза в три месяца, на странице профиля
+  rename_cost: |
+    Username в Factorio — уникальный идентификатор игрока, GUID нет. После
+    переименования во всех сейвах автор становится новым персонажем (хотбары,
+    пины, персональные настройки модов, права), лечится консольной командой
+    `/swap-players <old> <new>`. Переименование ради косметики на портале
+    признано нецелесообразным.
+
+api_keys:
+  issued_at: https://factorio.com/profile
+  strategy: |
+    Один ключ с тремя usage, а не три отдельных: FMTK работает с одним
+    ключом за раз и ждёт у него и Upload, и Edit. Значение ключа портал
+    показывает только при создании.
+  env_var: FACTORIO_UPLOAD_API_KEY
+  env_var_note: |
+    Имя задано CLI `fmtk` и имеет приоритет над Keychain. Этим же именем
+    пользуются примеры `curl` в манулах, чтобы не держать три имени под один
+    ключ.
+  scopes:
+    ModPortal_Publish_Mods: первая публикация нового мода
+    ModPortal_Upload_Mods: новый релиз существующего мода
+    ModPortal_Edit_Mods: правка описания, тегов, лицензии, скриншотов
+  scope_probe: |
+    Usage проверяются без побочных эффектов: `init_upload` и `edit_details`
+    на несуществующее имя мода должны вернуть `UnknownMod`, `init_publish` на
+    занятое имя — `ModAlreadyExists`. `Forbidden` означает отсутствие usage,
+    `InvalidApiKey` — негодный ключ. Команды — в manual
+    `setup-dev-environment`, шаг 7.
+  not_covered_by_fmtk: |
+    FMTK умеет Package, Upload и Details, но не умеет `init_publish`. Поэтому
+    самая первая публикация нового мода делается либо через веб-интерфейс
+    портала, либо своим `curl` по manual `publish-new-mod`.
+
+endpoints:
+  publish_new_mod:
+    init: POST https://mods.factorio.com/api/v2/mods/init_publish
+    finish: POST <upload_url из ответа init>
+    init_body: mod=<name>
+    finish_body: file=<zip>, description?, category?, license?, source_url?
+  upload_release:
+    init: POST https://mods.factorio.com/api/v2/mods/releases/init_upload
+    finish: POST <upload_url из ответа init>
+    init_body: mod=<name>
+    finish_body: file=<zip>
+  edit_details:
+    url: POST https://mods.factorio.com/api/v2/mods/edit_details
+    body: mod, title?, summary?, description?, category?, tags?, license?, homepage?, deprecated?, source_url?, faq?
+  add_image:
+    init: POST https://mods.factorio.com/api/v2/mods/images/add
+    finish: POST <upload_url из ответа add>, body image=<file>
+  browse_readonly:
+    mods_list: GET https://mods.factorio.com/api/mods?page_size=max
+    mod_short: GET https://mods.factorio.com/api/mods/{name}
+    mod_full: GET https://mods.factorio.com/api/mods/{name}/full
+  auth_header: 'Authorization: Bearer <APIKey>'
+  content_type: multipart/form-data
+  note: |
+    Publish / upload / details / images — публичные API, Wube обязуется
+    держать их документацию актуальной и предупреждать о ломающих
+    изменениях. Browse-API (`/api/mods`) помечен как internal, у него таких
+    гарантий нет.
+
+error_codes:
+  InvalidApiKey: ключ отсутствует или не подходит этому эндпоинту
+  InvalidRequest: некорректный запрос
+  Forbidden: у ключа нет нужного scope
+  InvalidModRelease: некорректные данные релиза в info.json
+  InvalidModUpload: некорректное содержимое zip
+  UnknownMod: мода нет на портале (при upload релиза)
+  ModAlreadyExists: имя мода уже занято (при публикации нового)
+  InternalError: внутренняя ошибка, повторить позже
+  Unknown: неизвестная ошибка, повторить позже
+
+usage_rules: |
+  Wube просит использовать HTTP API с exponential backoff при ошибках, не
+  раскрывать секреты аккаунта и явно сообщать, что инструмент не связан с
+  Wube Software. Wube оставляет право ограничивать или банить злоупотребляющих
+  клиентов.
+
+license_enum:
+  - default_mit
+  - default_gnugplv3
+  - default_gnulgplv3
+  - default_mozilla2
+  - default_apache2
+  - default_unlicense
+  - custom_$ID
+chosen_license: default_mit
+
+category_enum:
+  - no-category
+  - content
+  - overhaul
+  - tweaks
+  - utilities
+  - scenarios
+  - mod-packs
+  - localizations
+  - internal
+
+features_enabled:
+  - api-publish
+  - api-upload-release
+  - api-edit-details
+features_disabled:
+  - api-add-image
+
+manuals:
+  - publish-new-mod
+  - release-mod
+  - setup-dev-environment
+behaviors:
+  - mod-zip-matches-portal-rules
+  - release-published-via-api
+conventions:
+  - licensing
+  - factorio-version-track

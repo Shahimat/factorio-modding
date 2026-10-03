@@ -1,0 +1,154 @@
+id: repo-toolchain
+kind: entity
+namespace: platform
+version: "1"
+title: Монорепозиторий и инструментальный контур
+summary: |
+  npm-workspaces монорепозиторий. Исходники модов — Lua (без транспиляции).
+  Инструменты сборки, валидации и публикации — TypeScript в strict-режиме,
+  запускаются через npm-скрипты корня.
+
+structure:
+  mods/: пакеты модов, один каталог на мод, он же npm-workspace
+  tools/: TypeScript-инструменты (валидация, упаковка, публикация)
+  specs/: входящие ТЗ автора, см. convention spec-intake
+  docs/: слои manual и домен
+  context/: слой агента
+
+language_split:
+  mod_sources: lua
+  tooling: typescript
+  rationale: |
+    Вся официальная документация, примеры и отладочный тулинг Factorio — на
+    Lua; транспиляция (TypeScriptToLua + typed-factorio) добавляет слой,
+    который ломается на обновлениях API. При этом npm всё равно нужен под
+    упаковку и публикацию, поэтому инструменты пишем на TypeScript.
+
+typescript_requirements:
+  strict: true
+  note: |
+    `strict: true` обязателен. Ослаблять отдельные флаги строгости в
+    `tsconfig.json` нельзя — вместо этого правится код инструмента.
+
+runtime:
+  node: ">=22.6.0"
+  typescript_execution: |
+    Node исполняет `.ts` напрямую через встроенное type stripping, отдельной
+    сборки нет. Поэтому в `tsconfig.json` включён `erasableSyntaxOnly`: enum,
+    namespace и parameter properties запрещены, иначе Node упадёт. `tsc`
+    используется только как `--noEmit` для проверки типов.
+  external_cli:
+    zip: нужен для сборки архива релиза; на macOS и типовых Linux есть из коробки
+    jq: нужен страховочному hook, см. manual setup-safety-hooks
+
+tools_implemented:
+  npm-scripts: typecheck, test, check-secrets, check-docs, validate, pack, check
+  tools/check-secrets.ts: |
+    Защита публичного репозитория от утечек, convention `secrets`.
+    Сканирует множество `git ls-files` + неигнорируемые untracked, то есть
+    ровно то, что попадёт в git. Образцы — в `tools/lib/secret-rules.ts`,
+    там же белый список публичных адресов Wube и правило, по которому
+    контрольные суммы не считаются секретами. Отдельно проверяет через
+    `git check-ignore`, что `.gitignore` действительно скрывает `.env*`,
+    `secrets/`, `*.key` и `player-data.json`, но не `.env.example`.
+  tools/check-docs.ts: |
+    Машинно проверяемая часть чек-листа из convention `consistency`:
+    двусторонние ссылки entity ↔ behavior, имя файла против `id`/`key`,
+    механика verified, полнота сценариев, ссылки на manuals и conventions,
+    покрытие `context/index.yml` в обе стороны, регистрация файлов `specs/`,
+    полнота блока `sync`, manifest'ы модулей, структура целей
+    (индекс против файлов, осиротевшие зависимости, циклы, приоритет против
+    зависимости, дубли задач, секции приоритетов, длина строк), размеры
+    namespace. Часть «проверяется только головой» из convention не
+    заменяет.
+  tools/lib/conventions.ts: |
+    Единственное место с числовыми и строковыми значениями конвенций —
+    префикс, лимиты длин, дорожки версий, длина разделителя changelog,
+    распознаваемые категории, исключения упаковки.
+  tools/lib/info-json.ts: |
+    Сверка info.json с ограничениями портала и convention `mod-naming`:
+    префикс `shm-`, длина `name`, допустимые символы, совпадение имени
+    каталога с `name`, формат `version` и `factorio_version`, префикс
+    `title`, значение `author`, разбор строк `dependencies`.
+  tools/lib/changelog.ts: |
+    Построчный разбор changelog.txt по требованиям парсера игры: ровно 99
+    дефисов в разделителе, непустая строка `Version: ` после него,
+    единственный `Date: ` в секции, отступы 2 / 4 / 6 пробелов, запрет табов
+    и trailing spaces, дубли версий и дубли строк записей внутри категории.
+  tools/lib/validate-mod.ts: |
+    Полная проверка пакета: info.json, changelog.txt, сверка верхней секции
+    changelog с `version`, наличие и размер `thumbnail.png`, наличие
+    `LICENSE`.
+  tools/validate.ts: отчёт по всем модам, код возврата 1 при ошибках
+  tools/pack.ts: |
+    Сборка `dist/{name}_{version}.zip` через staging-каталог: одна папка
+    верхнего уровня, `info.json` в её корне, исключение `node_modules`,
+    `.git`, `dist`, `.DS_Store` и вложенных `*.zip`. Отказывается собирать
+    пакет с ошибками валидации.
+
+tools_planned:
+  link-local: симлинк пакета мода в каталог модов локальной игры
+
+editor_tooling:
+  vscode_extensions:
+    justarandomgeek.factoriomod-debug: |
+      Factorio Modding Tool Kit (FMTK), MIT. Официального расширения от Wube
+      не существует; это де-факто стандарт экосистемы, опирающийся на
+      встроенный в игру LuaDebugAdapter.
+    tangzx.emmylua: |
+      Language server для Lua. FMTK отдаёт ему сгенерированные определения
+      API под установленную версию игры. В старых версиях FMTK интеграция
+      шла через sumneko.lua — перешли на EmmyLua.
+  rejected:
+    svizzini.factorio-lua-api-autocomplete: |
+      Не нужен при связке FMTK + EmmyLua: определения API генерирует FMTK.
+  overlap_with_own_tools: |
+    FMTK умеет Package, Upload и Details, то есть покрывает всё, что
+    планировалось в собственном инструменте `publish`, включая хранение
+    API-ключа в Keychain. Свой `publish` поэтому не пишем. Собственные
+    `validate` и `pack` остаются: FMTK не знает про приставку `shm-`,
+    префикс `title`, обязательный `LICENSE` и сверку верхней секции
+    changelog с версией релиза.
+  forbidden: |
+    Команда FMTK `Publish` — всё-в-одном: сама делает git commit, ставит тег
+    и пушит в upstream. Это нарушает правило проекта, что git-операции
+    выполняет владелец руками. Пользуемся только Package / Upload / Details;
+    если `Publish` всё же нужен — выставляются `package.no_git_tag` и
+    `package.no_git_push` в `info.json`. Подробности — manual
+    `setup-dev-environment`, раздел «Чего в FMTK делать нельзя».
+
+features_enabled:
+  - npm-workspaces
+  - strict-typescript-tooling
+  - native-node-ts-execution
+features_disabled:
+  - typescript-to-lua-transpile
+  - ci-publish-pipeline
+note_on_features: |
+  Проверка и упаковка модов описаны в `tools_implemented`, а их ожидаемое
+  поведение живёт в behaviors сущностей `mod-package` и `mod-portal` — здесь
+  не дублируется.
+
+dev_dependencies:
+  typescript: проверка типов через `tsc --noEmit`
+  "@types/node": типы встроенных модулей Node
+  yaml: |
+    Разбор YAML для `check-docs`; в Node парсера YAML нет. Только
+    devDependency, в zip мода не попадает.
+
+external_deps_considered:
+  typed-factorio: отклонён вместе с транспиляцией, см. language_split
+  create-typed-factorio: отклонён, последний релиз три года назад
+
+manuals:
+  - setup-dev-environment
+  - test-mod-locally
+  - setup-safety-hooks
+behaviors:
+  - toolchain-builds-under-strict-ts
+  - no-secrets-in-versioned-files
+  - tools-covered-by-unit-tests
+conventions:
+  - spec-intake
+  - secrets
+  - testing

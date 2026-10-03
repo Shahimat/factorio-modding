@@ -1,0 +1,94 @@
+# Карта репозитория. Читается один раз перед задачей, чтобы точечно выбрать
+# релевантные файлы вместо обхода каталогов. Обновляется в той же фазе, что
+# создаёт / удаляет / переименовывает сущность.
+
+namespaces:
+  platform:
+    entities:
+      - id: repo-toolchain
+        one_liner: монорепозиторий на npm-workspaces, Lua-исходники модов, инструменты на strict TypeScript
+    behaviors:
+      - id: toolchain-builds-under-strict-ts
+        one_liner: инструменты компилируются TypeScript в strict-режиме без ослаблений и подавлений
+      - id: no-secrets-in-versioned-files
+        one_liner: в версионируемые файлы не попадает ничего чувствительного, репозиторий публичный
+      - id: tools-covered-by-unit-tests
+        one_liner: логика инструментов покрыта юнит-тестами, npm test входит в npm run check
+    manuals:
+      - id: setup-dev-environment
+        one_liner: установка Factorio, каталог данных, API-ключи, Node, npm ci
+      - id: setup-safety-hooks
+        one_liner: hook, блокирующий запись проектных фактов в memory агента
+    conventions:
+      - key: spec-intake
+        one_liner: правила обращения с входящими ТЗ в specs/ и их раскладки по слоям
+      - key: testing
+        one_liner: каждый инструмент покрыт юнит-тестами на встроенном раннере Node
+
+  delivery:
+    entities:
+      - id: mod-portal
+        one_liner: мод-портал как внешняя система — аккаунт, API-ключи, эндпоинты, коды ошибок, enum лицензий и категорий
+    behaviors:
+      - id: mod-zip-matches-portal-rules
+        one_liner: имя и структура zip соответствуют требованиям портала к артефакту релиза
+      - id: changelog-parses-in-game
+        one_liner: changelog.txt парсится игрой без ошибок в логе
+      - id: release-published-via-api
+        one_liner: релиз уходит на портал двухшаговой загрузкой через публичный API
+    manuals:
+      - id: publish-new-mod
+        one_liner: первая публикация мода — init_publish, лицензия, категория, правовые рамки
+      - id: release-mod
+        one_liner: новый релиз существующего мода, формат changelog.txt, правка страницы мода
+    conventions:
+      - key: licensing
+        one_liner: MIT на своё + обязательная оговорка про ассеты Wube
+      - key: factorio-version-track
+        one_liner: две дорожки релизов 2.0 и 2.1, одна мажорная версия на релиз
+
+  mods:
+    entities:
+      - id: mod-package
+        one_liner: устройство пакета мода — состав файлов, поля info.json, зависимости, feature-флаги
+    behaviors:
+      - id: mod-name-carries-author-prefix
+        one_liner: каждый мод несёт приписку shm- и проходит ограничения портала на имя
+      - id: mod-loads-in-target-factorio
+        one_liner: мод грузится в целевой мажорной версии и не грузится в чужой
+    manuals:
+      - id: test-mod-locally
+        one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль
+      - id: migrate-mod-to-2-1
+        one_liner: перевод мода на дорожку Factorio 2.1
+    conventions:
+      - key: mod-naming
+        one_liner: префикс shm- в name, title, author и именах прототипов
+
+base_conventions:
+  - key: secrets
+    one_liner: жёсткое правило — ничего чувствительного в версионируемых файлах, репозиторий публичный
+  - key: consistency
+    one_liner: чек-лист внутренней непротиворечивости перед сохранением сущности
+  - key: openness
+    one_liner: проектные факты живут в репозитории, не в memory агента и не в hooks
+  - key: verification
+    one_liner: механика verified / verified_at / verified_note
+  - key: goals
+    one_liner: устройство, статусы и жизненный цикл целей и программ
+  - key: goal-consistency
+    one_liner: кросс-целевая проверка непротиворечивости
+
+specs:
+  - path: specs/03102026_spec_logistic_buildings.md
+    mod_key: logistic-buildings
+    mod_name: shm-logistic-buildings
+    one_liner: >-
+      ТЗ мода «Логистические здания»: логистический режим на любом здании,
+      производство по спросу, пакетный заказ и отгрузка дронами. 546 строк,
+      решения по дизайну уже приняты, причины приведены.
+    note: >-
+      Имя файла не следует шаблону `<mod-key>.md` — ТЗ пришло от владельца со
+      своим именем, поэтому `mod_key` объявлен здесь явно.
+
+modules: []

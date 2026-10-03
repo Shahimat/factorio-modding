@@ -1,0 +1,13 @@
+# Порядок записи = приоритет ЦЕЛИ. Приоритет задач ВНУТРИ цели = их порядок
+# в секции (blocker/high/medium/low). Статуса `done` нет: решённая цель
+# удаляется из структуры. Правила — convention `goals`.
+goals:
+  - key: toolchain
+    file: goal--toolchain.yaml
+    status: active
+    one_liner: npm-контур и инструменты на strict TypeScript — валидация, упаковка, симлинк, публикация.
+
+  - key: first-mod
+    file: goal--first-mod.yaml
+    status: active
+    one_liner: Мод «Логистические здания» по ТЗ владельца — ТЗ получено, разбор по слоям не начат.

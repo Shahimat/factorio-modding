@@ -1,0 +1,107 @@
+id: mod-package
+kind: entity
+namespace: mods
+version: "1"
+title: Пакет мода в монорепозитории
+summary: |
+  Один мод = один каталог `mods/shm-<mod-key>/`, он же npm-workspace-пакет, он
+  же содержимое zip-релиза. Имя каталога совпадает с полем `name` из
+  `info.json`.
+
+layout:
+  required:
+    - info.json
+  expected:
+    - changelog.txt
+    - thumbnail.png
+    - LICENSE
+    - README.md
+  optional_lua:
+    - settings.lua
+    - settings-updates.lua
+    - settings-final-fixes.lua
+    - data.lua
+    - data-updates.lua
+    - data-final-fixes.lua
+    - control.lua
+  optional_dirs:
+    - locale/<lang>/*.cfg
+    - graphics/
+    - sounds/
+    - migrations/
+    - scenarios/
+    - campaigns/
+    - tutorials/
+  note: |
+    Перечень распознаваемых игрой файлов и папок — по официальной спеке
+    mod-structure. Произвольные подпапки игра не читает сама, их подключает
+    Lua через `require`.
+
+info_json_fields:
+  mandatory:
+    name: shm-<mod-key>, латиница/цифры/дефис/подчёркивание, 4–49 символов
+    version: '"number.number.number", каждое число 0..65535'
+    title: '"Shahimat: <Название>", до 100 символов'
+    author: Shahimat
+  effectively_mandatory:
+    factorio_version: '"2.0" на основной дорожке, "2.1" на второй; ровно одна мажорная версия'
+  optional:
+    - contact
+    - homepage
+    - description
+    - dependencies
+  feature_flags:
+    - quality_required
+    - rail_bridges_required
+    - spoiling_required
+    - freezing_required
+    - segmented_units_required
+    - expansion_shaders_required
+    - space_travel_required
+  note: |
+    Поле `author` мод-портал игнорирует и показывает имя аккаунта
+    загрузившего. `factorio_version` с третьим числом портал отклоняет.
+    Feature-флаги требуют у игрока наличия Space Age.
+
+dependencies_syntax: |
+  Строка вида "<prefix> <mod-name> <operator> <version>". Префиксы:
+  `!` несовместимость (версия игнорируется), `?` опциональная зависимость,
+  `(?)` скрытая опциональная, `~` не влияет на порядок загрузки, без
+  префикса — жёсткое требование. По умолчанию, если поле не задано, это
+  `["base"]`; пустой массив отключает дефолт.
+
+prototype_namespacing: |
+  Имена прототипов, ключи локали и группы префиксуются `shm-` независимо от
+  имени мода — защита от коллизий с чужими модами.
+
+features_enabled:
+  - author-prefix-naming
+  - mit-license-with-wube-asset-notice
+  - dual-version-track
+features_disabled:
+  - typescript-to-lua-transpile
+  - custom-portal-license
+
+constraints:
+  mod_name_length: больше 3 и меньше 50 символов (ограничение портала)
+  title_length: до 100 символов, иначе игра отклонит
+  mod_name_immutable: после первой публикации на портале имя не меняется
+
+manuals:
+  - test-mod-locally
+  - publish-new-mod
+  - release-mod
+  - migrate-mod-to-2-1
+behaviors:
+  - mod-name-carries-author-prefix
+  - mod-loads-in-target-factorio
+  - mod-zip-matches-portal-rules
+  - changelog-parses-in-game
+conventions:
+  - mod-naming
+  - licensing
+  - factorio-version-track
+spec: unresolved
+spec_note: |
+  Файл ТЗ в `specs/` пока не положен. Как только появится — из него выводится
+  отдельная entity конкретного мода, см. convention `spec-intake`.
