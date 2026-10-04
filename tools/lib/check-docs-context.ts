@@ -267,6 +267,7 @@ export async function checkGoals(layers: LayerCheck): Promise<Problem[]> {
         isProgram,
         isSubgoal: program !== null,
         behaviorIds: layers.behaviorIds,
+        stage: asString(data['stage']),
       }),
     );
 

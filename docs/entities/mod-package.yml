@@ -121,7 +121,9 @@ conventions:
   - mod-naming
   - licensing
   - factorio-version-track
-spec: unresolved
+spec: none
 spec_note: |
-  Файл ТЗ в `specs/` пока не положен. Как только появится — из него выводится
-  отдельная entity конкретного мода, см. convention `spec-intake`.
+  Эта entity описывает устройство пакета вообще и из ТЗ не выводится. ТЗ
+  конкретного мода порождает свою entity: первое из них —
+  `logistic-buildings` по `specs/03102026_spec_logistic_buildings.md`, см.
+  convention `spec-intake`.

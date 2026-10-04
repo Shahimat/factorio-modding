@@ -51,11 +51,31 @@ namespaces:
     entities:
       - id: mod-package
         one_liner: устройство пакета мода — состав файлов, поля info.json, зависимости, feature-флаги
+      - id: logistic-buildings
+        one_liner: мод shm-logistic-buildings — логистический режим на любом здании, состав, настройки, типы зданий
     behaviors:
       - id: mod-name-carries-author-prefix
         one_liner: каждый мод несёт приписку shm- и проходит ограничения портала на имя
       - id: mod-loads-in-target-factorio
         one_liner: мод грузится в целевой мажорной версии и не грузится в чужой
+      - id: logistic-mode-available-on-any-building
+        one_liner: режим включается на любом подходящем здании, тип определяется по свойствам прототипа
+      - id: production-follows-network-demand
+        one_liner: здание производит, только пока запас сети меньше цели по его продукту
+      - id: batch-cycle-keeps-robots-loaded
+        one_liner: заказ и отгрузка идут партиями по будильнику, с проверкой фактического состояния
+      - id: consumables-delivered-by-request-proxy
+        one_liner: топливо, патроны и семена возят строительные дроны по призраку запроса
+      - id: hidden-chests-follow-building-lifecycle
+        one_liner: скрытые сундуки живут столько же, сколько здание, предметы не пропадают
+      - id: building-settings-survive-blueprint-and-copy
+        one_liner: настройки режима переживают чертёж и штатное копирование настроек
+      - id: logistic-panel-reports-building-state
+        one_liner: панель у штатного окна объясняет простой и даёт все настройки режима
+      - id: robot-capacity-override-is-name-agnostic
+        one_liner: вместимость дронов переопределяется по всем прототипам и технологиям, без имён
+      - id: mod-script-fits-tick-budget
+        one_liner: на 10 000 зданий в режиме скрипт мода укладывается в 1 мс на тик
     manuals:
       - id: test-mod-locally
         one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль
@@ -79,7 +99,9 @@ base_conventions:
   - key: goal-consistency
     one_liner: кросс-целевая проверка непротиворечивости
   - key: spec-program
-    one_liner: работа по спеке как программа — DoD, одна точка согласования на подцель, пруфы в .work/, цикл ревью
+    one_liner: работа по спеке как программа — итерации плана с горизонтом, DoD, пруфы в .work/, цикл ревью и верификация плана
+  - key: engine-facts
+    one_liner: долгосрочный слой знаний о движке (namespace engine) — факты с версией игры, переиспользуются следующими модами
 
 specs:
   - path: specs/03102026_spec_logistic_buildings.md
@@ -90,8 +112,21 @@ specs:
       производство по спросу, пакетный заказ и отгрузка дронами. 546 строк,
       решения по дизайну уже приняты, причины приведены.
     note: >-
-      Имя файла не следует шаблону `<mod-key>.md` — ТЗ пришло от владельца со
-      своим именем, поэтому `mod_key` объявлен здесь явно.
+      Имя входящего файла авторское и не меняется; сопоставление с модом
+      держится на `mod_key` — convention `spec-intake`. Разложено по слоям
+      2026-10-04: entity `logistic-buildings`, девять behaviors namespace
+      `mods`, программа `context/views/program--logistic-buildings.yaml`.
+
+plans:
+  - path: plans/logistic-buildings/iter-01.html
+    program: logistic-buildings
+    iteration: "01"
+    tag: PoC
+    status: approved
+    one_liner: >-
+      Итерация 01 программы «Логистические здания»: семь целей — прототип,
+      стенд для тестов внутри игры, четыре блока проверок механик и сеанс со
+      снятием фактов. Согласован 2026-10-04.
 
 # Скиллы агента. Процедуры, не правила: правда живёт в conventions, скилл
 # только ведёт по ней. Поля специально `name` / `path`, а не `id` / `key` —
@@ -99,9 +134,14 @@ specs:
 skills:
   - name: plan-spec
     path: .claude/skills/plan-spec/SKILL.md
-    one_liner: разложить ТЗ из specs/ по слоям и завести программу с подцелями и DoD
+    one_liner: разложить ТЗ по слоям, согласовать план программы с владельцем и только потом завести подцели с DoD
     conventions:
       - spec-intake
+      - spec-program
+  - name: verify-plan
+    path: .claude/skills/verify-plan/SKILL.md
+    one_liner: сверить заведённые цели с согласованным планом и записать вердикт в .work/plan-review/
+    conventions:
       - spec-program
   - name: review
     path: .claude/skills/review/SKILL.md

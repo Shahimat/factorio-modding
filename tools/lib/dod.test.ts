@@ -40,13 +40,45 @@ test('подцель без dod — ошибка, цель вне програм
   assert.deepEqual(checkDod({}, ctx({ isSubgoal: false })), []);
 });
 
-test('программа без dod — ошибка', () => {
-  const problems = checkDod({}, ctx({ isProgram: true, isSubgoal: false }));
+const program = (stage: string | null): DodContext =>
+  ctx({
+    file: 'context/views/program--x.yaml',
+    isProgram: true,
+    isSubgoal: false,
+    stage,
+  });
+
+test('программа на стадии review без dod — ошибка', () => {
+  const problems = checkDod({}, program('review'));
   assert.equal(countErrors(problems), 1);
-  assert.match(problems[0]?.message ?? '', /критерии приёмки обязательны/);
+  assert.match(problems[0]?.message ?? '', /критерии приёмки программы обязательны/);
+  assert.equal(countErrors(checkDod({ dod: [] }, program('done'))), 1);
 });
 
-test('dod должен быть непустым списком', () => {
+// Пока механика не проверена, приёмку мода писать не из чего: пустой dod на
+// ранних стадиях — норма, а не недоделка.
+test('программа на стадии created и wip живёт с пустым dod', () => {
+  assert.deepEqual(checkDod({}, program('created')), []);
+  assert.deepEqual(checkDod({ dod: [] }, program('wip')), []);
+  assert.deepEqual(checkDod({}, program('blocked')), []);
+});
+
+test('stage программы обязателен и ограничен набором', () => {
+  assert.equal(countErrors(checkDod({}, program(null))), 1);
+  assert.match(
+    checkDod({}, program('in-progress'))[0]?.message ?? '',
+    /"stage" программы/,
+  );
+});
+
+test('заполненный dod проверяется на любой стадии', () => {
+  assert.equal(
+    countErrors(checkDod({ dod: [{ ...UNIT_ITEM, kind: 'нет' }] }, program('wip'))),
+    1,
+  );
+});
+
+test('dod подцели должен быть непустым списком', () => {
   assert.equal(countErrors(checkDod({ dod: [] }, ctx())), 1);
   assert.equal(countErrors(checkDod({ dod: 'd1 — готово' }, ctx())), 1);
   assert.equal(countErrors(checkDod({ dod: ['строка'] }, ctx())), 2);
@@ -62,7 +94,7 @@ test('обязательные поля пункта проверяются по
 
 test('kind вне набора отбивается, отсутствие kind — тоже', () => {
   const bad = checkDod(
-    { dod: [{ ...UNIT_ITEM, kind: 'manual' }] },
+    { dod: [{ ...UNIT_ITEM, kind: 'eyeball' }] },
     ctx(),
   );
   assert.match(bad.map((p) => p.message).join('\n'), /вне набора/);
@@ -80,10 +112,7 @@ test('у подцели обязателен хотя бы один машинн
   assert.match(problems[0]?.message ?? '', /unit или check/);
 
   // Программа собирает критерии из спеки, в том числе целиком ручные.
-  assert.deepEqual(
-    checkDod({ dod: [PROOF_ITEM] }, ctx({ isProgram: true, isSubgoal: false })),
-    [],
-  );
+  assert.deepEqual(checkDod({ dod: [PROOF_ITEM] }, program('review')), []);
 
   // `check` закрывает требование наравне с `unit`.
   const withCheck = checkDod(
@@ -91,6 +120,24 @@ test('у подцели обязателен хотя бы один машинн
     ctx(),
   );
   assert.deepEqual(withCheck, []);
+});
+
+// `manual` — участие владельца; машинным пунктом он не считается, иначе цель
+// снова оказалась бы проверяемой только глазами.
+test('manual принимается как вид, но машинным пунктом не считается', () => {
+  const MANUAL = {
+    id: 'd2',
+    what: 'в игре видно, что сундук обслуживается дронами',
+    kind: 'manual',
+    how: 'запустить карту, поставить сундук, сообщить, прилетел ли дрон',
+  };
+  assert.deepEqual(
+    checkDod({ dod: [UNIT_ITEM, MANUAL] }, ctx()),
+    [],
+  );
+  const onlyManual = checkDod({ dod: [MANUAL] }, ctx());
+  assert.equal(countErrors(onlyManual), 1);
+  assert.match(onlyManual[0]?.message ?? '', /unit или check/);
 });
 
 test('id ограничен набором символов для имён файлов пруфов', () => {

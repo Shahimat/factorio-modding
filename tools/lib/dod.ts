@@ -11,8 +11,26 @@
 import { asRecord, asString, type YamlRecord } from './docs-model.ts';
 import { error, warning, type Problem } from './problems.ts';
 
-export const DOD_KINDS = ['unit', 'check', 'proof'] as const;
+export const DOD_KINDS = ['unit', 'check', 'manual', 'proof'] as const;
 export type DodKind = (typeof DOD_KINDS)[number];
+
+/** Стадии жизненного цикла программы, convention `goals`. */
+export const PROGRAM_STAGES = [
+  'created',
+  'wip',
+  'review',
+  'blocked',
+  'done',
+] as const;
+export type ProgramStage = (typeof PROGRAM_STAGES)[number];
+
+/**
+ * Стадии, на которых критерии приёмки программы обязаны быть заполнены. Пока
+ * конечный результат не понятен (`created`, `wip`), `dod` программы пуст
+ * сознательно: писать приёмку мода до того, как проверена механика, значит
+ * выдумывать её. `blocked` — та же `wip`, только остановленная.
+ */
+const STAGES_REQUIRING_DOD: readonly string[] = ['review', 'done'];
 
 /** Виды, которые проверяются без участия человека. */
 export const MACHINE_KINDS: readonly DodKind[] = ['unit', 'check'];
@@ -30,27 +48,54 @@ export interface DodContext {
   /** Подцель программы: в файле есть поле `program`. */
   readonly isSubgoal: boolean;
   readonly behaviorIds: readonly string[];
+  /** Значение поля `stage` у программы; у целей его нет. */
+  readonly stage?: string | null;
 }
 
 export function checkDod(data: YamlRecord, ctx: DodContext): Problem[] {
   const problems: Problem[] = [];
   const raw = data['dod'];
-  const required = ctx.isProgram || ctx.isSubgoal;
 
-  if (raw === undefined || raw === null) {
+  let required = ctx.isSubgoal;
+  if (ctx.isProgram) {
+    const stage = ctx.stage ?? null;
+    if (stage === null || !(PROGRAM_STAGES as readonly string[]).includes(stage)) {
+      problems.push(
+        error(
+          ctx.file,
+          `поле "stage" программы должно быть одним из ${PROGRAM_STAGES.join(' / ')}`,
+        ),
+      );
+    }
+    required = stage !== null && STAGES_REQUIRING_DOD.includes(stage);
+  }
+
+  const empty =
+    raw === undefined ||
+    raw === null ||
+    (Array.isArray(raw) && raw.length === 0);
+
+  if (empty) {
     if (required) {
       problems.push(
         error(
           ctx.file,
-          'нет блока "dod" — у программы и её подцелей критерии приёмки обязательны, см. convention spec-program',
+          `нет заполненного "dod" — на стадии "${ctx.stage}" критерии приёмки программы обязательны, см. convention spec-program`,
+        ),
+      );
+    } else if (ctx.isSubgoal) {
+      problems.push(
+        error(
+          ctx.file,
+          'нет блока "dod" — у подцели критерии приёмки обязательны, см. convention spec-program',
         ),
       );
     }
     return problems;
   }
 
-  if (!Array.isArray(raw) || raw.length === 0) {
-    problems.push(error(ctx.file, '"dod" должен быть непустым списком'));
+  if (!Array.isArray(raw)) {
+    problems.push(error(ctx.file, '"dod" должен быть списком'));
     return problems;
   }
 

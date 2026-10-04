@@ -7,7 +7,44 @@ goals:
     status: active
     one_liner: npm-контур и инструменты на strict TypeScript — валидация, упаковка, симлинк, публикация.
 
-  - key: first-mod
-    file: goal--first-mod.yaml
+  - key: logistic-buildings
+    kind: program
+    file: program--logistic-buildings.yaml
     status: active
-    one_liner: Мод «Логистические здания» по ТЗ владельца — ТЗ получено, разбор по слоям не начат.
+    stage: wip
+    one_liner: Мод «Логистические здания» по ТЗ владельца. Итерация 01 — PoC, план согласован 2026-10-04.
+    subgoals:
+      - key: lb-probe-frame
+        file: goal--lb-probe-frame.yaml
+        status: active
+        one_liner: Каркас прототипа в poc/ — команда запуска проверок и единый формат отчёта.
+
+      - key: lb-ingame-stand
+        file: goal--lb-ingame-stand.yaml
+        status: active
+        one_liner: Стенд для тестов внутри игры — выбранный фреймворк, запуск без графики.
+
+      - key: lb-storage-chest
+        file: goal--lb-storage-chest.yaml
+        status: planned
+        one_liner: Проверки хранилищ зданий и невидимого сундука рядом с манипулятором.
+
+      - key: lb-network-requests
+        file: goal--lb-network-requests.yaml
+        status: planned
+        one_liner: Проверки чтения чужих запросов сети и события смены запроса.
+
+      - key: lb-request-proxy
+        file: goal--lb-request-proxy.yaml
+        status: planned
+        one_liner: Проверки призраков запроса — доставка расходников строительными дронами.
+
+      - key: lb-tower-silo-gui
+        file: goal--lb-tower-silo-gui.yaml
+        status: planned
+        one_liner: Проверки сельскохозяйственной башни, ракетной шахты и привязки панели.
+
+      - key: lb-session-facts
+        file: goal--lb-session-facts.yaml
+        status: planned
+        one_liner: Сеанс в игре, оценка панели и предупреждений глазами, запись фактов в namespace engine.

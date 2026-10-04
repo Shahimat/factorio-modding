@@ -1,0 +1,32 @@
+key: logistic-buildings
+kind: program
+title: Мод «Логистические здания» по ТЗ владельца
+status: active
+stage: wip
+spec: specs/03102026_spec_logistic_buildings.md
+mod_key: logistic-buildings
+mod_name: shm-logistic-buildings
+plan: plans/logistic-buildings/iter-01.html
+why: |
+  Ради этого репозиторий и заведён: у владельца есть ТЗ на мод, который даёт
+  любому зданию логистический режим — база без манипуляторов, где всё возит
+  дроны по запросам.
+description: |
+  Устройство мода — entity `logistic-buildings`, ожидаемое поведение — девять
+  behaviors namespace `mods`. Здесь только работа.
+
+  Итерация 01 — PoC: проверяем в игре механики, на которых стоит дизайн, и
+  записываем выясненное в namespace `engine`. Состав целей согласован
+  2026-10-04, план — `plans/logistic-buildings/iter-01.html`.
+
+  `dod` программы пуст сознательно: стадия `wip`, критерии приёмки мода
+  формулируются к стадии `review`, когда понятно, что получилось. Правило —
+  conventions `goals` и `spec-program`.
+tasks:
+  blocker: []
+  high: []
+  medium:
+    - 'по итогам итерации 01 собрать план iter-02 и согласовать с владельцем → spec-program, раздел «План программы» → фаза docs → после закрытия всех целей итерации'
+  low: []
+depends_on:
+  - toolchain

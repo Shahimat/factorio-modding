@@ -13,7 +13,8 @@ structure:
   tools/: TypeScript-инструменты (валидация, упаковка, публикация)
   tools/lua/: харнесс и заглушки для Lua-тестов модов — единственный Lua в tools/
   specs/: входящие ТЗ автора, см. convention spec-intake
-  poc/: моды-щупы для проверки допущений спеки, вне mods/, см. convention spec-program
+  plans/: согласованные планы итераций в HTML, см. convention spec-program
+  poc/: моды-прототипы для проверки допущений спеки, вне mods/, см. convention spec-program
   docs/: слои manual и домен
   context/: слой агента
   .work/: пруфы и раунды ревью, вне git, см. convention spec-program
@@ -133,7 +134,7 @@ tools_implemented:
   tools/check-lua.ts: |
     Линт диалекта по явному скоупу: имя (ищется в `mods/` и `poc/`, с
     приставкой `shm-` и без), путь к любому каталогу либо `--all`. Нужен
-    прежде всего для щупов в `poc/`, куда `validate` не ходит. В
+    прежде всего для прототипов в `poc/`, куда `validate` не ходит. В
     `npm run check` не входит: скоуп задаётся осознанно.
   tools/validate.ts: |
     Отчёт по всем модам либо по перечисленным в аргументах, код возврата 1
