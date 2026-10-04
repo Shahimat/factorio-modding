@@ -128,25 +128,26 @@ plans:
       стенд для тестов внутри игры, четыре блока проверок механик и сеанс со
       снятием фактов. Согласован 2026-10-04.
 
-# Скиллы агента. Процедуры, не правила: правда живёт в conventions, скилл
-# только ведёт по ней. Поля специально `name` / `path`, а не `id` / `key` —
-# иначе `check-docs` будет искать для них файлы слоёв.
+# Скиллы агента — процедуры, а не правила. Процедура целиком в `SKILL.md`:
+# слой conventions описывает проект, а не поведение агента, и своего
+# convention у скилла не бывает. По каким правилам ходит скилл — записано
+# внутри него, карта этого не дублирует. Поля специально `name` / `path`, а не
+# `id` / `key` — иначе `check-docs` будет искать для них файлы слоёв.
 skills:
   - name: plan-spec
     path: .claude/skills/plan-spec/SKILL.md
     one_liner: разложить ТЗ по слоям, согласовать план программы с владельцем и только потом завести подцели с DoD
-    conventions:
-      - spec-intake
-      - spec-program
   - name: verify-plan
     path: .claude/skills/verify-plan/SKILL.md
     one_liner: сверить заведённые цели с согласованным планом и записать вердикт в .work/plan-review/
-    conventions:
-      - spec-program
   - name: review
     path: .claude/skills/review/SKILL.md
     one_liner: проверить застейженную подцель против её DoD и записать раунд в .work/review/
-    conventions:
-      - spec-program
+  - name: closeout
+    path: .claude/skills/closeout/SKILL.md
+    one_liner: закрыть сессию без потери знания — вынос устойчивого в слои, остаток в context/main.md, зелёный check-secrets как условие завершения
+  - name: startup
+    path: .claude/skills/startup/SKILL.md
+    one_liner: открыть сессию — разбор main.md по приоритету, быстрый локальный чек и сводка по состоянию проекта
 
 modules: []

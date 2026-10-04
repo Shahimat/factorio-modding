@@ -13,6 +13,7 @@
     "mods/*"
   ],
   "scripts": {
+    "session": "claude \"/startup\"",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tools/**/*.test.ts\"",
     "test:mod": "node tools/lua-test.ts",

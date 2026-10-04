@@ -29,6 +29,7 @@
 - настроить страховочный hook —
   [setup-safety-hooks.md](docs/manuals/setup-safety-hooks.md)
 - понять, почему принято то или иное решение — [CHANGELOG.md](CHANGELOG.md)
+- начать сессию агента со сводкой по состоянию проекта — `npm run session`
 
 ## Структура
 
@@ -37,6 +38,7 @@ docs/manuals/    пошаговые ручные процедуры — для �
 docs/entities/   спецификация: что за штука, из чего состоит
 docs/behavior/   ожидаемое поведение в BDD-форме с полем verified
 context/         слой для AI-агента: conventions, workflow, project.yml, цели
+context/main.md  рабочий контекст между сессиями: нерешённое и отложенное
 specs/           входящие ТЗ автора, по файлу на мод
 plans/           согласованные планы итераций, по HTML на итерацию
 mods/            пакеты модов, npm-workspaces
