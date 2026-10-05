@@ -13,13 +13,18 @@ rule: |
   - `verified_note` пуст — причина статуса всегда записывается;
   - сценарий behavior без полного набора `given` / `when` / `then`;
   - имя файла и `id` внутри YAML не совпадают (для conventions — `key`);
+  - один и тот же `id` занят двумя файлами entities или двумя behaviors;
+  - у convention пусто или отсутствует поле `rule`;
   - entity / behavior ссылается на несуществующий manual или convention;
   - сущность, manual или convention не отражена в `context/index.yml`;
   - в `context/index.yml` есть запись о файле, которого нет;
-  - `features_enabled` в entity не отражён ни в одной связанной behavior;
+  - `features_enabled` в entity не отражён ни в одной связанной behavior; не
+    блок, но поднимается в отчёте;
+  - у entity или behavior нет поля `namespace`;
   - в одном namespace больше 7 entities или больше 12 behaviors — сигнал к
     дроблению; не блок, но поднимается в отчёте;
   - индекс целей `goals.yaml` расходится с набором файлов `goal--*.yaml`;
+  - поле `status` цели вне набора `active` / `planned` / `paused`;
   - `depends_on` ссылается на несуществующую цель (осиротевшая зависимость);
   - `depends_on` образует цикл;
   - цель A зависит от B, но B стоит в `goals.yaml` ниже A;
@@ -28,9 +33,13 @@ rule: |
     (`blocker` / `high` / `medium` / `low`) либо задача лежит вне них;
   - подцель ссылается полем `program` на несуществующую программу, либо файл
     программы сам объявляет `program`;
-  - у программы или её подцели нет блока `dod`;
+  - поле `stage` программы вне набора `created` / `wip` / `blocked` /
+    `review` / `done`;
+  - у подцели нет блока `dod`; у программы он обязателен и непуст только на
+    стадиях `review` и `done` — на `created`, `wip` и `blocked` пустой `dod`
+    программы норма, см. convention `spec-program`;
   - пункт `dod` без `id` / `what` / `kind` / `how`, с `kind` вне набора
-    `unit` / `check` / `proof`, с повторным `id` или со ссылкой на
+    `unit` / `check` / `manual` / `proof`, с повторным `id` или со ссылкой на
     несуществующий behavior;
   - у подцели нет ни одного пункта `dod` вида `unit` или `check` — цель,
     проверяемая только глазами владельца, не заводится;
@@ -39,7 +48,8 @@ rule: |
   - строка задачи длиннее ~200 символов — сигнал перерастания; не блок, но
     требует пересборки в ближайшую фазу `docs`;
   - файл в `specs/` не зарегистрирован в `context/index.yml`;
-  - в `context/project.yml` неполон блок `sync`;
+  - в `context/project.yml` неполон блок `sync` либо пуст или отсутствует
+    блок `namespaces`;
   - файл, привнесённый модулем, существует, но не отражён в `provides` его
     `context/modules/<key>.yml`;
   - `context/modules/<key>.yml` существует, но файлы из `provides` удалены.
