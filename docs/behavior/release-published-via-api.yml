@@ -36,7 +36,10 @@ scenarios:
 verified: false
 verified_at: null
 verified_note: >-
-  API-ключ не выпущен, опубликованных модов 0 (проверено по
-  `/api/mods?page_size=max` 2026-10-03: автора `shahimat` среди владельцев
-  модов нет). Проверяемо только фактической публикацией по manual
-  `publish-new-mod`.
+  Сценарий 1 подтверждён 2026-10-23 публикацией K2-fuels-fork 1.0.0 по manual
+  `publish-new-mod` (curl): `init_publish` отдал `upload_url`, загрузка с
+  `license`, `category`, `source_url` и `description` вернула
+  `success: true`, `/api/mods/K2-fuels-fork/full` показывает релиз с тем же
+  SHA-1, что у локального zip. Ключ читался из `.env.local` и в вывод не
+  попал. Остальные сценарии (`init_upload`, ошибки, backoff,
+  `edit_details`) ещё не проверялись — поэтому `verified` остаётся `false`.
