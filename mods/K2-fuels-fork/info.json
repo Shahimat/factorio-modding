@@ -1,0 +1,9 @@
+{
+  "name": "K2-fuels-fork",
+  "version": "1.0.0",
+  "title": "Krastorio 2 Universal Vehicle Fuels fork",
+  "author": "Shahimat",
+  "factorio_version": "2.1",
+  "description": "Krastorio 2 vehicles run on regular chemical fuel again, and K2 fuel, biofuel and advanced fuel burn in anything that accepts chemical fuel. A from-scratch fork of K2-fuels by UPD-8. K2 Spaced Out compatible.",
+  "dependencies": ["base >= 2.1.0", "? Krastorio2 >= 2.1.0", "? Krastorio2-spaced-out"]
+}

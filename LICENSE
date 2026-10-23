@@ -42,25 +42,3 @@ Under the Factorio Terms of Service (https://factorio.com/terms-of-service):
 
 Factorio is a trademark of Wube Software Ltd. This repository is not
 affiliated with, endorsed by, or sanctioned by Wube Software Ltd.
-
----
-
-## Оговорка про ассеты Factorio (перевод)
-
-Лицензия MIT выше распространяется только на то, что принадлежит автору этого
-репозитория: Lua-исходники модов, инструменты на TypeScript, а также графику,
-звуки и файлы локалей, созданные автором.
-
-Она **не** распространяется на ассеты Factorio и на производные от них. По
-Terms of Service Factorio:
-
-- производные от ассетов Factorio разрешено включать и распространять в
-  составе мода, но все права на них остаются у Wube Software Ltd., и Wube
-  вправе потребовать их удаления;
-- распространение оригинальных ассетов Factorio вне необходимости для
-  создания собственных модов запрещено;
-- любое коммерческое использование исходников и ассетов Factorio — только по
-  отдельному согласию Wube Software Ltd.
-
-Factorio — торговая марка Wube Software Ltd. Этот репозиторий не связан с
-Wube Software Ltd. и не одобрен ею.

@@ -60,6 +60,34 @@ test('name без приставки проекта — находка', () => {
   );
 });
 
+test('форк без shm- с суффиксами в name и title проходит', () => {
+  const fork = 'Original-mod-fork';
+  const { problems } = check(
+    infoJson({ name: fork, title: 'Original Mod fork' }),
+    fork,
+  );
+  assert.deepEqual(problems, []);
+});
+
+test('title форка без суффикса fork — находка', () => {
+  const fork = 'Original-mod-fork';
+  assert.ok(
+    messages(infoJson({ name: fork, title: 'Original Mod' }), fork).some((m) =>
+      m.includes('заканчиваться на " fork"'),
+    ),
+  );
+});
+
+test('title форка с ником — находка', () => {
+  const fork = 'Original-mod-fork';
+  assert.ok(
+    messages(
+      infoJson({ name: fork, title: `${MOD_TITLE_PREFIX}Original Mod fork` }),
+      fork,
+    ).some((m) => m.includes('не несёт ника')),
+  );
+});
+
 test('недопустимый символ в name — находка', () => {
   const bad = `${MOD_NAME_PREFIX}a+b`;
   assert.ok(

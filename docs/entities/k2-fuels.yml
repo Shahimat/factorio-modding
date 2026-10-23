@@ -1,0 +1,93 @@
+id: k2-fuels
+kind: entity
+namespace: mods
+version: "1"
+title: Мод «Универсальное топливо K2» — K2-fuels-fork
+spec: none
+spec_note: |
+  Заведён без ТЗ в `specs/` — разовое отклонение по решению владельца
+  2026-10-23, записано в `CHANGELOG.md`. Источник требований — функции
+  оригинального мода, перечисленные в `origin`.
+summary: |
+  Форк мода K2-fuels, написанный с нуля под Factorio 2.1. Krastorio 2 вводит
+  отдельную категорию топлива `kr-vehicle-fuel`: в неё входят топливо,
+  биотопливо и продвинутое топливо K2, и только её принимают машина, танк,
+  продвинутый танк K2 и транспорт AAI. Мод сливает эту категорию с ванильной
+  `chemical`: транспорт снова ездит на угле, твёрдом и ракетном топливе, а
+  топливо K2 горит в любой топке, принимающей химическое топливо, — включая
+  здания чужих модов.
+
+origin:
+  mod: K2-fuels
+  title: Krastorio 2 Universal Vehicle Fuels
+  author: UPD-8
+  version: 1.0.0
+  factorio_version: "2.0"
+  license: The Unlicense (public domain), enum портала `default_unlicense`
+  note: |
+    Общественное достояние: форк, переписывание и публикация под MIT
+    разрешены без условий. Код оригинала не копировался — поведение
+    воспроизведено по его описанию на портале и по исходникам Krastorio2
+    2.1.5. Атрибуция в README мода — жест вежливости, не требование
+    лицензии.
+
+package:
+  name: K2-fuels-fork
+  dir: mods/K2-fuels-fork/
+  title: "Krastorio 2 Universal Vehicle Fuels fork"
+  naming: форк — без ника, по convention `mod-naming`, раздел «Форки чужих модов»
+  factorio_version: '"2.1"'
+  dependencies:
+    - base >= 2.1.0
+    - "? Krastorio2 >= 2.1.0"
+    - "? Krastorio2-spaced-out"
+  dependencies_note: |
+    Krastorio2 и K2 Spaced Out — опциональные зависимости ради порядка
+    загрузки: мод должен отработать после них. Без K2 категории
+    `kr-vehicle-fuel` нет, и мод ничего не меняет — так же, как оригинал.
+  feature_flags: Ни одного.
+  locale: Не нужна — мод не вводит ни прототипов, ни настроек.
+  portal_name: |
+    Имя свободно: `GET mods.factorio.com/api/mods/K2-fuels-fork` отдал
+    `404 Mod not found` (curl, анонимно, 2026-10-23). Перед первой
+    публикацией проверка повторяется — manual `publish-new-mod`.
+
+mechanics:
+  stage: data-final-fixes — после всех правок K2, K2SO и модов совместимости
+  source_category: kr-vehicle-fuel
+  target_category: chemical
+  rule: |
+    Обход всего `data.raw` без имён прототипов. Список `fuel_categories`
+    правится в двух местах:
+
+    - у предмета (поле верхнего уровня, рядом с `fuel_value`);
+    - у любого поля прототипа, которое является burner-источником энергии
+      (`type = "burner"`): `energy_source` у машин, печей и локомотивов,
+      `burner` у генераторов и эквипмента.
+
+    В списке `kr-vehicle-fuel` заменяется на `chemical` на том же месте; если
+    `chemical` там уже был, дубль не появляется. Список, где
+    `kr-vehicle-fuel` нет, не трогается. Сам прототип категории
+    `kr-vehicle-fuel` не удаляется: моды, грузящиеся позже, могут на него
+    ссылаться, а осиротевшая категория безвредна.
+  logic_module: logic/fuel-merge.lua — чистая функция над таблицей вида `data.raw`
+
+compatibility: |
+  Под правило попадает всё, что знает о `kr-vehicle-fuel`, без кода под
+  конкретный мод: ванильные машина и танк, продвинутый танк K2, транспорт
+  AAI Vehicles, генераторы-эквипменты K2, локомотивы Angel's. Множители
+  ускорения и скорости у топлива K2 сохраняются — продвинутое топливо
+  по-прежнему разгоняет транспорт сильнее.
+
+manuals:
+  - test-mod-locally
+  - publish-new-mod
+  - release-mod
+behaviors:
+  - k2-fuels-burn-as-chemical
+  - vehicles-run-on-chemical-fuel
+  - mod-loads-in-target-factorio
+conventions:
+  - mod-naming
+  - licensing
+  - factorio-version-track

@@ -1,17 +1,17 @@
 id: mod-loads-in-target-factorio
 kind: behavior
 namespace: mods
-entities: [mod-package]
+entities: [mod-package, k2-fuels]
 title: Мод загружается в целевой мажорной версии игры и не загружается в чужой
 scenarios:
-  - given: 'мод с `factorio_version: "2.0"` лежит в каталоге модов'
-    when: запускается Factorio 2.0.x
-    then: мод виден в списке модов, включается и игра стартует без ошибок загрузки
-  - given: 'тот же мод с `factorio_version: "2.0"`'
+  - given: 'мод с `factorio_version: "2.1"` лежит в каталоге модов'
     when: запускается Factorio 2.1.x
+    then: мод виден в списке модов, включается и игра стартует без ошибок загрузки
+  - given: 'тот же мод с `factorio_version: "2.1"`'
+    when: запускается Factorio 2.0.x
     then: >-
       игра не принимает мод как совместимый — это ожидаемо, а не баг:
-      поддержка 2.1 выпускается отдельным релизом дорожки 2.1
+      дорожка 2.0 заморожена, игроки на 2.0 получают последний 2.0-релиз
   - given: мод использует возможности Space Age
     when: проверяется `info.json`
     then: >-
@@ -26,7 +26,8 @@ scenarios:
 verified: false
 verified_at: null
 verified_note: >-
-  Factorio установлена на Mac 2026-10-04 (Steam, `2.0.77`, `mac-arm64`),
-  каталог данных и `mods/` на месте. Проверять нечего: ни одного своего мода
-  ещё нет. Как появится первый пакет — ручной прогон по manual
-  `test-mod-locally`, включая шаг 4 с `--check-unused-prototype-data`.
+  Сценарий 1 подтверждён 2026-10-23 на первом своём моде: K2-fuels-fork (тогда
+  `shm-k2-fuels`) с `factorio_version: "2.1"` загрузился в Factorio 2.1.23
+  (Steam, `mac-arm64`) без ошибок, по логу игры. Не проверены: отказ мода 2.1
+  в игре 2.0 (игра 2.0 на машине больше не стоит) и прогон с
+  `--check-unused-prototype-data` по manual `test-mod-locally`, шаг 4.

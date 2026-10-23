@@ -45,7 +45,7 @@ namespaces:
       - key: licensing
         one_liner: MIT на своё + обязательная оговорка про ассеты Wube
       - key: factorio-version-track
-        one_liner: две дорожки релизов 2.0 и 2.1, одна мажорная версия на релиз
+        one_liner: релизы идут в дорожку 2.1, дорожка 2.0 заморожена, одна мажорная версия на релиз
 
   mods:
     entities:
@@ -53,9 +53,11 @@ namespaces:
         one_liner: устройство пакета мода — состав файлов, поля info.json, зависимости, feature-флаги
       - id: logistic-buildings
         one_liner: мод shm-logistic-buildings — логистический режим на любом здании, состав, настройки, типы зданий
+      - id: k2-fuels
+        one_liner: мод K2-fuels-fork — форк K2-fuels, топливо K2 сливается с химическим, транспорт ездит на ванильном
     behaviors:
       - id: mod-name-carries-author-prefix
-        one_liner: каждый мод несёт приписку shm- и проходит ограничения портала на имя
+        one_liner: каждый мод несёт приписку shm-, форк — суффикс -fork, и проходит ограничения портала на имя
       - id: mod-loads-in-target-factorio
         one_liner: мод грузится в целевой мажорной версии и не грузится в чужой
       - id: logistic-mode-available-on-any-building
@@ -76,6 +78,10 @@ namespaces:
         one_liner: вместимость дронов переопределяется по всем прототипам и технологиям, без имён
       - id: mod-script-fits-tick-budget
         one_liner: на 10 000 зданий в режиме скрипт мода укладывается в 1 мс на тик
+      - id: k2-fuels-burn-as-chemical
+        one_liner: топливо K2 горит везде, где принимается химическое, без дублей категорий
+      - id: vehicles-run-on-chemical-fuel
+        one_liner: транспорт K2 и чужих модов снова ездит на ванильном топливе
     manuals:
       - id: test-mod-locally
         one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль
@@ -83,7 +89,7 @@ namespaces:
         one_liner: перевод мода на дорожку Factorio 2.1
     conventions:
       - key: mod-naming
-        one_liner: префикс shm- в name, title, author и именах прототипов
+        one_liner: префикс shm- в name, title, author и именах прототипов, у форков — суффикс -fork вместо ника
 
 base_conventions:
   - key: secrets

@@ -1,0 +1,24 @@
+id: vehicles-run-on-chemical-fuel
+kind: behavior
+namespace: mods
+entities: [k2-fuels]
+title: Транспорт K2 снова ездит на ванильном топливе
+scenarios:
+  - given: включены Krastorio2 и K2-fuels-fork
+    when: в топку машины или танка кладут уголь, твёрдое или ракетное топливо
+    then: топливо принимается, транспорт едет
+  - given: транспорт другого мода, которому K2 выставил только `kr-vehicle-fuel` (продвинутый танк K2, AAI Vehicles)
+    when: мод отработал
+    then: транспорт принимает химическое топливо, без кода под конкретный мод
+  - given: включены Krastorio2, K2 Spaced Out, Space Age и K2-fuels-fork
+    when: игра загружается
+    then: загрузка без ошибок, транспорт принимает и ванильное топливо, и топливо K2
+verified: true
+verified_at: 2026-10-23
+verified_note: >-
+  В игре: Factorio 2.1.23, Krastorio2 2.1.4, K2 Spaced Out 2.0.19, Space Age —
+  загрузка без ошибок, владелец заправил машину и танк ванильным топливом,
+  транспорт едет. Транспорт чужих модов (AAI) в игре не проверялся: закрыт
+  Lua-тестом на burner-источник с `kr-vehicle-fuel` у произвольного
+  прототипа (`npm test -w K2-fuels-fork`). Прогон был под именем
+  `shm-k2-fuels`; переименование в `K2-fuels-fork` логику не меняло.

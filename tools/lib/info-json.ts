@@ -4,6 +4,8 @@ import { basename, dirname, join, relative } from 'node:path';
 import {
   FACTORIO_VERSION_TRACKS,
   MOD_AUTHOR,
+  MOD_FORK_NAME_SUFFIX,
+  MOD_FORK_TITLE_SUFFIX,
   MOD_NAME_MAX_LENGTH_EXCLUSIVE,
   MOD_NAME_MIN_LENGTH_EXCLUSIVE,
   MOD_NAME_PATTERN,
@@ -135,8 +137,9 @@ export function checkInfoJsonText(
   }
 
   const name = strings.get('name');
+  const isFork = name !== undefined && name.endsWith(MOD_FORK_NAME_SUFFIX);
   if (name !== undefined) {
-    if (!name.startsWith(MOD_NAME_PREFIX)) {
+    if (!isFork && !name.startsWith(MOD_NAME_PREFIX)) {
       problems.push(
         error(file, `"name" должен начинаться с "${MOD_NAME_PREFIX}"`),
       );
@@ -180,7 +183,18 @@ export function checkInfoJsonText(
 
   const title = strings.get('title');
   if (title !== undefined) {
-    if (!title.startsWith(MOD_TITLE_PREFIX)) {
+    if (isFork) {
+      if (!title.endsWith(MOD_FORK_TITLE_SUFFIX)) {
+        problems.push(
+          error(file, `"title" форка должен заканчиваться на "${MOD_FORK_TITLE_SUFFIX}"`),
+        );
+      }
+      if (title.startsWith(MOD_TITLE_PREFIX)) {
+        problems.push(
+          error(file, `"title" форка не несёт ника "${MOD_TITLE_PREFIX}"`),
+        );
+      }
+    } else if (!title.startsWith(MOD_TITLE_PREFIX)) {
       problems.push(
         error(file, `"title" должен начинаться с "${MOD_TITLE_PREFIX}"`),
       );

@@ -1,0 +1,8 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026-10-23
+  Features:
+    - Vehicles that Krastorio 2 restricts to vehicle fuel accept regular chemical fuel again.
+    - K2 fuel, biofuel and advanced fuel become chemical fuel and burn in any chemical burner.
+  Compatibility:
+    - Factorio 2.1, Krastorio 2, K2 Spaced Out and any mod that uses the K2 vehicle fuel category.

@@ -18,8 +18,8 @@ package:
   dir: mods/shm-logistic-buildings/
   title: "Shahimat: Logistic Buildings"
   factorio_version: |
-    "2.0" на основной дорожке; релиз под 2.1 выпускается из той же кодовой
-    базы вторым потоком — convention `factorio-version-track`.
+    "2.1" — дорожка новых релизов; дорожка 2.0 заморожена, convention
+    `factorio-version-track`.
   dependencies:
     - base
   feature_flags: |

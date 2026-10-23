@@ -55,8 +55,8 @@ Steam (`2.0.77`, `mac-arm64`, нативная сборка), каталог д�
    curl -fsSL https://factorio.com/api/latest-releases
    ```
 
-   На 2026-10-03: stable `2.0.77`, experimental `2.1.20`. Основная дорожка
-   проекта — `2.0`, см. `context/conventions/factorio-version-track.yml`.
+   На 2026-10-23: stable и experimental `2.1.23`. Дорожка новых релизов
+   проекта — `2.1`, см. `context/conventions/factorio-version-track.yml`.
 
 5. Войди в аккаунт factorio.com. Имя аккаунта — `Shahimat`, именно оно будет
    показано автором на мод-портале (поле `author` из `info.json` портал

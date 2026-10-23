@@ -10,6 +10,16 @@ export const MOD_NAME_PREFIX = 'shm-';
 /** Префикс человекочитаемого заголовка, convention `mod-naming`. */
 export const MOD_TITLE_PREFIX = 'Shahimat: ';
 
+/**
+ * Признак форка чужого мода в конце `name`, convention `mod-naming`, раздел
+ * «Форки чужих модов». Форк не несёт ника: вместо приставки `shm-` и
+ * префикса `title` — суффиксы.
+ */
+export const MOD_FORK_NAME_SUFFIX = '-fork';
+
+/** Суффикс `title` форка: `<исходный title> fork`. */
+export const MOD_FORK_TITLE_SUFFIX = ' fork';
+
 /** Значение поля `author` в info.json, convention `mod-naming`. */
 export const MOD_AUTHOR = 'Shahimat';
 
@@ -28,10 +38,12 @@ export const MOD_TITLE_MAX_LENGTH = 100;
 export const VERSION_PART_MAX = 65535;
 
 /**
- * Дорожки релизов, convention `factorio-version-track`. Основная — первая.
- * `factorio_version` указывает ровно одну мажорную версию, из двух чисел.
+ * Известные версии игры, convention `factorio-version-track`. Первая —
+ * дорожка новых релизов, остальные заморожены, но для `validate` остаются
+ * допустимыми. `factorio_version` указывает ровно одну мажорную версию, из
+ * двух чисел.
  */
-export const FACTORIO_VERSION_TRACKS = ['2.0', '2.1'] as const;
+export const FACTORIO_VERSION_TRACKS = ['2.1', '2.0'] as const;
 
 /** Разделитель секции в changelog.txt — ровно столько дефисов. */
 export const CHANGELOG_SEPARATOR_LENGTH = 99;

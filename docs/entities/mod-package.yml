@@ -4,7 +4,7 @@ namespace: mods
 version: "1"
 title: Пакет мода в монорепозитории
 summary: |
-  Один мод = один каталог `mods/shm-<mod-key>/`, он же npm-workspace-пакет, он
+  Один мод = один каталог `mods/shm-<mod-key>/` (у форка — `mods/<name>/`), он же npm-workspace-пакет, он
   же содержимое zip-релиза. Имя каталога совпадает с полем `name` из
   `info.json`.
 
@@ -59,12 +59,12 @@ test_script: |
 
 info_json_fields:
   mandatory:
-    name: shm-<mod-key>, латиница/цифры/дефис/подчёркивание, 4–49 символов
+    name: shm-<mod-key>, у форка <исходное name>-fork; латиница/цифры/дефис/подчёркивание, 4–49 символов
     version: '"number.number.number", каждое число 0..65535'
-    title: '"Shahimat: <Название>", до 100 символов'
+    title: '"Shahimat: <Название>", у форка "<исходный title> fork"; до 100 символов'
     author: Shahimat
   effectively_mandatory:
-    factorio_version: '"2.0" на основной дорожке, "2.1" на второй; ровно одна мажорная версия'
+    factorio_version: '"2.1" для новых релизов, дорожка "2.0" заморожена; ровно одна мажорная версия'
   optional:
     - contact
     - homepage
@@ -92,12 +92,13 @@ dependencies_syntax: |
 
 prototype_namespacing: |
   Имена прототипов, ключи локали и группы префиксуются `shm-` независимо от
-  имени мода — защита от коллизий с чужими модами.
+  имени мода — защита от коллизий с чужими модами. У форка префикс — его
+  `name`, convention `mod-naming`, раздел «Форки чужих модов».
 
 features_enabled:
   - author-prefix-naming
   - mit-license-with-wube-asset-notice
-  - dual-version-track
+  - single-version-track
 features_disabled:
   - typescript-to-lua-transpile
   - custom-portal-license

@@ -1,0 +1,27 @@
+id: k2-fuels-burn-as-chemical
+kind: behavior
+namespace: mods
+entities: [k2-fuels]
+title: Топливо K2 горит везде, где принимается химическое топливо
+scenarios:
+  - given: включены Krastorio2 и K2-fuels-fork
+    when: игрок открывает подсказку предмета `kr-fuel`, `kr-biofuel` или `kr-advanced-fuel`
+    then: категория топлива — химическая, теплотворность и множители ускорения и скорости — как у K2
+  - given: здание чужого мода с топкой, принимающей только `chemical`
+    when: в топку кладут топливо K2
+    then: топливо принимается и горит
+  - given: топка, принимавшая и `chemical`, и `kr-vehicle-fuel` (локомотив, печь, бойлер)
+    when: мод отработал
+    then: в её списке категорий одна `chemical`, без дублей
+  - given: включён K2-fuels-fork, Krastorio2 не установлен
+    when: игра загружается
+    then: ни один прототип не изменяется, ошибок загрузки нет
+verified: true
+verified_at: 2026-10-23
+verified_note: >-
+  В игре: Factorio 2.1.23, Krastorio2 2.1.4, K2 Spaced Out 2.0.19, Space Age,
+  сборка из 64 модов. Лог — мод грузится в `data-final-fixes` после K2 и K2SO,
+  ошибок нет. Владелец проверил подсказку топлива K2 (химическая категория),
+  топливо K2 в каменной печи и бойлере. Отсутствие дублей и «без K2 ничего не
+  меняется» — Lua-тестами (`npm test -w K2-fuels-fork`). Прогон был под
+  именем `shm-k2-fuels`; переименование в `K2-fuels-fork` логику не меняло.
