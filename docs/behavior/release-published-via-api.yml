@@ -41,5 +41,8 @@ verified_note: >-
   `license`, `category`, `source_url` и `description` вернула
   `success: true`, `/api/mods/K2-fuels-fork/full` показывает релиз с тем же
   SHA-1, что у локального zip. Ключ читался из `.env.local` и в вывод не
-  попал. Остальные сценарии (`init_upload`, ошибки, backoff,
-  `edit_details`) ещё не проверялись — поэтому `verified` остаётся `false`.
+  попал. Сценарий `edit_details` подтверждён тем же днём: POST с
+  `tags=transportation` и `tags=power` (поле повторяется на каждый тег)
+  вернул `success: true`; `/full` показал теги не сразу, а примерно через
+  20 секунд — ответ API кэшируется. Остальные сценарии (`init_upload`,
+  ошибки, backoff) ещё не проверялись — поэтому `verified` остаётся `false`.
