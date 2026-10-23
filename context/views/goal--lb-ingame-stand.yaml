@@ -17,12 +17,8 @@ description: |
   допущением плана и примерно удваивает объём цели.
 tasks:
   blocker: []
-  high:
-    - 'сравнить FactorioTest, FUnit и factestio по двум условиям convention testing и выбрать → фаза chore → решение в entity repo-toolchain строкой'
-    - 'подключить выбранный фреймворк как dev-зависимость и завести команду npm run test:ingame → фаза feat → зависит от выбора'
-    - 'демонстрационный сценарий: создать сущности, промотать тики, сверить результат → фаза test → зависит от команды запуска'
-  medium:
-    - 'отразить стенд в entity repo-toolchain: как запускается, что не попадает в zip релиза → фаза docs'
+  high: []
+  medium: []
   low: []
 dod:
   - id: d1

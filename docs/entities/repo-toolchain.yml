@@ -17,7 +17,13 @@ structure:
   poc/: моды-прототипы для проверки допущений спеки, вне mods/, см. convention spec-program
   docs/: слои manual и домен
   context/: слой агента
-  .work/: пруфы и раунды ревью, вне git, см. convention spec-program
+  .work/: пруфы, раунды ревью и рабочий каталог стенда, вне git, см. convention spec-program
+  factorio-test.json: конфиг стенда тестов внутри игры, читается и обёрткой, и CLI
+  .npmrc: |
+    публичный реестр npm, задан явно и версионируется. Глобальный `~/.npmrc`
+    может указывать на внутренний корпоративный реестр, и тогда
+    `npm install` записывает его адреса в `package-lock.json` — внутренняя
+    инфраструктура в публичном репозитории, convention `secrets`
 
 language_split:
   mod_sources: lua
@@ -54,14 +60,22 @@ runtime:
       патченный 5.2; формул `lua@5.2` / `lua@5.3` в Homebrew нет. Бинарь
       переопределяется переменной `LUA_BIN`. Разницу диалектов ловит
       `tools/lib/lua-dialect.ts`, граница гарантии — convention `testing`.
+    factorio: |
+      сама игра нужна стенду тестов внутри игры (`npm run test:ingame`):
+      прогон идёт headless тем же бинарём, что и обычная игра. Путь
+      определяется автоматически (Steam-бандл, `/Applications`, типовые
+      установки Linux) и переопределяется переменной `FACTORIO_BIN` — по той
+      же причине, что `LUA_BIN`: абсолютный путь с именем пользователя в
+      версионируемые файлы попасть не может, convention `secrets`.
 
 tools_implemented:
   npm-scripts: |
-    typecheck, test, test:mod, test:lua:all, check-secrets, check-docs,
-    check-lua, validate, pack, check, check:mod. Скоупы разделены
+    typecheck, test, test:mod, test:lua:all, test:ingame, check-secrets,
+    check-docs, check-lua, validate, pack, check, check:mod. Скоупы разделены
     сознательно: `check` не заходит в моды, `check:mod -- <mod-key>`
     проверяет один мод, `check-lua -- <скоуп>` требует явный скоуп —
-    convention `testing`, раздел «Скоупы запуска».
+    convention `testing`, раздел «Скоупы запуска». `test:ingame` запускает
+    игру и в `npm run check` тоже не входит.
   tools/check-secrets.ts: |
     Защита публичного репозитория от утечек, convention `secrets`.
     Сканирует множество `git ls-files` + неигнорируемые untracked, то есть
@@ -129,6 +143,20 @@ tools_implemented:
   tools/lua/stubs/factorio.lua: |
     Минимальные заглушки `defines`, `script`, `storage`, `game`.
     Расширяются по факту появления кода, который не изолируется обёрткой.
+  tools/ingame-test.ts: |
+    Стенд тестов внутри игры: готовит `config.ini` под раскладку
+    установленной игры, затем запускает `factorio-test run`, пробрасывая
+    аргументы и код возврата. Код возврата важен сам по себе: падение
+    сценария обязано валить команду, иначе зелёный прогон ничего не значит.
+  tools/lib/ingame-config.ts: |
+    Чистая часть стенда: выбор бинаря игры из кандидатов (с учётом
+    `FACTORIO_BIN`), подбор `read-data` по факту наличия пакета `base` и
+    решение, нужно ли перезаписывать `config.ini`. Нужна потому, что
+    `factorio-test-cli` пишет в конфиг раскладку Linux-сборки
+    (`__PATH__executable__/../../data`), а в macOS-бандле данные лежат в
+    `factorio.app/Contents/data`, то есть на уровень выше, — игра отвечает
+    «there is no package core» и прогон не стартует. Существующий конфиг CLI
+    не перезаписывает, поэтому достаточно положить верный файл заранее.
   tools/lua-test.ts: Lua-тесты по скоупу — мод, список модов либо `--all`
   tools/check-mod.ts: один мод целиком — его Lua-тесты плюс валидация пакета
   tools/check-lua.ts: |
@@ -144,6 +172,47 @@ tools_implemented:
     верхнего уровня, `info.json` в её корне, исключение `node_modules`,
     `.git`, `dist`, `.DS_Store` и вложенных `*.zip`. Отказывается собирать
     пакет с ошибками валидации.
+
+ingame_test_stand:
+  framework: |
+    FactorioTest — мод `factorio-test` (GlassBricks, MIT) плюс CLI
+    `factorio-test-cli` в `devDependencies`. Выбран 2026-10-06 по двум
+    условиям convention `testing`: обе дорожки закрыты отдельными линиями
+    релизов (`3.0.x` → `factorio_version 2.0`, `3.1.x` → `2.1`), headless —
+    режим по умолчанию. Третье условие тоже выполнено: в `dependencies`
+    тестируемого мода фреймворк не прописывается.
+  how_to_run: |
+    `npm run test:ingame` — обёртка `tools/ingame-test.ts`, конфиг
+    `factorio-test.json` в корне. Аргументы пробрасываются:
+    `npm run test:ingame -- -v`, `npm run test:ingame -- "<lua-паттерн>"`.
+    Рабочий каталог (моды стенда, сейвы, `config.ini`, `player-data.json`) —
+    `.work/ingame-stand/`, вне git: там оказываются креды мод-портала.
+    Версии модов стенда фиксирует `factorio-test.lock.json` в корне.
+  release_isolation: |
+    Фреймворк остаётся dev-зависимостью. В пакете мода от него есть только
+    условный блок в конце `control.lua`:
+    `if script.active_mods['factorio-test'] then require('__factorio-test__/init')({...}) end`.
+    Без мода стенда ветка не исполняется, в `dependencies` он не попадает, а
+    сами файлы тестов вырезаются упаковкой (`PACK_EXCLUDED_SUFFIXES`,
+    `tests/`).
+  rejected:
+    funit: |
+      Мод `funit` (jfletcher94, LGPLv3). Оба условия формально закрывает —
+      `0.5.3` под 2.0, `1.0.0` под 2.1, прогон в CI возможен, — но своего
+      запускающего инструмента нет: тесты живут в кастомном сценарии, отчёт
+      пишется JSON-файлом в `script-output`, а запуск игры и разбор отчёта
+      пришлось бы писать нам. Это половина «минимального своего стенда» из
+      запасного пути convention `testing`, только с чужим ядром.
+    factestio: |
+      Требует Lua 5.2.x на `PATH` — которого в проекте принципиально нет
+      (локально 5.5, формул `lua@5.2` в Homebrew не существует, см.
+      convention `testing`), плюс LuaRocks и bash-обвязку. Лицензии в
+      репозитории нет вовсе, поддержка 2.0 и 2.1 не заявлена, последняя
+      правка — сентябрь 2026.
+    own_stand: |
+      Минимальный свой стенд (тестовый сценарий плюс консольная команда) —
+      запасной путь на случай, если ни один фреймворк не пройдёт условия.
+      Не понадобился.
 
 tools_planned:
   link-local: симлинк пакета мода в каталог модов локальной игры
@@ -194,6 +263,13 @@ dev_dependencies:
   yaml: |
     Разбор YAML для `check-docs`; в Node парсера YAML нет. Только
     devDependency, в zip мода не попадает.
+  factorio-test-cli: |
+    Запуск стенда тестов внутри игры, MIT. Единственная внешняя зависимость
+    с собственным деревом (7 прямых пакетов): правило нулевых зависимостей
+    относится к Node-тестам инструментов, а своего раннера в игре нет вовсе —
+    convention `testing`, раздел «Интеграционные тесты в игре». Моды стенда
+    тянет с мод-портала, креды берёт из залогиненной установки игры либо из
+    `FACTORIO_USERNAME` / `FACTORIO_TOKEN`.
 
 external_deps_considered:
   typed-factorio: отклонён вместе с транспиляцией, см. language_split
