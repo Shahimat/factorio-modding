@@ -21,8 +21,10 @@ rule: |
   - `features_enabled` в entity не отражён ни в одной связанной behavior; не
     блок, но поднимается в отчёте;
   - у entity или behavior нет поля `namespace`;
-  - в одном namespace больше 7 entities или больше 12 behaviors — сигнал к
-    дроблению; не блок, но поднимается в отчёте;
+  - в одном namespace больше 7 entities или больше 100 behaviors — сигнал к
+    дроблению; не блок, но поднимается в отчёте. Порог behaviors поднят с
+    контрактных 12 — отклонение `namespace-behaviors-threshold` в
+    `context/project.yml`;
   - индекс целей `goals.yaml` расходится с набором файлов `goal--*.yaml`;
   - поле `status` цели вне набора `active` / `planned` / `paused`;
   - `depends_on` ссылается на несуществующую цель (осиротевшая зависимость);

@@ -12,7 +12,11 @@ import {
 import { error, warning, type Problem } from './problems.ts';
 
 const MAX_ENTITIES_PER_NAMESPACE = 7;
-const MAX_BEHAVIORS_PER_NAMESPACE = 12;
+/**
+ * Контракт даёт ориентир 12; поднят до 100 отклонением
+ * `namespace-behaviors-threshold` в `context/project.yml`.
+ */
+const MAX_BEHAVIORS_PER_NAMESPACE = 100;
 
 function idOf(item: LoadedYaml): string | null {
   return asString(item.data['id']);

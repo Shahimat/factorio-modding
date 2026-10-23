@@ -80,6 +80,18 @@ sync:
     контракта.
 
 deviations_from_contract:
+  - key: namespace-behaviors-threshold
+    what: |
+      Порог «сигнал к дроблению namespace» по числу behaviors — 100 вместо
+      контрактных 12. Порог по entities (7) не менялся.
+    why: |
+      Решение владельца 2026-10-23. Namespace `mods` держит поведения всех
+      модов монорепозитория, и порог 12 срабатывал уже на втором моде —
+      предупреждение говорило о числе модов, а не о перегруженности слоя.
+    how: |
+      Константа `MAX_BEHAVIORS_PER_NAMESPACE` в
+      `tools/lib/check-docs-layers.ts`, формулировка — convention
+      `consistency`. Остаётся предупреждением, а не ошибкой.
   - key: specs-directory
     what: |
       Каталог `specs/` в корне — пятый артефакт помимо четырёх слоёв контракта
