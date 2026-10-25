@@ -41,6 +41,11 @@ package:
     стопки работают на любых лоадерах и без AAI. Зависимостей от K2 и модов
     планет нет, даже опциональных.
   locale: Базовый набор языков, convention `localization`.
+  portal: |
+    Опубликован 2026-10-25, релиз 1.0.0:
+    https://mods.factorio.com/mod/shm-advanced-belts. Лицензия
+    `default_mit`, категория `content`, тег `logistics`, описание — README
+    пакета, `source_url` — репозиторий.
   thumbnail: |
     Иконки лент четырёх тиров сеткой 2×2, собраны инструментом
     `tools/recolor-sprites.ts` из перекрашенных иконок.

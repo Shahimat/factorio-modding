@@ -11,10 +11,11 @@ summary: |
 account:
   username: Shahimat
   profile: https://mods.factorio.com/user/Shahimat
-  published_mods: 2
+  published_mods: 3
   published:
     - K2-fuels-fork — https://mods.factorio.com/mod/K2-fuels-fork, первый релиз 1.0.0 2026-10-23
     - shm-k2-superior-inserters-full-hand-switcher — https://mods.factorio.com/mod/shm-k2-superior-inserters-full-hand-switcher, первый релиз 1.0.0 2026-10-25
+    - shm-advanced-belts — https://mods.factorio.com/mod/shm-advanced-belts, первый релиз 1.0.0 2026-10-25
   confirmed_by: |
     Поле `service-username` в `~/Library/Application Support/factorio/player-data.json`
     равно `Shahimat` — в игре выполнен вход под этим аккаунтом (проверено

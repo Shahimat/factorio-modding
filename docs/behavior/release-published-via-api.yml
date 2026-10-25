@@ -47,6 +47,8 @@ verified_note: >-
   20 секунд — ответ API кэшируется. Повторено 2026-10-25 публикацией
   shm-k2-superior-inserters-full-hand-switcher 1.0.0 тем же путём: SHA-1
   релиза совпал с локальным zip, тег `logistics` через `edit_details`
-  принят. Ключ в `.env.local` записан строкой `export …=…` — читать его
+  принят. Повторено 2026-10-25 публикацией shm-advanced-belts 1.0.0:
+  SHA-1 совпал, категория `content`, тег `logistics` приняты. Ключ в
+  `.env.local` записан строкой `export …=…` — читать его
   `source`, а не `grep`. Остальные сценарии (`init_upload`,
   ошибки, backoff) ещё не проверялись — поэтому `verified` остаётся `false`.
