@@ -4,7 +4,7 @@
   "title": "Advanced Belts",
   "author": "Shahimat",
   "factorio_version": "2.1",
-  "description": "Four belt tiers beyond turbo: 90, 105, 135 and 150 items/s, with undergrounds, splitters and AAI loaders. Configurable speeds, underground lengths and AAI loader price; belt stacking and a per-loader full stack mode for every loader. Pure Space Age, with an API for other mods.",
+  "description": "Four belt tiers beyond turbo: 90, 105, 135 and 150 items/s, with undergrounds, splitters and AAI loaders. Configurable speeds, underground lengths and AAI loader price; belt stacking and a per-loader full stack mode for every loader. Pure Space Age.",
   "dependencies": [
     "base >= 2.1.0",
     "space-age >= 2.1.0",
