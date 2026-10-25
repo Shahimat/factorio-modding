@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { MOD_NAME_PREFIX, MOD_TITLE_PREFIX } from './conventions.ts';
+import { MOD_NAME_PREFIX, MOD_TITLE_FORBIDDEN_NICK } from './conventions.ts';
 import { checkInfoJsonText } from './info-json.ts';
 import { countErrors } from './problems.ts';
 
@@ -11,7 +11,7 @@ function infoJson(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
     name: NAME,
     version: '0.1.0',
-    title: `${MOD_TITLE_PREFIX}Fixture`,
+    title: 'Fixture',
     author: 'Shahimat',
     factorio_version: '2.0',
     ...overrides,
@@ -82,7 +82,7 @@ test('title форка с ником — находка', () => {
   const fork = 'Original-mod-fork';
   assert.ok(
     messages(
-      infoJson({ name: fork, title: `${MOD_TITLE_PREFIX}Original Mod fork` }),
+      infoJson({ name: fork, title: `${MOD_TITLE_FORBIDDEN_NICK}: Original Mod fork` }),
       fork,
     ).some((m) => m.includes('не несёт ника')),
   );
@@ -120,9 +120,14 @@ test('число версии больше 65535 — находка', () => {
   );
 });
 
-test('title без префикса и длиннее 100 символов — находки', () => {
-  assert.ok(messages(infoJson({ title: 'Fixture' })).some((m) => /title/.test(m)));
-  const long = MOD_TITLE_PREFIX + 'x'.repeat(100);
+test('title с ником в любом месте и регистре — находка', () => {
+  for (const title of [`${MOD_TITLE_FORBIDDEN_NICK}: Fixture`, 'Fixture by shahimat']) {
+    assert.ok(messages(infoJson({ title })).some((m) => m.includes('не несёт ника')));
+  }
+});
+
+test('title длиннее 100 символов — находка', () => {
+  const long = 'x'.repeat(101);
   assert.ok(messages(infoJson({ title: long })).some((m) => /игра отклоняет/.test(m)));
 });
 
@@ -140,7 +145,7 @@ test('отсутствие factorio_version — находка про дефол
   const raw = JSON.stringify({
     name: NAME,
     version: '0.1.0',
-    title: `${MOD_TITLE_PREFIX}F`,
+    title: 'F',
     author: 'Shahimat',
   });
   assert.ok(messages(raw).some((m) => /0\.12/.test(m)));

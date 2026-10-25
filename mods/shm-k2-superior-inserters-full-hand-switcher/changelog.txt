@@ -1,0 +1,11 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026-10-25
+  Features:
+    - Superior inserters and superior long inserters wait for a full hand before dropping.
+    - Per-inserter switch between "Full hand" and "Instant": SHIFT + M or a switch next to the inserter window.
+    - The mode is kept in blueprints and copied with entity settings.
+  Locale:
+    - English, Russian, German, French, Spanish, Brazilian Portuguese, Polish, Ukrainian, Simplified Chinese, Japanese, Korean.
+  Compatibility:
+    - Factorio 2.1, Krastorio 2, K2 Spaced Out, Change Inserter Drop Lane.

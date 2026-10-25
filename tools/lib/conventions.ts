@@ -7,8 +7,11 @@
 /** Авторская приписка, convention `mod-naming`. */
 export const MOD_NAME_PREFIX = 'shm-';
 
-/** Префикс человекочитаемого заголовка, convention `mod-naming`. */
-export const MOD_TITLE_PREFIX = 'Shahimat: ';
+/**
+ * Ник, которого нет в человекочитаемом заголовке ни у одного мода,
+ * convention `mod-naming`. Сравнение без учёта регистра.
+ */
+export const MOD_TITLE_FORBIDDEN_NICK = 'Shahimat';
 
 /**
  * Признак форка чужого мода в конце `name`, convention `mod-naming`, раздел

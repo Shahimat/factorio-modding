@@ -11,7 +11,7 @@ import {
   MOD_NAME_PATTERN,
   MOD_NAME_PREFIX,
   MOD_TITLE_MAX_LENGTH,
-  MOD_TITLE_PREFIX,
+  MOD_TITLE_FORBIDDEN_NICK,
   VERSION_PART_MAX,
 } from './conventions.ts';
 import { error, warning, type Problem } from './problems.ts';
@@ -183,20 +183,14 @@ export function checkInfoJsonText(
 
   const title = strings.get('title');
   if (title !== undefined) {
-    if (isFork) {
-      if (!title.endsWith(MOD_FORK_TITLE_SUFFIX)) {
-        problems.push(
-          error(file, `"title" форка должен заканчиваться на "${MOD_FORK_TITLE_SUFFIX}"`),
-        );
-      }
-      if (title.startsWith(MOD_TITLE_PREFIX)) {
-        problems.push(
-          error(file, `"title" форка не несёт ника "${MOD_TITLE_PREFIX}"`),
-        );
-      }
-    } else if (!title.startsWith(MOD_TITLE_PREFIX)) {
+    if (isFork && !title.endsWith(MOD_FORK_TITLE_SUFFIX)) {
       problems.push(
-        error(file, `"title" должен начинаться с "${MOD_TITLE_PREFIX}"`),
+        error(file, `"title" форка должен заканчиваться на "${MOD_FORK_TITLE_SUFFIX}"`),
+      );
+    }
+    if (title.toLowerCase().includes(MOD_TITLE_FORBIDDEN_NICK.toLowerCase())) {
+      problems.push(
+        error(file, `"title" не несёт ника "${MOD_TITLE_FORBIDDEN_NICK}"`),
       );
     }
     if (title.length > MOD_TITLE_MAX_LENGTH) {

@@ -1,0 +1,126 @@
+id: k2-full-hand-switcher
+kind: entity
+namespace: mods
+version: "1"
+title: Мод «Полная рука превосходных манипуляторов K2» — shm-k2-superior-inserters-full-hand-switcher
+spec: none
+spec_note: |
+  Заведён без ТЗ в `specs/` по решению владельца 2026-10-25, как
+  K2-fuels-fork: мод из одной механики, требования сформулированы в диалоге
+  и записаны здесь.
+summary: |
+  Превосходные манипуляторы Krastorio 2 (обычный и длинный) массовые, а с
+  K2 Spaced Out ещё и стакают предметы на ленте, но выкладывают руку, не
+  дождавшись её заполнения. Мод по умолчанию включает им ожидание полной
+  руки, как у пакетного манипулятора Space Age, и даёт переключатель режима
+  на каждом манипуляторе: в окне манипулятора и клавишей `SHIFT + M`.
+
+origin:
+  similar: StackableSuperiorInserters (RockPaperKatana, MIT)
+  note: |
+    Похожий мод под 2.0 делает превосходные манипуляторы улучшением
+    пакетных из мода `stack-inserters` и несовместим со Space Age. Задача
+    другая, кода оттуда нет — это не форк, имя по общему правилу
+    `mod-naming`.
+
+package:
+  name: shm-k2-superior-inserters-full-hand-switcher
+  dir: mods/shm-k2-superior-inserters-full-hand-switcher/
+  title: "Krastorio2: Superior Inserters Full Hand Switcher"
+  factorio_version: '"2.1"'
+  dependencies:
+    - base >= 2.1.0
+    - Krastorio2 >= 2.1.0
+    - "? Krastorio2-spaced-out"
+    - "? ChangeInserterDropLane"
+  dependencies_note: |
+    Krastorio2 обязателен: без него нечего переключать. K2 Spaced Out
+    опционален ради порядка загрузки — он в своих правках задаёт
+    превосходным манипуляторам `max_belt_stack_size`, и копия-вариант
+    должна сниматься после них. Без K2SO манипулятор просто ждёт полную
+    массовую руку. ChangeInserterDropLane опционален ради порядка: его
+    панель создаётся раньше нашей, и наша встаёт под ней. Фактически он
+    стоит всегда — Krastorio2 2.1.4 сам тянет его зависимостью
+    `+ ChangeInserterDropLane >= 1.3.0`.
+  feature_flags: Ни одного.
+  locale: Базовый набор языков, convention `localization`.
+  portal_name: |
+    Имя свободно: `GET mods.factorio.com/api/mods/shm-k2-superior-inserters-full-hand-switcher`
+    отдал 404 (curl, анонимно, 2026-10-25). Перед первой публикацией
+    проверка повторяется — manual `publish-new-mod`.
+  thumbnail: |
+    Иконка превосходного манипулятора и две стрелки от неё к массовому и
+    пакетному манипуляторам — «умеет и так, и так». Собрана из иконок
+    Krastorio2Assets (LGPLv3) и Factorio (Wube), оговорка в `LICENSE`
+    пакета, convention `licensing`, раздел «Ассеты чужих модов».
+
+mechanics:
+  family:
+    - kr-superior-inserter
+    - kr-superior-long-inserter
+  why_two_prototypes: |
+    Ожидание полной руки задаётся только в прототипе
+    (`InserterPrototype::wait_for_full_hand`); в `LuaEntity` на 2.1.23 его
+    нет. Поэтому режим на конкретном манипуляторе — это выбор одного из
+    двух прототипов.
+  data_stage: |
+    `data-final-fixes`, после K2 и K2SO. Исходные прототипы семьи получают
+    `wait_for_full_hand`, `grab_less_to_match_belt_stack` и
+    `enter_drop_mode_if_held_stack_spoiled` = `true` — режим по умолчанию,
+    его же ставит и чертёж, и улучшение из планировщика.
+
+    Каждому исходному добавляется скрытая копия `shm-<имя>-instant` с
+    этими флагами в `false` — поведение K2 как есть. Копия ставится тем же
+    предметом (`placeable_by`), при разборке отдаёт его же, называется и
+    описывается как исходный, в Factoriopedia ведёт на исходный, из цепочки
+    улучшений выключена (`next_upgrade = nil`). Прототип, которого нет в
+    `data.raw` (K2 другой версии), пропускается молча.
+  logic_module: logic/variants.lua — чистые функции над таблицей вида `data.raw` и над именами
+  switch: |
+    Переключение — замена сущности: `surface.create_entity` с
+    `fast_replace = true` на месте старой. До замены снимается то, что
+    `fast_replace` может не перенести, после — восстанавливается: векторы
+    захвата и выкладки (их меняет ChangeInserterDropLane), предмет в руке,
+    здоровье, `last_user`. Фильтры, режим фильтра, приоритет порченого,
+    переопределение размера стака, провода и условия сети переносит сам
+    `fast_replace` — подтверждается прогоном в игре. Если манипулятор был
+    открыт у игрока, окно открывается заново уже на новой сущности.
+
+    Призраки не переключаются: у призрака нет руки, режим он получает из
+    чертежа. Клавиша на призраке показывает подсказку «не поддерживается».
+  controls:
+    hotkey: '`SHIFT + M` (custom-input `shm-full-hand-toggle`) — по манипулятору семьи под курсором, в пределах досягаемости'
+    panel: |
+      Своя относительная панель справа от окна манипулятора
+      (`relative_gui_type.inserter_gui`, `position.right`, `names` — четыре
+      прототипа семьи) с переключателем «Сразу / Полная рука». Внутрь
+      панели ChangeInserterDropLane не встраиваемся — элементы чужого мода
+      недоступны, — а встаём под ней за счёт порядка загрузки.
+    tips: |
+      Подсказка в разделе «Манипуляторы» (`tips-and-tricks-item`, категория
+      `inserters`), открывается после постройки первого превосходного
+      манипулятора.
+  paste: |
+    Копирование настроек (shift+ПКМ → shift+ЛКМ) между двумя
+    манипуляторами семьи переносит и режим: после штатной вставки
+    приёмник заменяется на вариант источника.
+  removal: |
+    При удалении мода копии `-instant` исчезают из мира вместе с
+    прототипом — так движок обходится с любым удалённым прототипом.
+    Предупреждение — в README: перед удалением переключить все манипуляторы
+    в «Полную руку».
+
+manuals:
+  - test-mod-locally
+  - publish-new-mod
+  - release-mod
+behaviors:
+  - superior-inserters-wait-for-full-hand
+  - full-hand-switch-keeps-inserter-settings
+  - full-hand-mode-survives-blueprint-and-paste
+  - mod-loads-in-target-factorio
+conventions:
+  - mod-naming
+  - licensing
+  - localization
+  - factorio-version-track

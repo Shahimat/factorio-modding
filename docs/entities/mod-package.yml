@@ -61,7 +61,7 @@ info_json_fields:
   mandatory:
     name: shm-<mod-key>, у форка <исходное name>-fork; латиница/цифры/дефис/подчёркивание, 4–49 символов
     version: '"number.number.number", каждое число 0..65535'
-    title: '"Shahimat: <Название>", у форка "<исходный title> fork"; до 100 символов'
+    title: 'название без ника, у форка "<исходный title> fork"; до 100 символов'
     author: Shahimat
   effectively_mandatory:
     factorio_version: '"2.1" для новых релизов, дорожка "2.0" заморожена; ровно одна мажорная версия'

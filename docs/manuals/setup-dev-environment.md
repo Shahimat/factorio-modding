@@ -41,6 +41,28 @@ Steam (`2.0.77`, `mac-arm64`, нативная сборка), каталог д�
    ~/Library/Application Support/Steam/steamapps/common/Factorio/factorio.app/Contents
    ```
 
+   Первая строка — установка с сайта, вторая — через Steam. Чтобы запускать
+   игру из терминала командой `factorio`, добавь каталог бинарника в `PATH`
+   (в `~/.zshrc`; пример для Steam):
+
+   ```bash
+   export PATH="$PATH:$HOME/Library/Application Support/Steam/steamapps/common/Factorio/factorio.app/Contents/MacOS"
+   ```
+
+   У Steam-сборки есть особенность: запущенная напрямую, она перезапускает
+   себя через Steam («Steam requires game restart») и теряет аргументы
+   командной строки, например `--mod-directory`. Перезапуск не происходит,
+   если в текущем каталоге лежит `steam_appid.txt` с appID 427520, — так
+   устроен Steamworks. Steam при этом должен быть запущен:
+
+   ```bash
+   mkdir -p /tmp/factorio-run && echo 427520 > /tmp/factorio-run/steam_appid.txt
+   cd /tmp/factorio-run && factorio --mod-directory /tmp/factorio-mods-clean
+   ```
+
+   Проверено 2026-10-25 на 2.1.23 (`mac-arm64`, `steam`). Безголовые
+   режимы вроде `--create` Steam не трогают и работают без этого файла.
+
 3. Проверь, что каталог модов существует, и создай, если нет:
 
    ```bash

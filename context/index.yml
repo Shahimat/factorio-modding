@@ -55,6 +55,8 @@ namespaces:
         one_liner: мод shm-logistic-buildings — логистический режим на любом здании, состав, настройки, типы зданий
       - id: k2-fuels
         one_liner: мод K2-fuels-fork — форк K2-fuels, топливо K2 сливается с химическим, транспорт ездит на ванильном
+      - id: k2-full-hand-switcher
+        one_liner: мод shm-k2-superior-inserters-full-hand-switcher — превосходные манипуляторы K2 ждут полную руку, режим переключается на каждом
     behaviors:
       - id: mod-name-carries-author-prefix
         one_liner: каждый мод несёт приписку shm-, форк — суффикс -fork, и проходит ограничения портала на имя
@@ -82,6 +84,12 @@ namespaces:
         one_liner: топливо K2 горит везде, где принимается химическое, без дублей категорий
       - id: vehicles-run-on-chemical-fuel
         one_liner: транспорт K2 и чужих модов снова ездит на ванильном топливе
+      - id: superior-inserters-wait-for-full-hand
+        one_liner: превосходные манипуляторы K2 по умолчанию ждут полную руку
+      - id: full-hand-switch-keeps-inserter-settings
+        one_liner: режим переключается панелью и SHIFT + M без потери настроек манипулятора
+      - id: full-hand-mode-survives-blueprint-and-paste
+        one_liner: режим полной руки переживает чертёж и копирование настроек
     manuals:
       - id: test-mod-locally
         one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль
@@ -89,7 +97,9 @@ namespaces:
         one_liner: перевод мода на дорожку Factorio 2.1
     conventions:
       - key: mod-naming
-        one_liner: префикс shm- в name, title, author и именах прототипов, у форков — суффикс -fork вместо ника
+        one_liner: префикс shm- в name и именах прототипов, title без ника, у форков — суффикс -fork вместо shm-
+      - key: localization
+        one_liner: строки для игрока сразу переводятся на базовый набор из 11 языков
 
 base_conventions:
   - key: secrets

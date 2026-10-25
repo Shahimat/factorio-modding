@@ -1,0 +1,14 @@
+{
+  "name": "shm-k2-superior-inserters-full-hand-switcher",
+  "version": "1.0.0",
+  "title": "Krastorio2: Superior Inserters Full Hand Switcher",
+  "author": "Shahimat",
+  "factorio_version": "2.1",
+  "description": "Krastorio 2 superior inserters wait for a full hand before dropping, like stack inserters. Each inserter can be switched back to dropping right away with SHIFT + M or a switch next to its window. K2 Spaced Out and Change Inserter Drop Lane compatible.",
+  "dependencies": [
+    "base >= 2.1.0",
+    "Krastorio2 >= 2.1.0",
+    "? Krastorio2-spaced-out",
+    "? ChangeInserterDropLane"
+  ]
+}

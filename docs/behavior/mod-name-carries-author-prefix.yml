@@ -2,19 +2,19 @@ id: mod-name-carries-author-prefix
 kind: behavior
 namespace: mods
 entities: [mod-package]
-title: Каждый мод несёт авторскую приписку shm-, форк — суффикс -fork, и проходит ограничения портала
+title: Каждый мод несёт авторскую приписку shm- в name, форк — суффикс -fork, title без ника, и проходит ограничения портала
 scenarios:
   - given: в репозитории заводится новый мод
     when: создаётся `mods/<dir>/info.json`
     then: >-
       поле `name` равно `shm-<mod-key>`, имя каталога совпадает с `name`,
-      `title` начинается с `Shahimat: `, `author` равен `Shahimat`
+      `title` не содержит ника `Shahimat`, `author` равен `Shahimat`
   - given: в репозитории заводится форк чужого мода
     when: создаётся `mods/<dir>/info.json`
     then: >-
       поле `name` равно `<исходное name>-fork`, имя каталога совпадает с
-      `name`, `title` — исходный заголовок с суффиксом ` fork` без
-      `Shahimat: `, `author` равен `Shahimat`
+      `name`, `title` — исходный заголовок с суффиксом ` fork` без ника,
+      `author` равен `Shahimat`
   - given: поле `name` мода
     when: проверяется против ограничений мод-портала
     then: >-
