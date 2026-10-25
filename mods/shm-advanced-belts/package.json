@@ -1,0 +1,11 @@
+{
+  "name": "shm-advanced-belts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node ../../tools/lua-test.ts .",
+    "test:ingame": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.json",
+    "test:ingame:no-aai": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.json --mods space-age",
+    "test:ingame:probe": "mkdir -p ../../.work/ingame-stand/advanced-belts-probe/data/mods && ln -sfn \"$PWD/tests/ingame/probe\" ../../.work/ingame-stand/advanced-belts-probe/data/mods/shm-advanced-belts-probe && node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.probe.json"
+  }
+}

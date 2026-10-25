@@ -1,0 +1,10 @@
+{
+  "modPath": "../..",
+  "mods": [
+    "space-age",
+    "aai-loaders"
+  ],
+  "dataDirectory": "../../../../.work/ingame-stand/advanced-belts/data",
+  "outputFile": "../../../../.work/ingame-stand/advanced-belts/results.json",
+  "logPassedTests": true
+}

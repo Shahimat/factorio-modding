@@ -24,12 +24,15 @@
     "check-secrets": "node tools/check-secrets.ts",
     "validate": "node tools/validate.ts",
     "pack": "node tools/pack.ts",
+    "recolor-sprites": "node tools/recolor-sprites.ts",
     "check": "npm run typecheck && npm test && npm run check-secrets && npm run check-docs && npm run validate",
     "check:mod": "node tools/check-mod.ts"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
+    "@types/pngjs": "^6.0.5",
     "factorio-test-cli": "^3.6.0",
+    "pngjs": "^7.0.0",
     "typescript": "^5.9.3",
     "yaml": "^2.9.1"
   }

@@ -1,0 +1,30 @@
+id: engine-data-stage
+kind: entity
+namespace: engine
+version: "1"
+title: Стадии настроек и данных — фиксация чужих настроек, переработка в 2.1
+summary: |
+  Факты о стадиях `settings*` и `data*`, выясненные при разработке
+  shm-advanced-belts: где документация молчит или формулирует неочевидно.
+
+facts:
+  - claim: |
+      `forced_value` есть только у булевой настройки (`bool-setting`). У
+      строковой и числовой поле молча игнорируется — без ошибки, настройка
+      остаётся со своим значением. Чужой мод фиксирует такую настройку в
+      `settings-updates`: `default_value` плюс `allowed_values` из одного
+      значения плюс `hidden = true`.
+    checked_on: 2.1.23, 2026-10-25 — тест в игре, `aai-loaders-mode` через `forced_value` остался `lubricated`, через `allowed_values` стал `expensive`
+  - claim: |
+      В 2.1 рецепты переработки порождает отдельный базовый мод `recycler`
+      в своём `data-updates` — раньше `data-updates` любого стороннего мода,
+      потому что базовые моды грузятся первыми. Рецепт, созданный позже
+      (в `data-updates` или `data-final-fixes`), остаётся без переработки,
+      а изменённый позже — с переработкой по старым ингредиентам. Пересобрать
+      можно библиотекой `require('__recycler__.recycling')`
+      (`generate_recycling_recipe`), но она добавляет в технологию
+      `recycling` новое открытие рядом со старым: старый рецепт переработки
+      и его открытие надо удалить до вызова.
+    checked_on: 2.1.23, 2026-10-25 — `recycler/data-updates.lua` и `recycling.lua` 2.1.23, тесты в игре shm-advanced-belts
+
+behaviors: []

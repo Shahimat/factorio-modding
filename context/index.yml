@@ -29,6 +29,10 @@ namespaces:
     entities:
       - id: engine-inserters
         one_liner: манипуляторы — режим руки только в прототипе, стопки на ленте от бонуса силы, что переносит fast_replace скриптом
+      - id: engine-loaders
+        one_liner: лоадеры — режим полной стопки только в прототипе, что переносит fast_replace скриптом, raise_built для чужих компаньонов
+      - id: engine-data-stage
+        one_liner: стадии настроек и данных — forced_value только у булевых настроек, переработка в 2.1 порождается до data-updates модов
 
   delivery:
     entities:
@@ -62,6 +66,8 @@ namespaces:
         one_liner: мод K2-fuels-fork — форк K2-fuels, топливо K2 сливается с химическим, транспорт ездит на ванильном
       - id: k2-full-hand-switcher
         one_liner: мод shm-k2-superior-inserters-full-hand-switcher — превосходные манипуляторы K2 ждут полную руку, режим переключается на каждом
+      - id: advanced-belts
+        one_liner: мод shm-advanced-belts — четыре тира лент после турбо, лоадеры AAI к ним, делитель цены AAI, стак и полная стопка у лоадеров, API ShmAdvancedBelts
     behaviors:
       - id: mod-name-carries-author-prefix
         one_liner: каждый мод несёт приписку shm-, форк — суффикс -fork, и проходит ограничения портала на имя
@@ -95,6 +101,20 @@ namespaces:
         one_liner: режим переключается панелью и SHIFT + M без потери настроек манипулятора
       - id: full-hand-mode-survives-blueprint-and-paste
         one_liner: режим полной руки переживает чертёж и копирование настроек
+      - id: advanced-belt-tiers-follow-settings
+        one_liner: тиры лент после турбо создаются со скоростью и дальностью из настроек
+      - id: disabled-tier-is-bridged
+        one_liner: выключенный тир не создаётся, рецепты, технологии и улучшения сшиваются через него
+      - id: aai-loaders-follow-belt-tiers
+        one_liner: при AAI Loaders у каждого включённого тира есть свой лоадер
+      - id: aai-loader-price-divided-in-expensive-mode
+        one_liner: делитель цены уменьшает рецепты лоадеров AAI только в режиме expensive, переработка следует за рецептом
+      - id: loaders-stack-and-wait-for-full-stack
+        one_liner: лоадеры любых модов кладут стопки на ленту и по умолчанию ждут полную стопку
+      - id: full-stack-switch-keeps-loader-settings
+        one_liner: режим полной стопки переключается панелью и SHIFT + M без потери настроек лоадера
+      - id: advanced-belts-api-overrides-tiers
+        one_liner: другой мод перенастраивает и выключает тиры через API ShmAdvancedBelts
     manuals:
       - id: test-mod-locally
         one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль
@@ -137,6 +157,18 @@ specs:
       держится на `mod_key` — convention `spec-intake`. Разложено по слоям
       2026-10-04: entity `logistic-buildings`, девять behaviors namespace
       `mods`, программа `context/views/program--logistic-buildings.yaml`.
+  - path: specs/25102026_spec_advanced_belts.md
+    mod_key: advanced-belts
+    mod_name: shm-advanced-belts
+    one_liner: >-
+      ТЗ мода Advanced Belts: четыре тира лент после турбо, лоадеры AAI к
+      ним, делитель цены AAI, стак и полная стопка у лоадеров, API для
+      других модов.
+    note: >-
+      Подготовлено агентом по диалогу с владельцем и положено в `specs/` по
+      его поручению 2026-10-25. Программа не заводилась — мод делается одним
+      тикетом по решению владельца; разложено в entity `advanced-belts` и
+      семь behaviors namespace `mods`.
 
 plans:
   - path: plans/logistic-buildings/iter-01.html

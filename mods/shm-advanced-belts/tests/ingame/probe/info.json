@@ -1,0 +1,12 @@
+{
+  "name": "shm-advanced-belts-probe",
+  "version": "1.0.0",
+  "title": "Advanced Belts: test probe",
+  "author": "Shahimat",
+  "factorio_version": "2.1",
+  "description": "Test stand only: switches AAI Loaders to the expensive mode, disables the ultra tier and retunes the hyper tier through the API, like another mod would.",
+  "dependencies": [
+    "shm-advanced-belts",
+    "aai-loaders"
+  ]
+}

@@ -1,0 +1,14 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026-10-25
+  Features:
+    - Four belt tiers beyond turbo: superior, ultra, hyper and absolute, 90, 105, 135 and 150 items/s, with undergrounds and splitters.
+    - AAI Loaders for each tier when AAI Loaders is installed.
+    - Startup settings for each tier: enabled, speed, underground length.
+    - AAI loader price divisor for the expensive mode of AAI Loaders.
+    - Belt stacking for all loaders and a per-loader full stack mode: SHIFT + M or a switch next to the loader window.
+    - API ShmAdvancedBelts for other mods.
+  Locale:
+    - English, Russian, German, French, Spanish, Brazilian Portuguese, Polish, Ukrainian, Simplified Chinese, Japanese, Korean.
+  Compatibility:
+    - Factorio 2.1, Space Age, AAI Loaders.

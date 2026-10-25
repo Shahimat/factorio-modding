@@ -1,0 +1,266 @@
+id: advanced-belts
+kind: entity
+namespace: mods
+version: "1"
+title: Мод Advanced Belts — shm-advanced-belts
+spec: specs/25102026_spec_advanced_belts.md
+spec_note: |
+  ТЗ подготовлено агентом по диалогу с владельцем и положено в `specs/` по
+  его поручению. Программа, план итерации и DoD не заводились — по решению
+  владельца 2026-10-25 мод делается одним тикетом без `/plan-spec`: механизм
+  программ ещё дорабатывается. Предложения агента из раздела 11 ТЗ владелец
+  принял без возражений.
+summary: |
+  Четыре тира лент после турбо — лента, подземка, сплиттер, технология, — а
+  при AAI Loaders ещё лоадеры к ним. Делитель цены лоадеров AAI в режиме
+  `expensive`, стак на ленте для всех лоадеров и ожидание полной стопки с
+  переключателем на каждом лоадере. Чистая ваниль Space Age: про K2 и моды
+  планет мод не знает, другие моды подстраивают его через API
+  `ShmAdvancedBelts`.
+
+origin:
+  similar:
+    - AdvancedBeltsSA (2.0) — тиры после турбо, скорость в настройках
+    - Cheaper AAI Loaders (2.0) — делитель цены рецептов AAI
+    - loader-belt-stacking (2.1) и AAI Loaders – Belt Stacking (2.0) — стак лоадеров
+  note: |
+    Кода оттуда нет, это не форк — имя по общему правилу `mod-naming`.
+
+package:
+  name: shm-advanced-belts
+  dir: mods/shm-advanced-belts/
+  title: Advanced Belts
+  factorio_version: '"2.1"'
+  dependencies:
+    - base >= 2.1.0
+    - space-age >= 2.1.0
+    - "? aai-loaders >= 0.3.0"
+  dependencies_note: |
+    AAI Loaders опционален: без него мод даёт ленты, подземки и сплиттеры, а
+    настройки лоадеров AAI ни на что не влияют. Стак и ожидание полной
+    стопки работают на любых лоадерах и без AAI. Зависимостей от K2 и модов
+    планет нет, даже опциональных.
+  locale: Базовый набор языков, convention `localization`.
+  thumbnail: |
+    Иконки лент четырёх тиров сеткой 2×2, собраны инструментом
+    `tools/recolor-sprites.ts` из перекрашенных иконок.
+
+tiers:
+  - key: superior
+    name: { ru: Превосходный, en: Superior }
+    speed: 90
+    underground: 13
+    color: [210, 1, 247]
+    planet: Fulgora
+    ingredients: гольмиевые пластины; в сплиттере — суперконденсаторы
+    technology:
+      count: 1000
+      packs: турбо + электромагнитная
+      prerequisites: [turbo-transport-belt, electromagnetic-science-pack, holmium-processing, electromagnetic-plant]
+  - key: ultra
+    name: { ru: Ультра, en: Ultra }
+    speed: 105
+    underground: 15
+    color: [255, 110, 0]
+    planet: Gleba
+    ingredients: углеродное волокно; в сплиттере — процессоры
+    technology:
+      count: 1500
+      packs: + сельскохозяйственная
+      prerequisites: [superior, agricultural-science-pack, carbon-fiber]
+  - key: hyper
+    name: { ru: Гипер, en: Hyper }
+    speed: 135
+    underground: 17
+    color: [160, 235, 255]
+    planet: Aquilo
+    ingredients: литиевые пластины; в сплиттере — квантовые процессоры
+    technology:
+      count: 2000
+      packs: + криогенная
+      prerequisites: [ultra, cryogenic-science-pack, lithium-processing, quantum-processor]
+  - key: absolute
+    name: { ru: Абсолютный, en: Absolute }
+    speed: 150
+    underground: 19
+    color: [20, 40, 170]
+    planet: Nauvis
+    ingredients: яйца кусак и модули скорости 3
+    technology:
+      count: 2500
+      packs: + прометиевая
+      prerequisites: [hyper, promethium-science-pack, biter-egg-handling, speed-module-3]
+tiers_note: |
+  Значения — по умолчанию; скорость, дальность и включение каждого тира
+  меняются настройками, всё остальное — через API. Время исследования — 60 с
+  на всех тирах. Набор колб накопительный: колбы турбо плюс колбы планет
+  всех тиров до текущего включительно.
+
+prototypes:
+  naming: |
+    `shm-<tier>-transport-belt`, `shm-<tier>-underground-belt`,
+    `shm-<tier>-splitter` — сущность, предмет и рецепт; технология
+    `shm-<tier>-transport-belt`. Лоадер AAI создаётся с именем тира
+    `shm-<tier>` и по правилу AAI называется `aai-shm-<tier>-loader`.
+  speed: |
+    Поле прототипа `speed` = предм./с ÷ 480. Движок хранит его с шагом
+    1/256 тайла за тик (1,875 предм./с), целые значения — только кратные 15;
+    отсюда список скоростей в настройке.
+  graphics: |
+    Прототипы тира — глубокие копии ванильных прототипов турбо из
+    `data.raw`. Каждый спрайт турбо заменяется парой слоёв: основа
+    (цветные пиксели обесцвечены, не красится) и маска (только цветные
+    пиксели, красится `tint` цветом тира). Иконки — так же, слоями `icons`.
+    Замёрзшие патчи, остатки, взрывы и звуки — ванильные от турбо. Файлы
+    основ и масок порождает `tools/recolor-sprites.ts` из ванильных файлов
+    турбо; это производные от ассетов Wube, оговорка — в `LICENSE` пакета.
+  recipes: |
+    По образцу турбо: лента предыдущего тира, ресурсы планеты, лубрикант.
+    Категории `crafting-with-fluid` и `metallurgy` — собираются в сборочных
+    автоматах, литейке и любой машине с `metallurgy` (так подхватывает,
+    например, продвинутая печь K2). `surface_conditions` нет — собирать можно
+    где угодно.
+  disabled_tier: |
+    Выключенный тир не создаётся. Рецепт, технология и `next_upgrade`
+    следующего включённого тира ссылаются на ближайший включённый тир ниже,
+    иначе на турбо. Колбы и планетные пререквизиты от выключения не зависят.
+  upgrades: |
+    Турбо → тиры по порядку, для лент, подземок, сплиттеров и лоадеров AAI
+    (`aai-turbo-loader` → `aai-shm-superior-loader` → …). Мод выставляет
+    `next_upgrade`, не проверяя, занят ли он другим модом, — по решению
+    владельца. Поэтому с K2 Spaced Out, который грузится позже, турбо и
+    турбо-лоадер AAI улучшаются в ленту и лоадер K2 (`kr-superior-…`), а
+    цепочка внутри тиров мода остаётся своей — проверено прогоном с K2SO.
+
+stages:
+  settings: |
+    `settings.lua` — все настройки стартовые.
+  data: |
+    `data.lua` объявляет глобальную таблицу `ShmAdvancedBelts` и собирает
+    в неё конфигурацию тиров из настроек. Другой мод ставит
+    `? shm-advanced-belts` и вызывает API в своём `data.lua`.
+  data_updates: |
+    `data-updates.lua` строит тиры по итоговой конфигурации, создаёт лоадеры
+    через `AAILoaders.make_tier` и сам генерирует рецепты переработки для
+    всего созданного. Причина: в 2.1 переработку порождает базовый мод
+    `recycler` в своём `data-updates`, то есть раньше нашего.
+  data_final_fixes: |
+    `data-final-fixes.lua`: делитель цены лоадеров AAI с пересборкой их
+    переработки, стак всем лоадерам, ожидание полной стопки и копии для
+    переключателя.
+
+api:
+  table: ShmAdvancedBelts
+  when: только в `data.lua` зависимого мода
+  priority: значение из API главнее настройки игрока
+  operations: |
+    По ключу тира (`superior`, `ultra`, `hyper`, `absolute`): включить или
+    выключить; скорость (с округлением до шага движка) и цвет; ингредиенты,
+    категории и время рецептов ленты, подземки, сплиттера и лоадера; колбы,
+    количество, время и пререквизиты технологии. Набор тиров фиксирован —
+    новые тиры API не добавляет.
+
+aai:
+  loaders: |
+    На каждый включённый тир — `AAILoaders.make_tier` в обоих режимах AAI.
+    Рецепт: лента тира, лоадер предыдущего включённого тира (для первого —
+    `aai-turbo-loader`), ресурсы планеты; для `expensive` — явный рецепт ×10
+    по ресурсам, лента и лоадер по одному. Технология: технология ленты
+    тира плюс технология предыдущего лоадера. Расход лубриканта —
+    пропорционально скорости от турбо (0,25 в минуту на 60).
+  price_divisor: |
+    Только в режиме `expensive`. Все рецепты, результат которых — лоадер AAI
+    (`loader-1x1` с именем на `aai-`): количество каждого ингредиента делится
+    на делитель с округлением вверх, минимум 1; лоадеры AAI среди
+    ингредиентов не делятся. Рецепт переработки такого лоадера пересобирается,
+    иначе переработка отдавала бы ингредиенты дорогого рецепта.
+  runtime_contract: |
+    Скрипт AAI в режиме `lubricated` требует для каждого `loader-1x1` с
+    именем на `aai-` прототип `<имя>-pipe` и подцепляет к лоадеру скрытую
+    трубу с лубрикантом по событиям постройки и сноса.
+
+loader_stacking:
+  scope: все прототипы `loader` и `loader-1x1`, без имён
+  stacking: |
+    Флажок включён — лоадерам ставится `max_belt_stack_size` (максимум из
+    `utility-constants`) и `adjustable_belt_stack_size`. Выключен — мод стак
+    не трогает, у лоадеров AAI работает его собственная настройка.
+  full_stack: |
+    `wait_for_full_stack` — поле прототипа лоадера: лоадер не выкладывает
+    предметы, пока их не наберётся на полную стопку ленты. Работает только
+    со стаком. Режим конкретного лоадера — выбор одного из двух прототипов,
+    как у манипуляторов в `shm-k2-superior-inserters-full-hand-switcher`.
+
+    Исходный прототип получает режим по умолчанию из настройки. Каждому
+    исходному — скрытая копия `<имя>-shm-alt` с противоположным режимом:
+    ставится тем же предметом, при разборке отдаёт его же, называется как
+    исходный, из цепочки улучшений выключена. Имя копии начинается с того
+    же префикса, поэтому копия лоадера AAI остаётся лоадером AAI; в режиме
+    `lubricated` ей добавляется копия трубы `<имя>-shm-alt-pipe`. Скрытые
+    прототипы (ванильные лоадеры) копий не получают.
+  switch: |
+    Замена сущности `create_entity{fast_replace = true}`. Для лоадеров с
+    трубой AAI: старый лоадер объявляется снесённым
+    (`script.raise_script_destroy`), новый — построенным
+    (`raise_built = true`), чтобы AAI убрал старую трубу и поставил новую;
+    лубрикант переносится из старой трубы в новую.
+  controls: |
+    Клавиша `SHIFT + M` (custom-input `shm-advanced-belts-full-stack-toggle`)
+    по лоадеру под курсором — та же клавиша, что у манипуляторов в
+    `shm-k2-superior-inserters-full-hand-switcher`; каждый мод реагирует
+    только на свои сущности. Панель справа от окна лоадера с переключателем
+    «Сразу / Полная стопка». Режим переживает чертёж и копирование настроек.
+
+settings_lock: |
+  Другой мод фиксирует настройку в своём `settings-updates.lua`: булеву —
+  `forced_value` и `hidden`, числовую — `default_value`, `allowed_values`
+  из одного значения и `hidden`; `forced_value` у числовых и строковых
+  настроек движок игнорирует, `engine-data-stage`.
+settings:
+  - "на каждый тир: включён (по умолчанию да), скорость (60–240, шаг 15), дальность подземки"
+  - "делитель цены лоадеров AAI в режиме `expensive` (по умолчанию 5, 1 — без изменений)"
+  - "стак на ленте для всех лоадеров (по умолчанию да)"
+  - "ожидание полной стопки: механика включена (по умолчанию да) и режим новых лоадеров по умолчанию (полная стопка)"
+
+testing: |
+  Lua-тесты логики — `npm test -w shm-advanced-belts`. Тесты в игре
+  (`tests/ingame/`, FactorioTest), все без графики:
+
+  - `npm run test:ingame -w shm-advanced-belts` — с AAI Loaders в режиме
+    `lubricated`;
+  - `npm run test:ingame:no-aai -w shm-advanced-belts` — без AAI;
+  - `npm run test:ingame:probe -w shm-advanced-belts` — с зондом
+    `tests/ingame/probe/`: он переводит AAI в `expensive`, выключает
+    «Ультра» настройкой, «Абсолютный» — через API и перенастраивает «Гипер»
+    через API, как это сделал бы чужой мод;
+  - совместимость с K2 — профилем
+    `npm run test:ingame -w shm-advanced-belts -- --mods space-age aai-loaders Krastorio2-spaced-out`.
+
+  Все профили пишут один `factorio-test.lock.json`, основной прогоняется
+  последним. Панель у окна лоадера и клавиша с живым игроком тестами не
+  покрыты — проверяются глазами.
+
+graphics_tool: |
+  Маски и картинку мода порождает `npm run recolor-sprites`
+  (`tools/recolor-sprites.ts`, entity `repo-toolchain`).
+
+behaviors:
+  - advanced-belt-tiers-follow-settings
+  - disabled-tier-is-bridged
+  - aai-loaders-follow-belt-tiers
+  - aai-loader-price-divided-in-expensive-mode
+  - loaders-stack-and-wait-for-full-stack
+  - full-stack-switch-keeps-loader-settings
+  - advanced-belts-api-overrides-tiers
+  - mod-loads-in-target-factorio
+manuals:
+  - test-mod-locally
+  - publish-new-mod
+engine_facts:
+  - engine-loaders
+  - engine-data-stage
+conventions:
+  - mod-naming
+  - licensing
+  - localization
+  - factorio-version-track
