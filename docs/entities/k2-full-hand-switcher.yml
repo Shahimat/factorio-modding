@@ -44,10 +44,11 @@ package:
     `+ ChangeInserterDropLane >= 1.3.0`.
   feature_flags: Ни одного.
   locale: Базовый набор языков, convention `localization`.
-  portal_name: |
-    Имя свободно: `GET mods.factorio.com/api/mods/shm-k2-superior-inserters-full-hand-switcher`
-    отдал 404 (curl, анонимно, 2026-10-25). Перед первой публикацией
-    проверка повторяется — manual `publish-new-mod`.
+  portal: |
+    Опубликован 2026-10-25, релиз 1.0.0:
+    https://mods.factorio.com/mod/shm-k2-superior-inserters-full-hand-switcher.
+    Лицензия `default_mit`, категория `tweaks`, тег `logistics`, описание —
+    README пакета, `source_url` — репозиторий.
   thumbnail: |
     Иконка превосходного манипулятора и две стрелки от неё к массовому и
     пакетному манипуляторам — «умеет и так, и так». Собрана из иконок
