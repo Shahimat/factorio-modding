@@ -32,6 +32,16 @@ describe('полная рука', function()
     end)
   end)
 
+  it('полная рука — это текущий размер руки с учётом ограничения стака', function()
+    local input, inserter, output = f.chest_line(f.SUP, 0)
+    inserter.inserter_stack_size_override = 2
+    input.insert({ name = 'iron-plate', count = 2 })
+    after_ticks(300, function()
+      assert(inserter.inserter_target_pickup_count == 2, 'рука вмещает ' .. inserter.inserter_target_pickup_count)
+      assert(f.count(output, 'iron-plate') == 2, 'рука из двух при ограничении 2 не выложена')
+    end)
+  end)
+
   it('при достатке предметов манипулятор работает, а не стоит', function()
     local input, _, output = f.chest_line(f.SUP, 0)
     input.insert({ name = 'iron-plate', count = 200 })

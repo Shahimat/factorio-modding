@@ -25,11 +25,43 @@ tricks → Inserters* explains the controls.
 Works with the superior inserter and the superior long inserter. Requires
 Factorio 2.1 and Krastorio 2; K2 Spaced Out is optional.
 
+## Good to know
+
+- **"Full hand" means the current hand size.** It follows research
+  bonuses and the stack size limit, whether set by hand or by the circuit
+  network: with a limit of 2, two items are a full hand.
+- **Sparse supply leaves items in the hand.** If fewer items arrive than
+  the hand holds, a *Full hand* inserter keeps them and waits. Use
+  *Instant* where the last few items must get through, e.g. low-volume
+  ingredients.
+- **A spoiled hand is dropped right away.** If the items in the hand spoil
+  while it waits (say 11 nutrients out of 16 turn into 11 spoilage), the
+  inserter stops waiting and drops the spoiled stack instead of holding it
+  forever.
+- **Stacks on belts need research.** The height of a stack the inserter
+  puts on a belt is 1 plus the *transport belt capacity* bonus, capped by
+  the inserter's own limit. Before that research, a *Full hand* inserter
+  still waits for a full hand but drops items onto a belt one by one.
+  Without K2 Spaced Out superior inserters do not stack on belts at all.
+- **Early game hands are small.** Without capacity research and without
+  K2 Spaced Out the hand may hold a single item, and then both modes
+  behave the same.
+- **New inserters start in *Full hand*.** That includes ones built from
+  the item and upgraded with the upgrade planner. Blueprints and copy-paste
+  keep the mode of each inserter.
+
 ## Before removing the mod
 
 The *Instant* mode is a separate hidden entity. When the mod is removed,
 the game deletes those inserters from the map, like any entity whose mod is
 gone. Switch all inserters to *Full hand* first.
+
+## Languages
+
+The mod is translated into English, Russian, German, French, Spanish,
+Brazilian Portuguese, Polish, Ukrainian, Simplified Chinese, Japanese and
+Korean. Names of inserters follow the game and Krastorio 2 in each
+language. Corrections from native speakers are welcome.
 
 ## License
 
