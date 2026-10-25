@@ -144,3 +144,4 @@ behaviors:
 conventions:
   - licensing
   - factorio-version-track
+  - publication

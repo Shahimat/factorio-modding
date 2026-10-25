@@ -1,8 +1,19 @@
 # Advanced Belts
 
-Four belt tiers beyond turbo for Factorio 2.1 Space Age, each with a
-transport belt, an underground belt, a splitter and, with
-[AAI Loaders](https://mods.factorio.com/mod/aai-loaders), a loader:
+Two things in one mod for Factorio 2.1 Space Age:
+
+- **Four belt tiers beyond turbo**, each with a transport belt, an
+  underground belt, a splitter and, with
+  [AAI Loaders](https://mods.factorio.com/mod/aai-loaders), a loader.
+- **Loader features for every loader in the game**, whichever mod adds it:
+  belt stacking, a per-loader *full stack* mode, a price divisor for the
+  expensive mode of AAI Loaders and, optionally, AAI loaders unlocked by
+  the technologies of their belts.
+
+Each tier can be turned off in the startup settings. With all four off, the
+mod is just the loader features.
+
+## Belt tiers
 
 | Tier | Speed, items/s | Underground | Resources | Research |
 |---|---|---|---|---|
@@ -18,6 +29,20 @@ turbo → superior → ultra → hyper → absolute.
 
 The mod is pure Space Age: it does not depend on Krastorio 2 or on planet
 mods. Planet mods can retune it through the API below.
+
+## Loader features
+
+- **Belt stacking** — every loader puts stacks on belts; the stack size is
+  set in its window.
+- **Full stack mode** — a loader in this mode puts items on the belt only
+  as full stacks, so belts are packed. Switch each loader with `SHIFT + M`
+  or the switch next to its window; new loaders start in *Full stack*.
+- **Cheaper AAI loaders** — in the *expensive* mode of AAI Loaders, the
+  recipes of all AAI loaders are divided by 5 (configurable).
+- **AAI loaders in belt technologies** (off by default) — no separate loader
+  research: each AAI loader comes with the technology of its belt.
+
+Details of every setting are below.
 
 ## Settings
 

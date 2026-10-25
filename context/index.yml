@@ -55,6 +55,8 @@ namespaces:
         one_liner: MIT на своё + обязательная оговорка про ассеты Wube
       - key: factorio-version-track
         one_liner: поддерживается только Factorio 2.1, одна мажорная версия на релиз
+      - key: publication
+        one_liner: на мод-портал — только после явного «да» владельца на показанный текст и действие
 
   mods:
     entities:
