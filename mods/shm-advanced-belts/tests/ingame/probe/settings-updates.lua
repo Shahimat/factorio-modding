@@ -7,6 +7,11 @@ mode.hidden = true
 mode.default_value = 'expensive'
 mode.allowed_values = { 'expensive' }
 
-local ultra = data.raw['bool-setting']['shm-advanced-belts-ultra-enabled']
-ultra.hidden = true
-ultra.forced_value = false
+local function force(name, value)
+  local setting = data.raw['bool-setting'][name]
+  setting.hidden = true
+  setting.forced_value = value
+end
+
+force('shm-advanced-belts-ultra-enabled', false)
+force('shm-advanced-belts-loaders-in-belt-technologies', true)

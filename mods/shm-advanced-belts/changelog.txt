@@ -4,7 +4,8 @@ Date: 2026-10-25
   Features:
     - Four belt tiers beyond turbo: superior, ultra, hyper and absolute, 90, 105, 135 and 150 items/s, with undergrounds and splitters.
     - AAI Loaders for each tier when AAI Loaders is installed.
-    - Startup settings for each tier: enabled, speed, underground length.
+    - Startup settings for each tier: enabled, speed, underground length (15, 19, 23 and 27 by default).
+    - Optional unlocking of all AAI loaders by the technologies of their belts.
     - AAI loader price divisor for the expensive mode of AAI Loaders.
     - Belt stacking for all loaders and a per-loader full stack mode: SHIFT + M or a switch next to the loader window.
     - API ShmAdvancedBelts for other mods.

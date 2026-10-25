@@ -6,10 +6,10 @@ transport belt, an underground belt, a splitter and, with
 
 | Tier | Speed, items/s | Underground | Resources | Research |
 |---|---|---|---|---|
-| Superior | 90 | 13 | holmium plates, supercapacitors | electromagnetic science |
-| Ultra | 105 | 15 | carbon fiber, processing units | agricultural science |
-| Hyper | 135 | 17 | lithium plates, quantum processors | cryogenic science |
-| Absolute | 150 | 19 | biter eggs, speed modules 3 | promethium science |
+| Superior | 90 | 15 | holmium plates, supercapacitors | electromagnetic science |
+| Ultra | 105 | 19 | carbon fiber, processing units | agricultural science |
+| Hyper | 135 | 23 | lithium plates, quantum processors | cryogenic science |
+| Absolute | 150 | 27 | biter eggs, speed modules 3 | promethium science |
 
 Each tier is made from the previous one, starting from turbo, plus
 lubricant. Recipes work in assemblers and in the foundry — and in any other
@@ -32,6 +32,11 @@ All settings are startup settings.
   mod's and other mods' — is divided by it, rounded up. The previous loader
   in a recipe is not divided. Recycling follows the new recipes. The
   *lubricated* mode is not affected.
+- **AAI loaders in belt technologies** (off). Every AAI loader — AAI's own
+  tiers, this mod's and other mods' — is unlocked by the technology of its
+  belt, found by the loader recipe, and the separate loader technologies are
+  hidden. In the *lubricated* mode a loader may unlock before lubricant; it
+  stays idle without it, like any AAI loader.
 - **Belt stacking for all loaders** (on). Every loader can put stacks on
   belts; the stack size is set in its window. When off, the mod leaves
   stacking alone and AAI Loaders uses its own setting.

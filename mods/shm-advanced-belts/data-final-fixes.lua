@@ -1,10 +1,11 @@
 -- Последняя стадия данных: к этому моменту все моды создали свои лоадеры.
--- Делитель цены лоадеров AAI, стак на ленте и ожидание полной стопки с
--- копиями для переключателя.
+-- Делитель цены лоадеров AAI, их открытие технологиями лент, стак на ленте и
+-- ожидание полной стопки с копиями для переключателя.
 
 local names = require('logic.setting-names')
 local price = require('logic.price')
 local recycling = require('prototypes.recycling')
+local unlocks = require('logic.unlocks')
 local variants = require('logic.variants')
 
 local startup = settings.startup
@@ -16,6 +17,10 @@ if mods['aai-loaders'] and startup['aai-loaders-mode'].value == 'expensive' then
     recipe_names[i] = recipe.name
   end
   recycling.generate(recipe_names)
+end
+
+if mods['aai-loaders'] and startup[names.LOADERS_IN_BELT_TECHNOLOGIES].value then
+  unlocks.apply(data.raw)
 end
 
 local max_stack = data.raw['utility-constants'].default.max_belt_stack_size

@@ -32,7 +32,7 @@ namespaces:
       - id: engine-loaders
         one_liner: лоадеры — режим полной стопки только в прототипе, что переносит fast_replace скриптом, raise_built для чужих компаньонов
       - id: engine-data-stage
-        one_liner: стадии настроек и данных — forced_value только у булевых настроек, переработка в 2.1 порождается до data-updates модов
+        one_liner: стадии настроек и данных — forced_value только у булевых настроек, сохранённые значения переживают смену умолчаний, переработка в 2.1 порождается до data-updates модов
 
   delivery:
     entities:
@@ -115,6 +115,8 @@ namespaces:
         one_liner: режим полной стопки переключается панелью и SHIFT + M без потери настроек лоадера
       - id: advanced-belts-api-overrides-tiers
         one_liner: другой мод перенастраивает и выключает тиры через API ShmAdvancedBelts
+      - id: aai-loaders-unlock-with-belt-technology
+        one_liner: по флажку лоадеры AAI открываются технологиями своих лент, без отдельных технологий
     manuals:
       - id: test-mod-locally
         one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль

@@ -30,14 +30,14 @@ describe('скорость', function()
 end)
 
 describe('значения по умолчанию', function()
-  it('четыре тира со скоростями 90 / 105 / 135 / 150 и дальностью 13 / 15 / 17 / 19', function()
+  it('четыре тира со скоростями 90 / 105 / 135 / 150 и дальностью 15 / 19 / 23 / 27', function()
     local speeds, undergrounds = {}, {}
     for i, tier in ipairs(defaults.TIERS) do
       speeds[i] = tier.speed
       undergrounds[i] = tier.underground
     end
     assert_eq(speeds, { 90, 105, 135, 150 })
-    assert_eq(undergrounds, { 13, 15, 17, 19 })
+    assert_eq(undergrounds, { 15, 19, 23, 27 })
   end)
 
   it('скорости по умолчанию есть в списке настройки', function()

@@ -1,5 +1,6 @@
 -- Стартовые настройки: по тиру — включение, скорость и дальность подземки;
--- общие — делитель цены лоадеров AAI, стак и ожидание полной стопки.
+-- общие — делитель цены лоадеров AAI, лоадеры AAI в технологиях лент, стак
+-- и ожидание полной стопки.
 -- Другой мод фиксирует любую из них в своём `settings-updates.lua`:
 -- булеву — `forced_value` и `hidden`, числовую — `default_value`,
 -- `allowed_values` из одного значения и `hidden` (`forced_value` у числовых
@@ -53,6 +54,13 @@ settings[#settings + 1] = {
   minimum_value = 1,
   maximum_value = 10,
   order = 'b-a',
+}
+settings[#settings + 1] = {
+  type = 'bool-setting',
+  name = names.LOADERS_IN_BELT_TECHNOLOGIES,
+  setting_type = 'startup',
+  default_value = false,
+  order = 'b-b',
 }
 settings[#settings + 1] = {
   type = 'bool-setting',

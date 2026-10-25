@@ -160,7 +160,9 @@ local function build_loader(entry)
     recipe = loader_recipe(entry.recipes.loader),
     unlubricated_recipe = loader_recipe(entry.recipes.loader_expensive),
     next_upgrade = entry.next and entry.next.loader or nil,
-    localise = true,
+    -- Своё имя «<Тир> погрузчик» вместо шаблона AAI «<лента> погрузчик»;
+    -- AAI отдаёт его и предмету, рецепту и технологии лоадера.
+    localised_name = { 'entity-name.' .. n.loader },
   })
   if made and made.recipe then
     recycling.generate({ made.recipe.name })

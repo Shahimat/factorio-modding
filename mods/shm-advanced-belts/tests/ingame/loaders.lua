@@ -161,3 +161,62 @@ describe('стак и полная стопка', function()
     end)
   end)
 end)
+
+describe('имена', function()
+  it('лоадер тира называется своим именем, а не шаблоном AAI', function()
+    if not f.aai() then
+      return
+    end
+    for _, key in ipairs(f.enabled_keys()) do
+      local name = prototypes.entity[f.loader(key)].localised_name
+      assert(type(name) == 'table' and name[1] == 'entity-name.' .. f.loader(key), key .. ': ' .. serpent.line(name))
+    end
+  end)
+end)
+
+describe('лоадеры в технологиях лент', function()
+  local function unlocked_by(tech_name, recipe)
+    local tech = prototypes.technology[tech_name]
+    for _, effect in ipairs(tech and tech.effects or {}) do
+      if effect.type == 'unlock-recipe' and effect.recipe == recipe then
+        return true
+      end
+    end
+    return false
+  end
+
+  it('флажок выключен — у лоадеров свои технологии', function()
+    if not f.aai() or f.probe() then
+      return
+    end
+    assert(unlocked_by('aai-turbo-loader', 'aai-turbo-loader'), 'турбо-лоадер без своей технологии')
+    assert(unlocked_by(f.loader('superior'), f.loader('superior')), 'лоадер тира без своей технологии')
+    assert(not prototypes.technology[f.loader('superior')].hidden, 'технология лоадера спрятана')
+  end)
+
+  it('флажок включён — лоадеры AAI открываются технологиями своих лент', function()
+    if not f.probe() then
+      return
+    end
+    assert(unlocked_by('logistics', 'aai-loader'), 'жёлтый лоадер не в «Логистике»')
+    assert(unlocked_by('logistics-3', 'aai-express-loader'), 'синий лоадер не в «Логистике 3»')
+    assert(unlocked_by('turbo-transport-belt', 'aai-turbo-loader'), 'турбо-лоадер не в турбо-логистике')
+    for _, key in ipairs(f.enabled_keys()) do
+      assert(unlocked_by(f.belt(key), f.loader(key)), key .. ': лоадер не в технологии ленты')
+      assert(prototypes.technology[f.loader(key)].hidden, key .. ': технология лоадера не спрятана')
+    end
+  end)
+
+  it('флажок включён — видимые технологии не требуют спрятанных', function()
+    if not f.probe() then
+      return
+    end
+    for name, tech in pairs(prototypes.technology) do
+      if not tech.hidden then
+        for prerequisite in pairs(tech.prerequisites) do
+          assert(not prototypes.technology[prerequisite].hidden, name .. ' требует спрятанную ' .. prerequisite)
+        end
+      end
+    end
+  end)
+end)

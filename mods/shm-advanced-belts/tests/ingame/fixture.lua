@@ -5,11 +5,12 @@ local fixture = {}
 
 fixture.KEYS = { 'superior', 'ultra', 'hyper', 'absolute' }
 fixture.SPEEDS = { superior = 90, ultra = 105, hyper = 135, absolute = 150 }
-fixture.UNDERGROUND = { superior = 13, ultra = 15, hyper = 17, absolute = 19 }
+fixture.UNDERGROUND = { superior = 15, ultra = 19, hyper = 23, absolute = 27 }
 
 local AREA = { { -40, -40 }, { 40, 40 } }
 
---- Прогон с зондом: AAI в режиме expensive, «Ультра» выключен настройкой,
+--- Прогон с зондом: AAI в режиме expensive, лоадеры в технологиях лент,
+--- «Ультра» выключен настройкой,
 --- «Абсолютный» — через API, «Гипер» перенастроен через API
 --- (`tests/ingame/probe/`).
 function fixture.probe()
