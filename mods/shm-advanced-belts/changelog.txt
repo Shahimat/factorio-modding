@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 2026-10-25
+  Locale:
+    - The mod description lists the loader features next to the belt tiers and says that tiers can be turned off to keep only the loader features.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: 2026-10-25
   Features:

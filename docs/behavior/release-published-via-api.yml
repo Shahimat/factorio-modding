@@ -50,5 +50,7 @@ verified_note: >-
   принят. Повторено 2026-10-25 публикацией shm-advanced-belts 1.0.0:
   SHA-1 совпал, категория `content`, тег `logistics` приняты. Ключ в
   `.env.local` записан строкой `export …=…` — читать его
-  `source`, а не `grep`. Остальные сценарии (`init_upload`,
-  ошибки, backoff) ещё не проверялись — поэтому `verified` остаётся `false`.
+  `source`, а не `grep`. Сценарий `init_upload` подтверждён 2026-10-25
+  релизом shm-advanced-belts 1.0.1: `{"success":true}`, SHA-1 на портале
+  совпал с локальным zip. Остальные сценарии (ошибки, backoff) ещё не
+  проверялись — поэтому `verified` остаётся `false`.

@@ -42,8 +42,8 @@ package:
     планет нет, даже опциональных.
   locale: Базовый набор языков, convention `localization`.
   portal: |
-    Опубликован 2026-10-25, релиз 1.0.0:
-    https://mods.factorio.com/mod/shm-advanced-belts. Лицензия
+    Опубликован 2026-10-25, релиз 1.0.0; 1.0.1 того же дня — только новое
+    описание мода: https://mods.factorio.com/mod/shm-advanced-belts. Лицензия
     `default_mit`, категория `content`, тег `logistics`, описание — README
     пакета, `source_url` — репозиторий.
   thumbnail: |
