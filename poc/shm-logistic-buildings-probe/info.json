@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "Logistic Buildings Probe",
   "author": "Shahimat",
-  "factorio_version": "2.0",
+  "factorio_version": "2.1",
   "description": "Прототип для проверки допущений ТЗ мода «Логистические здания» в живой игре. Не публикуется, живёт до закрытия программы.",
   "dependencies": ["base", "? space-age"]
 }

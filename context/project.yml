@@ -21,12 +21,10 @@ stack:
 
 target:
   factorio_stable: "2.1"
-  factorio_frozen: "2.0"
   note: |
-    Единственная дорожка новых релизов — Factorio 2.1: на 2026-10-23
-    `latest-releases` отдаёт stable и experimental `2.1.23`. Дорожка 2.0
-    заморожена — новые релизы в неё не идут, выложенные остаются на портале.
-    Правила — convention `factorio-version-track`.
+    Единственная поддерживаемая версия — Factorio 2.1: на 2026-10-25
+    `latest-releases` отдаёт stable и experimental `2.1.23`. Поддержка 2.0
+    снята полностью 2026-10-25. Правила — convention `factorio-version-track`.
 
 license:
   own_code: MIT

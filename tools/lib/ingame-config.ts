@@ -101,3 +101,66 @@ export function resolveBinary(
 ): string | undefined {
   return candidates.find((candidate) => exists(candidate));
 }
+
+/**
+ * appID Factorio в Steam. Steam-сборка, запущенная напрямую, перезапускает
+ * себя через Steam и теряет аргументы; файл `steam_appid.txt` с этим номером
+ * в текущем каталоге процесса это отключает — так устроен Steamworks.
+ * Поэтому стенд запускает игру из каталога данных, где лежит такой файл.
+ */
+export const STEAM_APP_ID = '427520';
+
+/** Путь к конфигу из аргументов и аргументы без него. */
+export interface ConfigArgument {
+  readonly config: string | undefined;
+  readonly rest: string[];
+}
+
+/**
+ * Вынимает из аргументов `-c <путь>`, `--config <путь>` или
+ * `--config=<путь>`. Обёртке путь нужен сама: по нему она находит каталог
+ * данных, а CLI получает его обратно абсолютным, потому что запускается не
+ * из корня репозитория. Аргументы после `--` — фильтры тестов, их не
+ * трогаем.
+ */
+export function extractConfigArgument(args: readonly string[]): ConfigArgument {
+  const rest: string[] = [];
+  let config: string | undefined;
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i] as string;
+    if (arg === '--') {
+      rest.push(...args.slice(i));
+      break;
+    }
+    if ((arg === '-c' || arg === '--config') && i + 1 < args.length) {
+      config = args[i + 1];
+      i += 1;
+    } else if (arg.startsWith('--config=')) {
+      config = arg.slice('--config='.length);
+    } else {
+      rest.push(arg);
+    }
+  }
+  return { config, rest };
+}
+
+/** Включён ли режим с графикой: `-g`, `--graphics` или `-g` в связке флагов. */
+export function isGraphicsRun(args: readonly string[]): boolean {
+  for (const arg of args) {
+    if (arg === '--') return false;
+    if (arg === '--graphics') return true;
+    if (/^-[A-Za-z]*g[A-Za-z]*$/.test(arg)) return true;
+  }
+  return false;
+}
+
+/**
+ * Итог прогона по строке вывода CLI: `'passed'`, `'failed'` или `undefined`,
+ * если строка не итоговая. В режиме с графикой CLI сам игру не закрывает и
+ * ждёт, пока её закроют руками, поэтому обёртка ловит итог по этой строке.
+ */
+export function runOutcome(line: string): 'passed' | 'failed' | undefined {
+  const match = /Test run finished: (\w+)/.exec(line);
+  if (match === null) return undefined;
+  return match[1] === 'passed' ? 'passed' : 'failed';
+}

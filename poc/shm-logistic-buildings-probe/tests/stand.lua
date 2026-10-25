@@ -73,7 +73,7 @@ describe('оснастка стенда', function()
       local produced = furnace.get_output_inventory().get_item_count('iron-plate')
       assert(produced > 0, 'за 400 тиков печь не выплавила ни одной пластины')
 
-      local left = furnace.get_inventory(defines.inventory.furnace_source).get_item_count('iron-ore')
+      local left = furnace.get_inventory(defines.inventory.crafter_input).get_item_count('iron-ore')
       assert(left < 10, 'руда не расходуется, в источнике осталось: ' .. left)
     end)
   end)

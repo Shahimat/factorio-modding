@@ -1,0 +1,13 @@
+{
+  "modPath": "../..",
+  "mods": [
+    "space-age",
+    "Krastorio2-spaced-out"
+  ],
+  "dataDirectory": "../../../../.work/ingame-stand/k2-full-hand-switcher/data",
+  "outputFile": "../../../../.work/ingame-stand/k2-full-hand-switcher/results-gui.json",
+  "tagWhitelist": [
+    "gui"
+  ],
+  "logPassedTests": true
+}

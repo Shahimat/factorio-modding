@@ -13,7 +13,7 @@ function infoJson(overrides: Record<string, unknown> = {}): string {
     version: '0.1.0',
     title: 'Fixture',
     author: 'Shahimat',
-    factorio_version: '2.0',
+    factorio_version: '2.1',
     ...overrides,
   });
 }
@@ -31,7 +31,7 @@ test('корректный info.json проходит и возвращает п
   assert.deepEqual(problems, []);
   assert.equal(info?.name, NAME);
   assert.equal(info?.version, '0.1.0');
-  assert.equal(info?.factorio_version, '2.0');
+  assert.equal(info?.factorio_version, '2.1');
   assert.deepEqual(info?.dependencies, []);
 });
 
@@ -137,7 +137,7 @@ test('чужой author — находка', () => {
 
 test('factorio_version из трёх чисел — находка', () => {
   assert.ok(
-    messages(infoJson({ factorio_version: '2.0.77' })).some((m) => /2 числа/.test(m)),
+    messages(infoJson({ factorio_version: '2.1.23' })).some((m) => /2 числа/.test(m)),
   );
 });
 
@@ -151,10 +151,12 @@ test('отсутствие factorio_version — находка про дефол
   assert.ok(messages(raw).some((m) => /0\.12/.test(m)));
 });
 
-test('factorio_version вне известных дорожек — замечание, не ошибка', () => {
-  const { problems } = check(infoJson({ factorio_version: '1.1' }));
-  assert.equal(countErrors(problems), 0);
-  assert.ok(problems.some((p) => p.severity === 'warning'));
+test('factorio_version кроме 2.1 — ошибка, включая снятую 2.0', () => {
+  for (const track of ['2.0', '1.1']) {
+    const { problems } = check(infoJson({ factorio_version: track }));
+    assert.equal(countErrors(problems), 1, track);
+    assert.ok(problems.some((p) => p.message.includes('не поддерживается')), track);
+  }
 });
 
 test('все формы префиксов зависимостей разбираются', () => {

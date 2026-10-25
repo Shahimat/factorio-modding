@@ -14,7 +14,7 @@ import {
   MOD_TITLE_FORBIDDEN_NICK,
   VERSION_PART_MAX,
 } from './conventions.ts';
-import { error, warning, type Problem } from './problems.ts';
+import { error, type Problem } from './problems.ts';
 
 /** Поля info.json, на которые опираются инструменты. */
 export interface InfoJson {
@@ -216,9 +216,9 @@ export function checkInfoJsonText(
       !(FACTORIO_VERSION_TRACKS as readonly string[]).includes(track)
     ) {
       problems.push(
-        warning(
+        error(
           file,
-          `"factorio_version" = "${track}" вне известных дорожек ${FACTORIO_VERSION_TRACKS.join(', ')}`,
+          `"factorio_version" = "${track}" не поддерживается, допустимо: ${FACTORIO_VERSION_TRACKS.join(', ')}`,
         ),
       );
     }

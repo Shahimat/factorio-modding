@@ -41,12 +41,11 @@ export const MOD_TITLE_MAX_LENGTH = 100;
 export const VERSION_PART_MAX = 65535;
 
 /**
- * Известные версии игры, convention `factorio-version-track`. Первая —
- * дорожка новых релизов, остальные заморожены, но для `validate` остаются
- * допустимыми. `factorio_version` указывает ровно одну мажорную версию, из
- * двух чисел.
+ * Поддерживаемые версии игры, convention `factorio-version-track`: только
+ * 2.1, поддержка 2.0 снята. `factorio_version` указывает ровно одну мажорную
+ * версию, из двух чисел; любое значение вне списка — ошибка `validate`.
  */
-export const FACTORIO_VERSION_TRACKS = ['2.1', '2.0'] as const;
+export const FACTORIO_VERSION_TRACKS = ['2.1'] as const;
 
 /** Разделитель секции в changelog.txt — ровно столько дефисов. */
 export const CHANGELOG_SEPARATOR_LENGTH = 99;

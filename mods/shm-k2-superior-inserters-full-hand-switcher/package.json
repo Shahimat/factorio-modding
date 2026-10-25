@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node ../../tools/lua-test.ts ."
+    "test": "node ../../tools/lua-test.ts .",
+    "test:ingame": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.json",
+    "test:ingame:no-k2so": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.json --mods space-age",
+    "test:ingame:gui": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.gui.json -g"
   }
 }

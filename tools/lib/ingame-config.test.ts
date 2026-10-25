@@ -4,10 +4,13 @@ import { test } from 'node:test';
 import {
   binaryCandidates,
   configIniText,
+  extractConfigArgument,
+  isGraphicsRun,
   needsRewrite,
   readDataOf,
   resolveBinary,
   resolveReadData,
+  runOutcome,
 } from './ingame-config.ts';
 
 /** Проверка существования по списку путей, без файловой системы. */
@@ -98,4 +101,44 @@ test('выбирается первый существующий кандида�
   const candidates = ['/a/factorio', APP_BIN, '/c/factorio'];
   assert.equal(resolveBinary(candidates, existsIn([APP_BIN, '/c/factorio'])), APP_BIN);
   assert.equal(resolveBinary(candidates, existsIn([])), undefined);
+});
+
+test('конфиг вынимается из -c, --config и --config=, остальное сохраняется по порядку', () => {
+  assert.deepEqual(extractConfigArgument(['-v', '-c', 'a.json', '-g']), {
+    config: 'a.json',
+    rest: ['-v', '-g'],
+  });
+  assert.deepEqual(extractConfigArgument(['--config', 'b.json']), { config: 'b.json', rest: [] });
+  assert.deepEqual(extractConfigArgument(['--config=c.json', 'filter']), {
+    config: 'c.json',
+    rest: ['filter'],
+  });
+});
+
+test('без конфига — undefined, -c без значения не теряется', () => {
+  assert.deepEqual(extractConfigArgument(['-v']), { config: undefined, rest: ['-v'] });
+  assert.deepEqual(extractConfigArgument(['-c']), { config: undefined, rest: ['-c'] });
+});
+
+test('после -- аргументы не разбираются: это фильтры тестов', () => {
+  assert.deepEqual(extractConfigArgument(['--', '-c', 'x']), {
+    config: undefined,
+    rest: ['--', '-c', 'x'],
+  });
+});
+
+test('режим с графикой узнаётся по -g, --graphics и связке флагов, но не после --', () => {
+  assert.equal(isGraphicsRun(['-g']), true);
+  assert.equal(isGraphicsRun(['--graphics']), true);
+  assert.equal(isGraphicsRun(['-gw']), true);
+  assert.equal(isGraphicsRun(['-v', 'filter']), false);
+  assert.equal(isGraphicsRun(['--', '-g']), false);
+  assert.equal(isGraphicsRun(['--tag-whitelist', 'gui']), false);
+});
+
+test('итог прогона читается из строки CLI, прочие строки — не итог', () => {
+  assert.equal(runOutcome('Test run finished: passed'), 'passed');
+  assert.equal(runOutcome('   86.163 Script @x: Test run finished: failed'), 'failed');
+  assert.equal(runOutcome('Test run finished: todo'), 'failed');
+  assert.equal(runOutcome('PASS tests > a'), undefined);
 });

@@ -25,6 +25,11 @@ namespaces:
       - key: testing
         one_liner: каждый инструмент покрыт юнит-тестами на встроенном раннере Node
 
+  engine:
+    entities:
+      - id: engine-inserters
+        one_liner: манипуляторы — режим руки только в прототипе, стопки на ленте от бонуса силы, что переносит fast_replace скриптом
+
   delivery:
     entities:
       - id: mod-portal
@@ -45,7 +50,7 @@ namespaces:
       - key: licensing
         one_liner: MIT на своё + обязательная оговорка про ассеты Wube
       - key: factorio-version-track
-        one_liner: релизы идут в дорожку 2.1, дорожка 2.0 заморожена, одна мажорная версия на релиз
+        one_liner: поддерживается только Factorio 2.1, одна мажорная версия на релиз
 
   mods:
     entities:

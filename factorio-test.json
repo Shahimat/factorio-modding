@@ -2,7 +2,5 @@
   "modPath": "./poc/shm-logistic-buildings-probe",
   "dataDirectory": "./.work/ingame-stand/data",
   "outputFile": "./.work/ingame-stand/results.json",
-  "test": {
-    "log_passed_tests": true
-  }
+  "logPassedTests": true
 }

@@ -64,7 +64,7 @@ info_json_fields:
     title: 'название без ника, у форка "<исходный title> fork"; до 100 символов'
     author: Shahimat
   effectively_mandatory:
-    factorio_version: '"2.1" для новых релизов, дорожка "2.0" заморожена; ровно одна мажорная версия'
+    factorio_version: '"2.1" — единственная поддерживаемая версия; ровно одна мажорная версия'
   optional:
     - contact
     - homepage
