@@ -45,7 +45,8 @@ package:
   feature_flags: Ни одного.
   locale: Базовый набор языков, convention `localization`.
   portal: |
-    Опубликован 2026-10-25, релиз 1.0.0:
+    Опубликован 2026-10-25, релиз 1.0.0; 1.0.1 от 2026-10-27 —
+    переключение призраков, описание обновлено тем же днём:
     https://mods.factorio.com/mod/shm-k2-superior-inserters-full-hand-switcher.
     Лицензия `default_mit`, категория `tweaks`, тег `logistics`, описание —
     README пакета, `source_url` — репозиторий.

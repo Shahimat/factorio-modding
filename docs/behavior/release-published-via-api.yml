@@ -52,5 +52,9 @@ verified_note: >-
   `.env.local` записан строкой `export …=…` — читать его
   `source`, а не `grep`. Сценарий `init_upload` подтверждён 2026-10-25
   релизом shm-advanced-belts 1.0.1: `{"success":true}`, SHA-1 на портале
-  совпал с локальным zip. Остальные сценарии (ошибки, backoff) ещё не
+  совпал с локальным zip. Повторено 2026-10-27 релизами
+  shm-advanced-belts 1.0.2 и shm-k2-superior-inserters-full-hand-switcher
+  1.0.1 (SHA-1 совпали) и `edit_details` описания второго мода
+  (`description=<README.md`, новый текст на странице через ~25 секунд).
+  Остальные сценарии (ошибки, backoff) ещё не
   проверялись — поэтому `verified` остаётся `false`.
