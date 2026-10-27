@@ -25,6 +25,38 @@ if settings.startup[names.FULL_STACK].value then
     end
   end)
 
+  -- Постройка из руки поверх призрака другого варианта: режим берётся у
+  -- призрака, а не у предмета.
+  script.on_event(defines.events.on_pre_build, function(e)
+    local player = game.get_player(e.player_index)
+    if player then
+      switch.on_pre_build(player, e.position)
+    end
+  end)
+
+  -- Достройка призрака при открытом окне: `on_gui_opened` игра не шлёт.
+  local BUILT_FILTER = { { filter = 'type', type = 'loader' }, { filter = 'type', type = 'loader-1x1' } }
+  local function on_built(e)
+    if e.entity.valid then
+      switch.on_built(e.entity)
+    end
+  end
+  script.on_event(defines.events.on_built_entity, function(e)
+    local player = game.get_player(e.player_index)
+    local entity = player and switch.on_player_built(player, e.entity) or e.entity
+    if entity and entity.valid then
+      switch.on_built(entity)
+    end
+  end, BUILT_FILTER)
+  for _, event in ipairs({
+    defines.events.on_robot_built_entity,
+    defines.events.on_space_platform_built_entity,
+    defines.events.script_raised_built,
+    defines.events.script_raised_revive,
+  }) do
+    script.on_event(event, on_built, BUILT_FILTER)
+  end
+
   script.on_event('shm-advanced-belts-full-stack-toggle', function(e)
     local player = game.get_player(e.player_index)
     if player then
@@ -46,5 +78,6 @@ if script.active_mods['factorio-test'] then
     'tests.ingame.prototypes',
     'tests.ingame.loaders',
     'tests.ingame.switch',
+    'tests.ingame.gui',
   })
 end

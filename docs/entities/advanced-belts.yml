@@ -233,12 +233,22 @@ loader_stacking:
     (`script.raise_script_destroy`), новый — построенным
     (`raise_built = true`), чтобы AAI убрал старую трубу и поставил новую;
     лубрикант переносится из старой трубы в новую.
+
+    Призрак лоадера с парой переключается заменой на призрак другого
+    варианта (`entity-ghost` с `fast_replace = true`), метки снимаются и
+    восстанавливаются скриптом, трубы у призрака нет. Постройка из руки
+    поверх призрака другого варианта даёт вариант призрака: призрак
+    запоминается в `on_pre_build`, построенное переключается после
+    `on_built_entity`. Факты — entity `engine-ghosts`.
   controls: |
     Клавиша `SHIFT + M` (custom-input `shm-advanced-belts-full-stack-toggle`)
     по лоадеру под курсором — та же клавиша, что у манипуляторов в
     `shm-k2-superior-inserters-full-hand-switcher`; каждый мод реагирует
-    только на свои сущности. Панель справа от окна лоадера с переключателем
-    «Сразу / Полная стопка». Режим переживает чертёж и копирование настроек.
+    только на свои сущности; по призраку — на любом расстоянии. Панель
+    справа от окна лоадера и его призрака (`ghost_mode = 'both'`) с
+    переключателем «Сразу / Полная стопка»; при достройке призрака с
+    открытым окном она пересобирается по событиям постройки. Режим
+    переживает чертёж и копирование настроек.
 
 settings_lock: |
   Другой мод фиксирует настройку в своём `settings-updates.lua`: булеву —
@@ -254,11 +264,14 @@ settings:
 
 testing: |
   Lua-тесты логики — `npm test -w shm-advanced-belts`. Тесты в игре
-  (`tests/ingame/`, FactorioTest), все без графики:
+  (`tests/ingame/`, FactorioTest):
 
   - `npm run test:ingame -w shm-advanced-belts` — с AAI Loaders в режиме
     `lubricated`;
   - `npm run test:ingame:no-aai -w shm-advanced-belts` — без AAI;
+  - `npm run test:ingame:gui -w shm-advanced-belts` — с графикой, тесты с
+    тегом `gui`: панель у окна лоадера и его призрака, достройка призрака
+    при открытом окне, постройка из руки, клавиша по призраку;
   - `npm run test:ingame:probe -w shm-advanced-belts` — с зондом
     `tests/ingame/probe/`: он переводит AAI в `expensive`, выключает
     «Ультра» настройкой, «Абсолютный» — через API и перенастраивает «Гипер»
@@ -267,8 +280,8 @@ testing: |
     `npm run test:ingame -w shm-advanced-belts -- --mods space-age aai-loaders Krastorio2-spaced-out`.
 
   Все профили пишут один `factorio-test.lock.json`, основной прогоняется
-  последним. Панель у окна лоадера и клавиша с живым игроком тестами не
-  покрыты — проверяются глазами.
+  последним. Глазами проверяется только то, что скрипт не видит: что
+  панель действительно нарисована у окна и всплывающий текст.
 
 graphics_tool: |
   Маски и картинку мода порождает `npm run recolor-sprites`
@@ -289,6 +302,7 @@ manuals:
   - publish-new-mod
 engine_facts:
   - engine-loaders
+  - engine-ghosts
   - engine-data-stage
 conventions:
   - mod-naming

@@ -94,12 +94,52 @@ describe('переключение', function()
     end)
   end)
 
-  it('клавиша: призрак лоадера — отказ, чужой лоадер — мимо', function()
+  it('призрак меняет вариант, сохраняя направление, тип, фильтры, стопку, провода, условие и метки', function()
+    if not f.aai() then
+      return
+    end
+    local quality = prototypes.quality['uncommon'] and 'uncommon' or 'normal'
+    local ghost = f.create('entity-ghost', { 0.5, 0.5 }, {
+      inner_name = f.loader('superior'),
+      direction = defines.direction.south,
+      type = 'input',
+      quality = quality,
+    })
+    local combinator = f.create('constant-combinator', { 2.5, 0.5 })
+    ghost.loader_filter_mode = 'whitelist'
+    ghost.set_filter(1, { name = 'iron-plate' })
+    ghost.loader_belt_stack_size_override = 2
+    ghost.tags = { mark = 7 }
+    ghost.get_wire_connector(RED, true).connect_to(combinator.get_wire_connector(RED, true))
+    local behavior = ghost.get_or_create_control_behavior() --[[@as LuaLoaderControlBehavior]]
+    behavior.circuit_enable_disable = true
+
+    local new = switch.switch_to(ghost, false)
+    assert(new and new.type == 'entity-ghost' and new.ghost_name == f.loader('superior') .. '-shm-alt', 'призрак не стал копией')
+    assert(not ghost.valid, 'старый призрак остался')
+    assert(#f.surface().find_entities_filtered({ position = { 0.5, 0.5 }, type = 'entity-ghost' }) == 1, 'на месте не один призрак')
+    assert(new.direction == defines.direction.south, 'направление')
+    assert(new.loader_type == 'input', 'тип: ' .. new.loader_type)
+    assert(new.quality.name == quality, 'качество')
+    assert(new.loader_filter_mode == 'whitelist', 'режим фильтра')
+    assert(new.get_filter(1) and new.get_filter(1).name == 'iron-plate', 'фильтр')
+    assert(new.loader_belt_stack_size_override == 2, 'стопка')
+    assert(new.tags and new.tags.mark == 7, 'метки')
+    local connector = new.get_wire_connector(RED, false)
+    assert(connector and connector.connection_count == 1, 'провод потерян')
+    local new_behavior = new.get_control_behavior() --[[@as LuaLoaderControlBehavior]]
+    assert(new_behavior and new_behavior.circuit_enable_disable, 'условие сети потеряно')
+
+    local back = switch.switch_to(new, true)
+    assert(back and back.ghost_name == f.loader('superior'), 'призрак не вернулся')
+  end)
+
+  it('клавиша: призрак и свой лоадер — переключать, чужой лоадер — мимо', function()
     if not f.aai() then
       return
     end
     local ghost = f.create('entity-ghost', { 0.5, 0.5 }, { inner_name = f.loader('superior') })
-    assert(switch.classify(ghost, game.forces.player) == 'ghost', 'призрак не узнан')
+    assert(switch.classify(ghost, game.forces.player) == 'switch', 'призрак не переключается')
     local enemy = f.create(f.loader('superior'), { 4.5, 0.5 }, { force = 'enemy' })
     assert(switch.classify(enemy, game.forces.player) == 'ignore', 'чужой лоадер переключается')
     local mine = f.create(f.loader('superior'), { 8.5, 0.5 })
@@ -114,6 +154,9 @@ describe('переключение', function()
     local destination = f.create(f.loader('hyper'), { 4.5, 0.5 })
     local result = switch.paste(source, destination)
     assert(result and result.name == f.loader('hyper') .. '-shm-alt', 'режим не перенесён')
+    local ghost = f.create('entity-ghost', { 8.5, 0.5 }, { inner_name = f.loader('hyper') })
+    local pasted = switch.paste(source, ghost)
+    assert(pasted and pasted.ghost_name == f.loader('hyper') .. '-shm-alt', 'режим не перенесён на призрак')
   end)
 end)
 

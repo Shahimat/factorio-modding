@@ -18,9 +18,10 @@ How to switch:
   installed, it sits right below its drop lane switch.
 
 The mode is kept in blueprints and copied with entity settings. Both modes
-are built from the regular superior inserter item. Ghosts cannot be
-switched — they take the mode from the blueprint. A tip in *Tips and
-tricks → Inserters* explains the controls.
+are built from the regular superior inserter item, also over a ghost:
+the built inserter takes the ghost's mode. Ghosts are switched the same
+way, from any distance. A tip in *Tips and tricks → Inserters* explains
+the controls.
 
 Works with the superior inserter and the superior long inserter. Requires
 Factorio 2.1 and Krastorio 2; K2 Spaced Out is optional.

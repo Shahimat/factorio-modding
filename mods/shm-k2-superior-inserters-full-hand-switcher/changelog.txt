@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 2026-10-27
+  Features:
+    - Inserter ghosts can be switched between "Full hand" and "Instant": with the switch next to the ghost window or SHIFT + M, from any distance.
+  Bugfixes:
+    - The full hand switch is shown next to the inserter ghost window and stays visible when the ghost is built while its window is open.
+    - An inserter built by hand over a ghost takes the ghost's mode instead of "Full hand".
+  Locale:
+    - Removed the unused "Cannot switch a ghost" message.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: 2026-10-25
   Features:

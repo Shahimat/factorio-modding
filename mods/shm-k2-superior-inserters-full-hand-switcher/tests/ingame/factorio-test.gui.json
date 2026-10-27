@@ -9,5 +9,8 @@
   "tagWhitelist": [
     "gui"
   ],
-  "logPassedTests": true
+  "logPassedTests": true,
+  "factorioArgs": [
+    "--disable-migration-window"
+  ]
 }

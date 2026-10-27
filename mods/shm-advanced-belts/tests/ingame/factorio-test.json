@@ -6,5 +6,8 @@
   ],
   "dataDirectory": "../../../../.work/ingame-stand/advanced-belts/data",
   "outputFile": "../../../../.work/ingame-stand/advanced-belts/results.json",
+  "tagBlacklist": [
+    "gui"
+  ],
   "logPassedTests": true
 }
