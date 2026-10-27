@@ -1,0 +1,12 @@
+{
+  "name": "shm-orbital-logistics",
+  "version": "0.1.0",
+  "title": "Orbital Logistics",
+  "author": "Shahimat",
+  "factorio_version": "2.1",
+  "description": "Space platform depots and cargo on top of vanilla 2.1 platform-to-platform transfers. Tag a logistic group [reserve], [cargo→aquilo] or [depot:nauvis]: reserve is never given away, cargo is held until its destination, a depot serves other platforms in its orbits.",
+  "dependencies": [
+    "base >= 2.1.0"
+  ],
+  "space_travel_required": true
+}

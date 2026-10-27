@@ -1,0 +1,20 @@
+id: orbital-section-purpose-from-group-tag
+kind: behavior
+namespace: mods
+entities: [orbital-logistics]
+title: Назначение секции хаба задаётся меткой в имени ванильной группы, без метки — ваниль
+scenarios:
+  - given: группа с именем `Fuel [reserve]`, `Plates [cargo→aquilo]`, `Ores [cargo -> vulcanus, aquilo]` или `Plates [depot:nauvis]`
+    when: мод разбирает имя группы
+    then: секция получает назначение свой запас, груз с назначением или склад; регистр, пробелы и вид стрелки не важны
+  - given: имя группы с чужими скобками, например `[item=iron-plate] Plates [depot:nauvis] [reserve]`
+    when: мод разбирает имя
+    then: чужие скобки пропускаются, действует первая узнанная метка
+  - given: на хабе только секции без меток
+    when: проходит контроллер
+    then: мод не добавляет на хаб ни одной секции и ничего не меняет — платформа ведёт себя ровно как в 2.1 (K-19)
+verified: true
+verified_at: 2026-10-27
+verified_note: >-
+  Factorio 2.1.23, Space Age. Сценарии 1–2 — Lua-тесты `tests/tags.test.lua`,
+  сценарий 3 — тест в игре K-19 (`tests/ingame/core.lua`).

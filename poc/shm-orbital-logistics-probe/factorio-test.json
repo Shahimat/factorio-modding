@@ -1,0 +1,9 @@
+{
+  "modPath": ".",
+  "mods": [
+    "space-age"
+  ],
+  "dataDirectory": "../../.work/ingame-stand/orbital-logistics-probe/data",
+  "outputFile": "../../.work/ingame-stand/orbital-logistics-probe/results.json",
+  "logPassedTests": true
+}

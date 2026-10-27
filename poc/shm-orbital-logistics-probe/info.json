@@ -1,0 +1,9 @@
+{
+  "name": "shm-orbital-logistics-probe",
+  "version": "0.1.0",
+  "title": "Orbital Logistics Probe",
+  "author": "Shahimat",
+  "factorio_version": "2.1",
+  "description": "Прототип для проверки допущений ТЗ мода Orbital Logistics о ванильных передачах между платформами 2.1. Не публикуется.",
+  "dependencies": ["base", "space-age"]
+}

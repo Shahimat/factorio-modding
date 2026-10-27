@@ -1,0 +1,14 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.1.0
+Date: 2026-10-27
+  Features:
+    - Section purposes from logistic group tags: [reserve], [cargo→planet,…], [depot:planet,…], [depot].
+    - Reserve and cargo outside its destination are never given to other platforms or dropped to the planet.
+    - A depot serves other platforms in its orbits and takes cargo brought for it from other platforms.
+    - Cargo collected with an empty "import from" is released at its destination.
+    - Map setting to turn the mod off and remove everything it placed on hubs, before removing the mod.
+    - Remote interface shm-orbital-logistics with pass(): run the controller now, for mods and scripts that set tags.
+  Locale:
+    - English, Russian, German, French, Spanish, Brazilian Portuguese, Polish, Ukrainian, Simplified Chinese, Japanese, Korean.
+  Compatibility:
+    - Factorio 2.1, Space Age.

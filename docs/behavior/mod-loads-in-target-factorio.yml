@@ -1,7 +1,7 @@
 id: mod-loads-in-target-factorio
 kind: behavior
 namespace: mods
-entities: [mod-package, k2-fuels, k2-full-hand-switcher, advanced-belts]
+entities: [mod-package, k2-fuels, k2-full-hand-switcher, advanced-belts, orbital-logistics]
 title: Мод загружается в целевой мажорной версии игры и не загружается в чужой
 scenarios:
   - given: 'мод с `factorio_version: "2.1"` лежит в каталоге модов'

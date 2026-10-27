@@ -1,0 +1,18 @@
+id: orbital-providing-flag-keeps-vanilla-meaning
+kind: behavior
+namespace: mods
+entities: [orbital-logistics]
+title: Флаг «снабжать другие платформы» сохраняет ванильный смысл
+scenarios:
+  - given: склад `[depot:nauvis]` с выключенным флагом раздачи и 500 плит; рядом платформа с секцией `[reserve]` на 100 плит
+    when: платформа запрашивает плиты с платформ, площадка Нависа — с орбиты
+    then: >-
+      склад платформе не отдаёт — флаг запрещает только отдачу платформам;
+      запас под замком и на планету не сбрасывается (K-20). Мод флаг не
+      переключает
+verified: true
+verified_at: 2026-10-27
+verified_note: >-
+  Factorio 2.1.23, Space Age. Тест в игре K-20 (`tests/ingame/core.lua`).
+  Предупреждение в панели хаба из ТЗ (K-20) в версии 0 не сделано: панели
+  ещё нет.

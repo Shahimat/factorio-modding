@@ -35,6 +35,8 @@ namespaces:
         one_liner: призраки — панель у окна только с ghost_mode, достройка без on_gui_opened, ручная постройка берёт прототип предмета, что теряет замена призрака
       - id: engine-data-stage
         one_liner: стадии настроек и данных — forced_value только у булевых настроек, сохранённые значения переживают смену умолчаний, переработка в 2.1 порождается до data-updates модов
+      - id: engine-space-platforms
+        one_liner: платформы 2.1 — отдачу запрещает запрос с источником platforms/all, а не число запросов; флаг раздачи не влияет на сброс на планету; замок фильтром min 0; группы делят поля фильтров, но не active; cargo pod скриптом с хаба на хаб
 
   delivery:
     entities:
@@ -70,6 +72,8 @@ namespaces:
         one_liner: мод K2-fuels-fork — форк K2-fuels, топливо K2 сливается с химическим, транспорт ездит на ванильном
       - id: k2-full-hand-switcher
         one_liner: мод shm-k2-superior-inserters-full-hand-switcher — превосходные манипуляторы K2 ждут полную руку, режим переключается на каждом
+      - id: orbital-logistics
+        one_liner: мод shm-orbital-logistics — склады и грузы платформ поверх ванильных передач 2.1, назначение секции меткой в имени группы, контроллер с замками и транзитом
       - id: advanced-belts
         one_liner: мод shm-advanced-belts — четыре тира лент после турбо, лоадеры AAI к ним, делитель цены AAI, стак и полная стопка у лоадеров, API ShmAdvancedBelts
     behaviors:
@@ -121,6 +125,22 @@ namespaces:
         one_liner: другой мод перенастраивает и выключает тиры через API ShmAdvancedBelts
       - id: aai-loaders-unlock-with-belt-technology
         one_liner: по флажку лоадеры AAI открываются технологиями своих лент, без отдельных технологий
+      - id: orbital-section-purpose-from-group-tag
+        one_liner: назначение секции хаба — метка в имени ванильной группы, без метки — ваниль и мод ничего не ставит
+      - id: orbital-reserve-never-given
+        one_liner: свой запас не отдаётся ни платформам, ни планете; при общей части со складом защита мягкая
+      - id: orbital-cargo-held-outside-destination
+        one_liner: груз с назначением держится вне назначения и в пути, отдаётся на нём; сбор «из всех локаций» выдаётся выключением секции
+      - id: orbital-depot-serves-its-orbits
+        one_liner: склад раздаёт на своих орбитах, держит вне их, не перекачивает в другой склад и уступает привезённому грузу
+      - id: orbital-depot-filled-from-planet
+        one_liner: склад наполняется ракетами с планеты по ванили с множителем секции
+      - id: orbital-transit-into-depot
+        one_liner: груз для орбиты склада сдаётся на склад запросом с платформ на недостающее, потом склад раздаёт
+      - id: orbital-providing-flag-keeps-vanilla-meaning
+        one_liner: флаг «снабжать другие платформы» запрещает только отдачу платформам, мод его не трогает
+      - id: orbital-mod-off-removes-own-sections
+        one_liner: выключение настройки карты снимает свои секции мода и включает секции груза
     manuals:
       - id: test-mod-locally
         one_liner: симлинк в каталог модов, запуск, флаги, чтение лога, изолированный профиль
@@ -186,7 +206,9 @@ specs:
     note: >-
       Подготовлено агентом по диалогу с владельцем и положено в `specs/` по
       его поручению 2026-10-27. Программа не заводится: механизм ещё
-      оттачивается, первым идёт прототип, behaviors заводятся после него.
+      оттачивается, мод идёт тикетами — прототип, затем ядро версии 0;
+      разложено в entity `orbital-logistics` и восемь behaviors namespace
+      `mods`.
 
 plans:
   - path: plans/logistic-buildings/iter-01.html
