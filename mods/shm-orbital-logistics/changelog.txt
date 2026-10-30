@@ -8,6 +8,15 @@ Date: 2026-10-27
     - Cargo collected with an empty "import from" is released at its destination.
     - Map setting to turn the mod off and remove everything it placed on hubs, before removing the mod.
     - Remote interface shm-orbital-logistics with pass(): run the controller now, for mods and scripts that set tags.
+    - Panel next to the hub window: section purposes without typing tags, «Giving in this orbit» with one line per tagged section and the exceptions, a warning when providing to other platforms is off.
+    - Per-player setting for the panel position: below (default), above, left or right of the window.
+    - Locations are picked with the game's location chooser instead of typing names.
+    - The panel follows changes of the hub's request sections and marks a cargo section the mod turned off at its destination.
+    - A page in Tips and tricks explaining the mod, with a picture of a platform route.
+    - The mod's own request section is a named group «⚙ Orbital Logistics — auto #N», removed when there is nothing to hold.
+    - Supply lines: one list of items for depots, cargo platforms and landing pads, each with its own role and factor; /shm-orbital-lines or the button in the panel.
+  Optimizations:
+    - The controller goes over platforms in slices and caches section filters: about 1 ms every 10 ticks for 40 platforms with 160 filters each.
   Locale:
     - English, Russian, German, French, Spanish, Brazilian Portuguese, Polish, Ukrainian, Simplified Chinese, Japanese, Korean.
   Compatibility:

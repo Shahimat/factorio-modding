@@ -96,4 +96,82 @@ function tags.depot_active_at(tag, location)
   return tag.anywhere == true or tag.orbits[location] == true
 end
 
+local function sorted(set)
+  local list = {}
+  for name in pairs(set or {}) do
+    list[#list + 1] = name
+  end
+  table.sort(list)
+  return list
+end
+
+--- Метка обратно в текст: `[reserve]`, `[cargo→a,b]`, `[depot:a]`, `[depot]`.
+function tags.format(tag)
+  if tag == nil then
+    return nil
+  end
+  if tag.kind == 'reserve' then
+    return '[reserve]'
+  end
+  if tag.kind == 'cargo' then
+    if tag.dests == nil then
+      return '[cargo]'
+    end
+    return '[cargo→' .. table.concat(sorted(tag.dests), ',') .. ']'
+  end
+  if tag.anywhere then
+    return '[depot]'
+  end
+  return '[depot:' .. table.concat(sorted(tag.orbits), ',') .. ']'
+end
+
+--- Метка из выбора в панели: назначение и список мест через запятую. Пустой
+--- список — груз «по запросу» или склад на любой орбите.
+function tags.from_choice(kind, places)
+  local set = name_set(string.lower(places or ''))
+  if kind == 'reserve' then
+    return { kind = 'reserve' }
+  elseif kind == 'cargo' then
+    return { kind = 'cargo', dests = set }
+  elseif kind == 'depot' then
+    if set == nil or set['*'] then
+      return { kind = 'depot', anywhere = true }
+    end
+    return { kind = 'depot', orbits = set }
+  end
+  return nil
+end
+
+--- Места метки списком через запятую — для поля панели.
+function tags.places(tag)
+  if tag == nil then
+    return ''
+  end
+  return table.concat(sorted(tag.dests or tag.orbits), ', ')
+end
+
+--- Имя группы без узнанных меток — чужие скобки и текст остаются.
+function tags.strip(group)
+  local result = string.gsub(group or '', '%s*(%[[^%]]*%])', function(bracket)
+    if tags.parse(bracket) then
+      return ''
+    end
+    return nil
+  end)
+  return trim(result)
+end
+
+--- Имя группы с новой меткой вместо старой; nil-метка — только снять.
+function tags.retag(group, tag)
+  local base = tags.strip(group)
+  local text = tags.format(tag)
+  if text == nil then
+    return base
+  end
+  if base == '' then
+    return text
+  end
+  return base .. ' ' .. text
+end
+
 return tags

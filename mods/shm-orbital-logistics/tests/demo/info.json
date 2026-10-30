@@ -1,9 +1,0 @@
-{
-  "name": "shm-orbital-logistics-demo",
-  "version": "0.1.0",
-  "title": "Orbital Logistics: demo scene",
-  "author": "Shahimat",
-  "factorio_version": "2.1",
-  "description": "Dev only, not published: the /shm-orbital-demo command builds a set of platforms showing each Orbital Logistics scenario.",
-  "dependencies": ["shm-orbital-logistics", "space-age"]
-}

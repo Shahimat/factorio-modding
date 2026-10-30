@@ -11,7 +11,7 @@ local STOP_TICKS = 40 * 60
 local PLATE = 'iron-plate'
 local HOLMIUM = 'holmium-plate'
 
-local PLANET_NAMES = { nauvis = 'Навис', vulcanus = 'Вулкан', fulgora = 'Фульгора', aquilo = 'Аквило', gleba = 'Глеба' }
+local PLANET_NAMES = { nauvis = 'Наувис', vulcanus = 'Вулкан', fulgora = 'Фульгора', aquilo = 'Аквило', gleba = 'Глеба' }
 
 --- name, planet, items, providing, sections, route — остановки челнока по кругу,
 --- source = { item, target, at } — пополнять до target (только на орбите `at`, если задана),
@@ -20,13 +20,13 @@ local PLANET_NAMES = { nauvis = 'Навис', vulcanus = 'Вулкан', fulgora
 --- 80 с), иначе потребитель съедает всё и склады видно пустыми.
 local PLATFORMS = {
   {
-    name = 'OLL-1 Склад плит Навис [depot:nauvis]',
+    name = 'OLL-1 Склад плит Наувис [depot:nauvis]',
     planet = 'nauvis', items = { [PLATE] = 2000 }, providing = true,
     sections = { { group = 'OL live plates [depot:nauvis]', item = PLATE, min = 2000, from = 'planet', import_from = 'nauvis' } },
     source = { item = PLATE, target = 2000 },
   },
   {
-    name = 'OLL-2 Челнок плит Навис → Вулкан → Аквило',
+    name = 'OLL-2 Челнок плит Наувис → Вулкан → Аквило',
     planet = 'nauvis', providing = true,
     sections = { { group = 'OL live plates [cargo→aquilo]', item = PLATE, min = 800, from = 'platforms', import_from = 'nauvis' } },
     route = { 'nauvis', 'vulcanus', 'aquilo', 'vulcanus' },
@@ -48,19 +48,19 @@ local PLATFORMS = {
     sink = { item = PLATE, amount = 25 },
   },
   {
-    name = 'OLL-6 Челнок гольмия Фульгора → Навис',
+    name = 'OLL-6 Челнок гольмия Фульгора → Наувис',
     planet = 'fulgora', items = { [HOLMIUM] = 400 }, providing = true,
     sections = { { group = 'OL live holmium [cargo→nauvis]', item = HOLMIUM, min = 400, from = 'planet', import_from = 'fulgora' } },
     route = { 'fulgora', 'nauvis' },
     source = { item = HOLMIUM, target = 400, at = 'fulgora' },
   },
   {
-    name = 'OLL-7 Склад гольмия Навис [depot:nauvis]',
+    name = 'OLL-7 Склад гольмия Наувис [depot:nauvis]',
     planet = 'nauvis', providing = true,
     sections = { { group = 'OL live holmium [depot:nauvis]', item = HOLMIUM, min = 500, from = 'planet', import_from = 'nauvis' } },
   },
   {
-    name = 'OLL-8 Потребитель гольмия Навис',
+    name = 'OLL-8 Потребитель гольмия Наувис',
     planet = 'nauvis',
     sections = { { item = HOLMIUM, min = 200, from = 'platforms', import_from = 'nauvis' } },
     sink = { item = HOLMIUM, amount = 20 },
@@ -69,9 +69,9 @@ local PLATFORMS = {
 
 local LEGEND = {
   'Orbital Logistics live: платформы OLL-1…OLL-8, раз в 40 с челноки перелетают на следующую остановку.',
-  'Плиты: склад OLL-1 над Нависом пополняется сам (как ракетами) → челнок OLL-2 грузит 800 →',
+  'Плиты: склад OLL-1 над Наувисом пополняется сам (как ракетами) → челнок OLL-2 грузит 800 →',
   '  над Вулканом груз держит (OLL-3 ничего не получает) → над Аквило сдаёт складу OLL-4 → потребитель OLL-5 расходует.',
-  'Гольмий: челнок OLL-6 набирает над Фульгорой → над Нависом сдаёт складу OLL-7 (транзит) → потребитель OLL-8 расходует.',
+  'Гольмий: челнок OLL-6 набирает над Фульгорой → над Наувисом сдаёт складу OLL-7 (транзит) → потребитель OLL-8 расходует.',
   '/shm-orbital-demo status — содержимое хабов, /shm-orbital-demo clear — убрать.',
 }
 

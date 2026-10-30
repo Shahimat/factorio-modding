@@ -7,6 +7,7 @@ local f = require('tests.ingame.fixture')
 local controller = require('runtime.controller')
 local scene = require('tests.demo.scene')
 local live = require('tests.demo.live')
+local demo = require('tests.demo.commands')
 
 local WANT = 50
 local HOLMIUM = 'holmium-plate'
@@ -55,25 +56,20 @@ local function wait(watched, done_when, finish)
   end)
 end
 
+--- Фильтры служебной группы мода на хабе и сама секция; nil — группы нет.
 local function own_filters(hub)
   local sections = hub.get_logistic_sections()
   for index = 1, sections.sections_count do
     local section = sections.get_section(index)
-    if section.is_manual and section.group == '' and section.filters_count > 0 then
+    if section.is_manual and controller.is_service(section.group) then
       local filters = {}
-      local own = true
       for slot = 1, section.filters_count do
         local s = section.get_slot(slot)
         if s.value then
-          local lock = (s.min or 0) == 0 and s.request_from == 'all' and s.import_from == nil
-          local transit = s.request_from == 'platforms' and s.import_from ~= nil
-          own = own and (lock or transit)
           filters[#filters + 1] = { name = s.value.name, min = s.min or 0, request_from = s.request_from }
         end
       end
-      if own then
-        return filters, section
-      end
+      return filters, section
     end
   end
   return nil
@@ -413,5 +409,200 @@ describe('живая демо-сцена', function()
         return false
       end
     end)
+  end)
+end)
+
+describe('перелёт без явного прохода', function()
+  before_all(f.prepare_force)
+  before_each(f.clear)
+  after_each(f.clear)
+
+  it('секция сбора, выключенная на назначении, включается обратно сама после отлёта', function()
+    local platform, a = f.platform('a', 'fulgora')
+    local section = f.request(a, 5000, { group = 'Test collect [cargo→fulgora]', from = 'all' })
+    after_ticks(90, function()
+      assert(section.active == false, 'на назначении секция не выключена')
+      platform.space_location = 'vulcanus'
+      after_ticks(90, function()
+        assert(section.active == true, 'после отлёта секция не включена — состояние ' .. tostring(platform.state))
+        game.forces.player.delete_logistic_group('Test collect [cargo→fulgora]')
+      end)
+    end)
+  end)
+end)
+
+describe('живая сцена: группа груза после Аквило', function()
+  before_all(f.prepare_force)
+
+  it('у челнока OLL-2 над Вулканом после Аквило группа груза включена, лишних групп мода нет', function()
+    local force = game.forces['player']
+    live.build(force, game.tick)
+    local elapsed = 0
+    local seen_aquilo = false
+    local problems = {}
+    on_tick(function()
+      elapsed = elapsed + 1
+      if game.tick % live.PERIOD == 0 then
+        live.step(force, game.tick)
+      end
+      for _, platform in pairs(force.platforms) do
+        if platform.valid and string.find(platform.name, 'OLL-2', 1, true) and platform.hub and platform.hub.valid then
+          local where = platform.space_location and platform.space_location.name
+          if where == 'aquilo' then
+            seen_aquilo = true
+          elseif where == 'vulcanus' and seen_aquilo and elapsed % 120 == 0 then
+            local sections = platform.hub.get_logistic_sections()
+            local plain = 0
+            for index = 1, sections.sections_count do
+              local section = sections.get_section(index)
+              if string.find(section.group, 'cargo', 1, true) and not section.active then
+                problems[#problems + 1] = 'тик ' .. elapsed .. ': группа груза выключена'
+              end
+              if section.group == '' then
+                plain = plain + 1
+              end
+            end
+            if plain > 2 then
+              problems[#problems + 1] = 'тик ' .. elapsed .. ': групп без имени ' .. plain
+            end
+          end
+        end
+      end
+      if elapsed >= 4 * live.STOP_TICKS then
+        live.clear(force)
+        assert(seen_aquilo, 'челнок не долетел до Аквило')
+        assert(#problems == 0, table.concat(problems, '; '))
+        return false
+      end
+    end)
+  end)
+end)
+
+describe('своя секция при выключенной секции груза', function()
+  before_all(f.prepare_force)
+  before_each(f.clear)
+  after_each(f.clear)
+
+  it('опустевшая своя секция узнаётся, а не заводится заново', function()
+    local platform, a = f.platform('a', 'fulgora')
+    f.request(a, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = 'fulgora' })
+    local reserve_index = a.get_logistic_sections().sections_count
+    f.request(a, 5000, { group = 'Test scrap [cargo→fulgora]', from = 'all' })
+    controller.pass()
+    -- Запас убран — замков не нужно, но секция сбора выключена: своя секция
+    -- опустеет и останется.
+    a.get_logistic_sections().remove_section(reserve_index)
+    for _ = 1, 3 do
+      controller.pass()
+    end
+    platform.space_location = 'vulcanus'
+    a.get_logistic_sections().add_section('Test fuel [reserve]')
+    for _ = 1, 3 do
+      controller.pass()
+    end
+    local plain = 0
+    local sections = a.get_logistic_sections()
+    for index = 1, sections.sections_count do
+      if sections.get_section(index).group == '' then
+        plain = plain + 1
+      end
+    end
+    game.forces.player.delete_logistic_group('Test fuel [reserve]')
+    game.forces.player.delete_logistic_group('Test scrap [cargo→fulgora]')
+    assert(plain <= 2, 'групп без имени ' .. plain .. ': мод завёл лишнюю')
+  end)
+end)
+
+describe('выключенная секция груза после правки игрока', function()
+  before_all(f.prepare_force)
+  before_each(f.clear)
+  after_each(f.clear)
+
+  it('включается после отлёта, даже если игрок удалил секцию выше неё', function()
+    local platform, a = f.platform('a', 'fulgora')
+    f.request(a, 10, { item = 'copper-plate', from = 'planet', import_from = 'fulgora' })
+    local section = f.request(a, 5000, { group = 'Test shift [cargo→fulgora]', from = 'all' })
+    controller.pass()
+    assert(section.active == false, 'на назначении не выключена')
+    a.get_logistic_sections().remove_section(2)
+    platform.space_location = 'vulcanus'
+    controller.pass()
+    local found
+    local sections = a.get_logistic_sections()
+    for index = 1, sections.sections_count do
+      if sections.get_section(index).group == 'Test shift [cargo→fulgora]' then
+        found = sections.get_section(index)
+      end
+    end
+    game.forces.player.delete_logistic_group('Test shift [cargo→fulgora]')
+    assert(found and found.active, 'секция груза осталась выключенной после сдвига номеров')
+  end)
+end)
+
+describe('служебная группа', function()
+  before_all(f.prepare_force)
+  before_each(f.clear)
+  after_each(f.clear)
+
+  it('подписана своим именем, не делится с другими хабами и уходит из списка групп, когда держать нечего', function()
+    local force = game.forces.player
+    local platform, a = f.platform('a')
+    local reserve = f.request(a, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })
+    controller.pass()
+    local _, own = own_filters(a)
+    assert(own and own.group == controller.service_name(platform), 'нет служебной группы с именем платформы')
+    local _, b = f.platform('b')
+    b.get_logistic_sections().add_section(own.group)
+    controller.pass()
+    assert(own_filters(b) == nil, 'служебная группа чужой платформы осталась на хабе B')
+    reserve.group = 'Test fuel'
+    controller.pass()
+    assert(own_filters(a) == nil, 'служебная группа осталась без замков')
+    assert(force.get_logistic_group(controller.service_name(platform)) == nil, 'служебная группа осталась в списке групп')
+    force.delete_logistic_group('Test fuel [reserve]')
+    force.delete_logistic_group('Test fuel')
+  end)
+
+  it('старая безымянная служебная секция снимается миграцией', function()
+    local platform, a = f.platform('a')
+    local legacy = a.get_logistic_sections().add_section()
+    legacy.set_slot(1, { value = { type = 'item', name = f.ITEM, quality = 'normal', comparator = '=' }, min = 0, request_from = 'all' })
+    storage.platforms[platform.index] = {
+      own = legacy.index,
+      written = { { key = f.ITEM .. '|normal', min = 0, request_from = 'all' } },
+      released = {},
+    }
+    local before = a.get_logistic_sections().sections_count
+    controller.migrate()
+    assert(a.get_logistic_sections().sections_count == before - 1, 'старая служебная секция не снята')
+  end)
+end)
+
+describe('демо-команда отладочной сборки', function()
+  before_all(f.prepare_force)
+
+  it('строит сцену, сверяет, показывает живую сцену и убирает всё', function()
+    local force = game.forces['player']
+    demo.handle({ parameter = nil, tick = game.tick })
+    after_ticks(30 * 60, function()
+      demo.handle({ parameter = 'check', tick = game.tick })
+      for _, result in ipairs(scene.check(force)) do
+        assert(result.ok, 'не как ожидается: ' .. result.name)
+      end
+      demo.handle({ parameter = 'live', tick = game.tick })
+      demo.handle({ parameter = 'status', tick = game.tick })
+      demo.on_tick({ tick = game.tick })
+      demo.handle({ parameter = 'clear', tick = game.tick })
+      for _, platform in pairs(force.platforms) do
+        assert(not (platform.valid and platform.scheduled_for_deletion == 0 and string.sub(platform.name, 1, 2) == 'OL'),
+          'демо-платформа осталась: ' .. platform.name)
+      end
+    end)
+  end)
+end)
+
+describe('советы и подсказки', function()
+  it('иконка маршрута Наувис — Вулкан для страницы мода существует', function()
+    assert(helpers.is_valid_sprite_path('space-connection/nauvis-vulcanus'), 'нет иконки маршрута в этой сборке игры')
   end)
 end)

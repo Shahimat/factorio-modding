@@ -71,8 +71,8 @@ runtime:
 tools_implemented:
   npm-scripts: |
     typecheck, test, test:mod, test:lua:all, test:ingame, check-secrets,
-    check-docs, check-lua, validate, pack, recolor-sprites, check,
-    check:mod. Скоупы разделены
+    check-docs, check-lua, validate, pack, recolor-sprites, orbital-art,
+    check, check:mod. Скоупы разделены
     сознательно: `check` не заходит в моды, `check:mod -- <mod-key>`
     проверяет один мод, `check-lua -- <скоуп>` требует явный скоуп —
     convention `testing`, раздел «Скоупы запуска». `test:ingame` запускает
@@ -180,6 +180,14 @@ tools_implemented:
     так же, как `test:ingame` (`FACTORIO_BIN`). Что перекрашивается и куда —
     `tools/lib/recolor-jobs.ts`. Запускается руками, когда меняются маски
     или цвета; результат версионируется.
+  tools/orbital-art.ts: |
+    Картинки `shm-orbital-logistics`: `thumbnail.png` и картинка пути
+    Наувис → Вулкан для «Советов и подсказок» из иконок установленной игры.
+    Рисование — чистые функции `tools/lib/orbital-art.ts` с тестами
+    (масштабирование по площади, дуга со сглаживанием и пунктиром,
+    наконечник стрелки), наложение — `place` из `tools/lib/recolor.ts`. Игру
+    ищет так же, как `test:ingame`. Запускается руками; результат
+    версионируется.
 
 ingame_test_stand:
   framework: |
@@ -306,7 +314,7 @@ dev_dependencies:
     Разбор YAML для `check-docs`; в Node парсера YAML нет. Только
     devDependency, в zip мода не попадает.
   pngjs: |
-    Чтение и запись PNG для `recolor-sprites`, MIT, без нативных модулей.
+    Чтение и запись PNG для `recolor-sprites` и `orbital-art`, MIT, без нативных модулей.
     Выбран владельцем 2026-10-25 вместо разового Python-скрипта вне
     репозитория: порождение графики воспроизводимо и покрыто тестами. Только
     devDependency, в zip мода не попадает.

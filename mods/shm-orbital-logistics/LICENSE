@@ -40,7 +40,12 @@ Under the Factorio Terms of Service (https://factorio.com/terms-of-service):
 - Any commercial use of Factorio source code or art assets requires the
   express consent of Wube Software Ltd.
 
-This mod contains no graphics or other assets of Factorio.
+## Notice on graphics of this mod
+
+`thumbnail.png` and `graphics/tips-route.png` are derived from Factorio
+icons (Space Age): the space platform hub icon and the starmap images of
+Nauvis and Vulcanus, scaled and composed by `tools/orbital-art.ts` of the
+source repository. They fall under the notice above.
 
 Factorio is a trademark of Wube Software Ltd. This repository is not
 affiliated with, endorsed by, or sanctioned by Wube Software Ltd.

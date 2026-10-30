@@ -1,0 +1,15 @@
+{
+  "modPath": "../..",
+  "mods": [
+    "space-age"
+  ],
+  "dataDirectory": "../../../../.work/ingame-stand/orbital-logistics/data",
+  "outputFile": "../../../../.work/ingame-stand/orbital-logistics/results-gui.json",
+  "tagWhitelist": [
+    "gui"
+  ],
+  "logPassedTests": true,
+  "factorioArgs": [
+    "--disable-migration-window"
+  ]
+}

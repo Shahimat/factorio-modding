@@ -5,5 +5,8 @@
   ],
   "dataDirectory": "../../../../.work/ingame-stand/orbital-logistics/data",
   "outputFile": "../../../../.work/ingame-stand/orbital-logistics/results.json",
-  "logPassedTests": true
+  "logPassedTests": true,
+  "tagBlacklist": [
+    "gui"
+  ]
 }

@@ -109,4 +109,27 @@ facts:
       перелёты не нужны.
     checked_on: 2.1.23, 2026-10-27 — прототип orbital-logistics, все тесты в игре
 
+  - claim: |
+      Переименовать logistic group API не умеет. Запись `section.group =
+      <новое имя>` у секции без группы создаёт группу с фильтрами этой
+      секции; у всех участников старой группы — переводит их на новое имя с
+      теми же фильтрами и множителями, после чего старую группу можно
+      удалить `LuaForce::delete_logistic_group`. Если группа с новым именем
+      уже есть, секция берёт её фильтры, а свои теряет.
+      `on_entity_logistic_slot_changed` несёт поля `entity`, `section`,
+      `slot_index`, `player_index` — индекса секции отдельным полем нет.
+    checked_on: 2.1.23, 2026-10-27 — мод orbital-logistics, тесты в игре `tests/ingame/groups.lua` и кеш фильтров контроллера
+  - claim: |
+      Чтение фильтров хаба — дорогая часть скрипта: `section.filters` на 6400
+      фильтров (40 хабов × 4 секции × 40) стоит ~6 мс, разбор их полей
+      (`import_from` и качество — объекты API) — ещё ~9 мс. `get_contents`
+      хаба и `targeted_items_deliver` на тех же 40 хабах — меньше 0,05 мс.
+    checked_on: 2.1.23, 2026-10-27 — мод orbital-logistics, замер V-10 `tests/ingame/perf.lua`
+  - claim: |
+      Окно хаба платформы скрипт открывает (`player.opened = hub`), только
+      когда игрок на поверхности платформы или в удалённом виде на ней:
+      `player.set_controller{type = defines.controllers.remote, surface,
+      position}`. Иначе `player.opened` остаётся пустым без ошибки.
+    checked_on: 2.1.23, 2026-10-27 — мод orbital-logistics, тест с графикой `tests/ingame/gui.lua`
+
 behaviors: []

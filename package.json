@@ -26,7 +26,8 @@
     "pack": "node tools/pack.ts",
     "recolor-sprites": "node tools/recolor-sprites.ts",
     "check": "npm run typecheck && npm test && npm run check-secrets && npm run check-docs && npm run validate",
-    "check:mod": "node tools/check-mod.ts"
+    "check:mod": "node tools/check-mod.ts",
+    "orbital-art": "node tools/orbital-art.ts"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",

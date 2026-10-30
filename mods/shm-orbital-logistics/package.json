@@ -5,6 +5,6 @@
   "scripts": {
     "test": "node ../../tools/lua-test.ts .",
     "test:ingame": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.json",
-    "test:ingame:demo": "mkdir -p ../../.work/ingame-stand/orbital-logistics-demo/data/mods && ln -sfn \"$PWD/tests/demo\" ../../.work/ingame-stand/orbital-logistics-demo/data/mods/shm-orbital-logistics-demo && node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.demo.json -- \"K-19\""
+    "test:ingame:gui": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.gui.json -g"
   }
 }
