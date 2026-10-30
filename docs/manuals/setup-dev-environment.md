@@ -59,9 +59,11 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
    `<библиотека>/steamapps/common/Factorio`.
 
    Инструменты репозитория (`test:ingame`, `recolor-sprites`,
-   `orbital-art`) ищут игру в типовых местах, а нестандартный путь берут из
-   переменной `FACTORIO_BIN`. Её задают в профиле оболочки, а не в
-   репозитории — путь содержит имя пользователя, convention `secrets`:
+   `orbital-art`) ищут игру в типовых местах и во всех библиотеках Steam из
+   `libraryfolders.vdf`, так что Steam-установка находится сама, в какой
+   бы библиотеке ни стояла. Путь вне этих мест берётся из переменной
+   `FACTORIO_BIN`. Её задают в профиле оболочки, а не в репозитории — путь
+   содержит имя пользователя, convention `secrets`:
 
    ```bash
    export FACTORIO_BIN=<библиотека>/steamapps/common/Factorio/bin/x64/factorio
@@ -180,18 +182,17 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
     (`npm run check:mod -- <mod-key>`):
 
     ```bash
-    brew install lua            # macOS
-    sudo pacman -S lua zip jq   # Arch Linux
+    brew install lua                  # macOS
+    sudo pacman -S lua lua52 zip jq   # Arch Linux
     lua -v
     ```
 
-    Версия будет новее той, что исполняет игра: Factorio 2.x работает на
-    патченном Lua 5.2, а формул `lua@5.2` и `lua@5.3` в Homebrew нет.
-    Разницу диалектов ловит отдельная проверка в `npm run validate` —
-    convention `testing`, раздел «Диалект Lua». Если нужен другой бинарь
-    (например, `luajit`), путь задаётся переменной `LUA_BIN`. В Arch есть
-    отдельный пакет `lua52`, но тесты проекта идут на системном `lua` на
-    обеих платформах — решение и его граница в том же разделе convention.
+    Factorio 2.x работает на патченном Lua 5.2. В Arch ванильный 5.2 есть
+    пакетом `lua52`, и тесты берут его сами; формул `lua@5.2` и `lua@5.3` в
+    Homebrew нет, поэтому на Mac тесты идут на `lua` 5.5, а разницу
+    диалектов ловит отдельная проверка в `npm run validate`. Правила —
+    convention `testing`, раздел «Диалект Lua». Другой бинарь (например,
+    `luajit`) задаётся переменной `LUA_BIN`.
 
 11. Поставь расширения редактора — раздел «Редактор» ниже.
 
@@ -210,13 +211,16 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
     каталоге игры и в каталоге данных игры. На macOS файл лежит в каталоге
     данных и находится сам. Steam-сборка под Linux хранит его в Steam Cloud,
     `~/.local/share/Steam/userdata/<steam-id>/427520/remote/player-data.json`,
-    где CLI не ищет, — креды передаются переменными на один прогон:
+    где CLI не ищет. Поэтому обёртка `test:ingame`, если переменные не
+    заданы, сама читает этот файл и передаёт креды процессу CLI через
+    окружение — в вывод, на диск и в репозиторий они не попадают. Строка
+    `креды портала: Steam Cloud` в выводе значит, что сработал этот путь.
+
+    Если файла нет (игра не из Steam и вход в ней не выполнен), задай
+    переменные на один прогон, токен — на https://factorio.com/profile:
 
     ```bash
-    PD=$(ls ~/.local/share/Steam/userdata/*/427520/remote/player-data.json | head -1)
-    FACTORIO_USERNAME=$(jq -r '."service-username"' "$PD") \
-    FACTORIO_TOKEN=$(jq -r '."service-token"' "$PD") \
-      npm run test:ingame
+    FACTORIO_USERNAME=<аккаунт> FACTORIO_TOKEN=<токен> npm run test:ingame
     ```
 
     Скачанный мод остаётся в `.work/ingame-stand/data/mods/`, следующие

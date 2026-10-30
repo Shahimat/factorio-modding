@@ -9,31 +9,17 @@
  * Результат — производные от ассетов Wube, оговорка в `LICENSE` мода,
  * convention `licensing`.
  */
-import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { PNG } from 'pngjs';
 
-import { binaryCandidates, resolveBinary, resolveReadData } from './lib/ingame-config.ts';
+import { gameDataDir } from './lib/game-install.ts';
 import { route, thumbnail } from './lib/orbital-art.ts';
 import { REPO_ROOT } from './lib/packages.ts';
 import { crop, type Image } from './lib/recolor.ts';
 
 const MOD_DIR = join(REPO_ROOT, 'mods', 'shm-orbital-logistics');
-
-function gameDataDir(): string {
-  const binary = resolveBinary(binaryCandidates(homedir(), process.env.FACTORIO_BIN), existsSync);
-  if (binary === undefined) {
-    throw new Error('бинарь игры не найден — укажи путь в переменной FACTORIO_BIN');
-  }
-  const readData = resolveReadData(dirname(binary), existsSync);
-  if (readData === undefined) {
-    throw new Error(`рядом с ${binary} нет каталога данных игры с пакетом base — проверь установку`);
-  }
-  return resolve(dirname(binary), readData.replace('__PATH__executable__/', ''));
-}
 
 async function readPng(path: string): Promise<Image> {
   const png = PNG.sync.read(await readFile(path));

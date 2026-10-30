@@ -10,7 +10,7 @@
  */
 import { basename } from 'node:path';
 
-import { runLuaTests } from './lib/lua-tests.ts';
+import { LUA_BIN, runLuaTests } from './lib/lua-tests.ts';
 import { resolveModDirs } from './lib/packages.ts';
 import { countErrors, formatProblem } from './lib/problems.ts';
 
@@ -31,6 +31,8 @@ async function main(): Promise<void> {
     console.log('Модов в mods/ нет — тестировать нечего.');
     return;
   }
+
+  console.log(`интерпретатор: ${LUA_BIN}`);
 
   let errorsTotal = 0;
   let passedTotal = 0;

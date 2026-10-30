@@ -74,15 +74,41 @@ export function needsRewrite(
   return readDataOf(existing) !== readData;
 }
 
+/** Корни клиента Steam: macOS и Linux. */
+export function steamRoots(home: string): string[] {
+  return [`${home}/Library/Application Support/Steam`, `${home}/.local/share/Steam`];
+}
+
+/** Бинарь игры внутри библиотеки Steam — раскладки macOS и Linux. */
+function steamLibraryBinaries(library: string): string[] {
+  const game = `${library}/steamapps/common/Factorio`;
+  return [`${game}/factorio.app/Contents/MacOS/factorio`, `${game}/bin/x64/factorio`];
+}
+
+/**
+ * Пути библиотек Steam из `steamapps/libraryfolders.vdf`. Формат — KeyValues
+ * Valve: нужны только строки `"path" "<каталог>"`, обратный слеш в значении
+ * экранирован.
+ */
+export function steamLibraryPaths(vdf: string): string[] {
+  const paths: string[] = [];
+  for (const match of vdf.matchAll(/^\s*"path"\s+"((?:[^"\\]|\\.)*)"/gm)) {
+    paths.push((match[1] as string).replace(/\\(.)/g, '$1'));
+  }
+  return paths;
+}
+
 /**
  * Кандидаты на путь к бинарю игры. Порядок: явное указание переменной
- * окружения, затем типовые установки. Абсолютных путей с именем пользователя
- * в репозитории быть не может (convention `secrets`), поэтому домашний
- * каталог приходит параметром, а не константой.
+ * окружения, затем типовые установки, затем библиотеки Steam — игра может
+ * стоять не в основной. Абсолютных путей с именем пользователя в
+ * репозитории быть не может (convention `secrets`), поэтому домашний
+ * каталог и библиотеки приходят параметрами, а не константами.
  */
 export function binaryCandidates(
   home: string,
   fromEnv: string | undefined,
+  steamLibraries: readonly string[] = [],
 ): string[] {
   const candidates = [
     `${home}/Library/Application Support/Steam/steamapps/common/Factorio/factorio.app/Contents/MacOS/factorio`,
@@ -91,6 +117,11 @@ export function binaryCandidates(
     `${home}/.factorio/bin/x64/factorio`,
     '/usr/share/factorio/bin/x64/factorio',
   ];
+  for (const library of steamLibraries) {
+    for (const binary of steamLibraryBinaries(library)) {
+      if (!candidates.includes(binary)) candidates.push(binary);
+    }
+  }
   return fromEnv === undefined || fromEnv === '' ? candidates : [fromEnv, ...candidates];
 }
 
@@ -109,6 +140,38 @@ export function resolveBinary(
  * Поэтому стенд запускает игру из каталога данных, где лежит такой файл.
  */
 export const STEAM_APP_ID = '427520';
+
+/** Вход в аккаунт factorio.com, которым CLI качает моды с портала. */
+export interface PortalCredentials {
+  readonly username: string;
+  readonly token: string;
+}
+
+/**
+ * Копии `player-data.json` в Steam Cloud — по одной на пользователя Steam.
+ * Steam-сборка под Linux держит файл только там, а CLI ищет его в каталоге
+ * игры и в каталоге её данных.
+ */
+export function steamCloudPlayerData(steamRoot: string, userIds: readonly string[]): string[] {
+  return userIds.map((id) => `${steamRoot}/userdata/${id}/${STEAM_APP_ID}/remote/player-data.json`);
+}
+
+/** Креды из текста `player-data.json`; нет входа или файл битый — `undefined`. */
+export function portalCredentials(playerData: string): PortalCredentials | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(playerData);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return undefined;
+  const fields = parsed as Record<string, unknown>;
+  const username = fields['service-username'];
+  const token = fields['service-token'];
+  if (typeof username !== 'string' || username === '') return undefined;
+  if (typeof token !== 'string' || token === '') return undefined;
+  return { username, token };
+}
 
 /** Путь к конфигу из аргументов и аргументы без него. */
 export interface ConfigArgument {

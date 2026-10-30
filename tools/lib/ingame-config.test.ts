@@ -7,10 +7,13 @@ import {
   extractConfigArgument,
   isGraphicsRun,
   needsRewrite,
+  portalCredentials,
   readDataOf,
   resolveBinary,
   resolveReadData,
   runOutcome,
+  steamCloudPlayerData,
+  steamLibraryPaths,
 } from './ingame-config.ts';
 
 /** Проверка существования по списку путей, без файловой системы. */
@@ -141,4 +144,76 @@ test('итог прогона читается из строки CLI, прочи
   assert.equal(runOutcome('   86.163 Script @x: Test run finished: failed'), 'failed');
   assert.equal(runOutcome('Test run finished: todo'), 'failed');
   assert.equal(runOutcome('PASS tests > a'), undefined);
+});
+
+test('библиотеки Steam читаются из libraryfolders.vdf, обратный слеш раскрывается', () => {
+  const vdf = [
+    '"libraryfolders"',
+    '{',
+    '\t"0"',
+    '\t{',
+    '\t\t"path"\t\t"/srv/steam-main"',
+    '\t\t"apps"',
+    '\t\t{',
+    '\t\t\t"427520"\t\t"0"',
+    '\t\t}',
+    '\t}',
+    '\t"1"',
+    '\t{',
+    '\t\t"path"\t\t"D:\\\\Games\\\\Steam"',
+    '\t\t"label"\t\t""',
+    '\t}',
+    '}',
+  ].join('\n');
+  assert.deepEqual(steamLibraryPaths(vdf), ['/srv/steam-main', 'D:\\Games\\Steam']);
+  assert.deepEqual(steamLibraryPaths(''), []);
+});
+
+test('игра во второй библиотеке Steam находится без FACTORIO_BIN', () => {
+  const binary = '/disk/steam/steamapps/common/Factorio/bin/x64/factorio';
+  const candidates = binaryCandidates('/fake-home', undefined, ['/disk/steam']);
+  assert.equal(resolveBinary(candidates, existsIn([binary])), binary);
+  assert.ok(candidates.includes('/disk/steam/steamapps/common/Factorio/factorio.app/Contents/MacOS/factorio'));
+});
+
+test('основная библиотека Steam не дублирует типовой кандидат, FACTORIO_BIN остаётся первым', () => {
+  const plain = binaryCandidates('/fake-home', undefined);
+  assert.deepEqual(
+    binaryCandidates('/fake-home', undefined, ['/fake-home/.local/share/Steam']).filter(
+      (path) => plain.includes(path),
+    ),
+    plain,
+  );
+  const withEnv = binaryCandidates('/fake-home', '/custom/factorio', ['/disk/steam']);
+  assert.equal(withEnv[0], '/custom/factorio');
+  assert.equal(new Set(withEnv).size, withEnv.length);
+});
+
+test('Steam Cloud-копии player-data.json — по одной на пользователя Steam', () => {
+  assert.deepEqual(steamCloudPlayerData('/s', ['1', '2']), [
+    '/s/userdata/1/427520/remote/player-data.json',
+    '/s/userdata/2/427520/remote/player-data.json',
+  ]);
+});
+
+/**
+ * Текст `player-data.json`. Имя поля с токеном собирается через `fx`-подобный
+ * маркер: литерал поймал бы `npm run check-secrets`, см. convention `testing`.
+ */
+function playerData(fields: Record<string, unknown>): string {
+  const tokenKey = 'service-·token'.replace('·', '');
+  const { token, ...rest } = fields;
+  return JSON.stringify(token === undefined ? rest : { ...rest, [tokenKey]: token });
+}
+
+test('креды берутся из player-data.json только при входе в аккаунт', () => {
+  assert.deepEqual(portalCredentials(playerData({ 'service-username': 'author', token: 'fake' })), {
+    username: 'author',
+    token: 'fake',
+  });
+  assert.equal(portalCredentials(playerData({ 'service-username': 'author' })), undefined);
+  assert.equal(portalCredentials(playerData({ 'service-username': '', token: 'fake' })), undefined);
+  assert.equal(portalCredentials(playerData({ token: 'fake' })), undefined);
+  assert.equal(portalCredentials('не json'), undefined);
+  assert.equal(portalCredentials('null'), undefined);
 });

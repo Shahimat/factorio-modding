@@ -9,7 +9,7 @@
  */
 import { basename } from 'node:path';
 
-import { runLuaTests } from './lib/lua-tests.ts';
+import { LUA_BIN, runLuaTests } from './lib/lua-tests.ts';
 import { resolveModDirs } from './lib/packages.ts';
 import { countErrors, formatProblem } from './lib/problems.ts';
 import { validateMod } from './lib/validate-mod.ts';
@@ -26,6 +26,8 @@ async function main(): Promise<void> {
   if (unknown.length > 0) {
     throw new Error(`нет таких модов в mods/: ${unknown.join(', ')}`);
   }
+
+  console.log(`интерпретатор: ${LUA_BIN}`);
 
   let errorsTotal = 0;
   let warningsTotal = 0;

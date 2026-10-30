@@ -8,18 +8,26 @@
  */
 
 import { execFile } from 'node:child_process';
-import { join, relative } from 'node:path';
+import { existsSync } from 'node:fs';
+import { delimiter, join, relative } from 'node:path';
 import { promisify } from 'node:util';
 
 import { LUA_TEST_SUFFIX } from './conventions.ts';
-import { luaRunProblems, parseHarnessOutput } from './lua-test-runner.ts';
+import { luaRunProblems, parseHarnessOutput, pickLuaBin } from './lua-test-runner.ts';
 import { listFilesBySuffix, REPO_ROOT } from './packages.ts';
 import { error, type Problem } from './problems.ts';
 
 const run = promisify(execFile);
 
-/** Интерпретатор. Переопределяется через `LUA_BIN`, см. convention `testing`. */
-export const LUA_BIN = process.env['LUA_BIN'] ?? 'lua';
+/** Есть ли исполняемый файл с таким именем в одном из каталогов `PATH`. */
+function onPath(bin: string): boolean {
+  return (process.env['PATH'] ?? '')
+    .split(delimiter)
+    .some((dir) => dir !== '' && existsSync(join(dir, bin)));
+}
+
+/** Интерпретатор: `LUA_BIN`, иначе `lua5.2`, иначе `lua`, см. convention `testing`. */
+export const LUA_BIN = pickLuaBin(process.env['LUA_BIN'], onPath);
 
 const RUNNER = join(REPO_ROOT, 'tools', 'lua', 'run.lua');
 
@@ -56,7 +64,7 @@ async function spawnLua(args: readonly string[]): Promise<Spawned> {
     };
     if (detail.code === 'ENOENT') {
       throw new Error(
-        `не найден интерпретатор "${LUA_BIN}". Поставь Lua (\`brew install lua\` на macOS, \`pacman -S lua\` на Arch Linux) либо укажи другой бинарь через LUA_BIN`,
+        `не найден интерпретатор "${LUA_BIN}". Поставь Lua (\`brew install lua\` на macOS, \`pacman -S lua52\` на Arch Linux) либо укажи другой бинарь через LUA_BIN`,
       );
     }
     return {

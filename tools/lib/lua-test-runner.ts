@@ -15,6 +15,22 @@
 import { LUA_TEST_SUFFIX } from './conventions.ts';
 import { error, type Problem } from './problems.ts';
 
+/** Бинарь ванильного Lua 5.2 — диалекта игры; в Arch его ставит пакет `lua52`. */
+export const LUA_52_BIN = 'lua5.2';
+
+/**
+ * Интерпретатор тестов: `LUA_BIN`, если задан, иначе `lua5.2`, если он есть
+ * в `PATH`, иначе системный `lua`. Правило — convention `testing`, раздел
+ * «Диалект Lua». Поиск в `PATH` приходит параметром.
+ */
+export function pickLuaBin(
+  fromEnv: string | undefined,
+  onPath: (bin: string) => boolean,
+): string {
+  if (fromEnv !== undefined && fromEnv !== '') return fromEnv;
+  return onPath(LUA_52_BIN) ? LUA_52_BIN : 'lua';
+}
+
 export interface LuaTestCase {
   readonly name: string;
   readonly ok: boolean;

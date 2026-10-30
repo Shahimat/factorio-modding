@@ -17,22 +17,21 @@
  * Путь к бинарю игры переопределяется переменной `FACTORIO_BIN`, как
  * `LUA_BIN` у Lua-тестов: абсолютных путей с именем пользователя в
  * версионируемых файлах быть не может, convention `secrets`.
+ * Креды портала для скачивания `factorio-test` без `FACTORIO_USERNAME` /
+ * `FACTORIO_TOKEN` берутся из Steam Cloud, см. `cliEnvironment`.
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
+import { findGameBinary, gameReadData, steamCloudCredentials } from './lib/game-install.ts';
 import {
   STEAM_APP_ID,
-  binaryCandidates,
   configIniText,
   extractConfigArgument,
   isGraphicsRun,
   needsRewrite,
-  resolveBinary,
-  resolveReadData,
   runOutcome,
 } from './lib/ingame-config.ts';
 import { REPO_ROOT } from './lib/packages.ts';
@@ -65,6 +64,24 @@ async function dataDirectory(configPath: string): Promise<string> {
   return isAbsolute(dir) ? dir : resolve(configDir, dir);
 }
 
+/**
+ * Окружение процесса CLI. Креды не заданы переменными — подставляются из
+ * Steam Cloud, если они там есть: на Linux CLI сам туда не смотрит. Значения
+ * живут только в окружении дочернего процесса.
+ */
+function cliEnvironment(): NodeJS.ProcessEnv {
+  const env = process.env;
+  if (env['FACTORIO_USERNAME'] || env['FACTORIO_TOKEN']) return env;
+  const cloud = steamCloudCredentials();
+  if (cloud === undefined) return env;
+  console.log('креды портала: Steam Cloud');
+  return {
+    ...env,
+    FACTORIO_USERNAME: cloud.username,
+    FACTORIO_TOKEN: cloud.token,
+  };
+}
+
 function runCli(
   binary: string,
   configPath: string,
@@ -78,7 +95,12 @@ function runCli(
   const child = spawn(
     cli,
     ['run', '--factorio-path', binary, '--config', configPath, ...args],
-    { cwd, stdio: graphics ? ['inherit', 'pipe', 'inherit'] : 'inherit', detached: graphics },
+    {
+      cwd,
+      env: cliEnvironment(),
+      stdio: graphics ? ['inherit', 'pipe', 'inherit'] : 'inherit',
+      detached: graphics,
+    },
   );
 
   let outcome: 'passed' | 'failed' | undefined;
@@ -114,22 +136,8 @@ function runCli(
 }
 
 async function main(): Promise<void> {
-  const binary = resolveBinary(
-    binaryCandidates(homedir(), process.env.FACTORIO_BIN),
-    existsSync,
-  );
-  if (binary === undefined) {
-    throw new Error(
-      'бинарь игры не найден — укажи путь в переменной FACTORIO_BIN',
-    );
-  }
-
-  const readData = resolveReadData(dirname(binary), existsSync);
-  if (readData === undefined) {
-    throw new Error(
-      `рядом с ${binary} нет каталога данных игры с пакетом base — проверь установку`,
-    );
-  }
+  const binary = findGameBinary();
+  const readData = gameReadData(binary);
 
   const { config, rest } = extractConfigArgument(process.argv.slice(2));
   const configPath = config === undefined ? DEFAULT_CLI_CONFIG : resolve(config);

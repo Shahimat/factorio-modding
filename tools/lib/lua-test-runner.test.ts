@@ -3,8 +3,10 @@ import { test } from 'node:test';
 
 import {
   isLuaTestFile,
+  LUA_52_BIN,
   luaRunProblems,
   parseHarnessOutput,
+  pickLuaBin,
 } from './lua-test-runner.ts';
 import { countErrors } from './problems.ts';
 
@@ -88,4 +90,13 @@ test('многословное имя с двоеточиями не ломае�
   );
   assert.equal(parsed.cases[0]?.name, 'группа: случай: деталь');
   assert.equal(parsed.cases[0]?.message, 'причина');
+});
+
+test('интерпретатор: LUA_BIN, затем lua5.2 из PATH, затем lua', () => {
+  const has52 = (bin: string): boolean => bin === LUA_52_BIN;
+  const none = (): boolean => false;
+  assert.equal(pickLuaBin('luajit', has52), 'luajit');
+  assert.equal(pickLuaBin(undefined, has52), 'lua5.2');
+  assert.equal(pickLuaBin('', has52), 'lua5.2');
+  assert.equal(pickLuaBin(undefined, none), 'lua');
 });
