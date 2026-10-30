@@ -82,6 +82,12 @@ info_json_fields:
     Поле `author` мод-портал игнорирует и показывает имя аккаунта
     загрузившего. `factorio_version` с третьим числом портал отклоняет.
     Feature-флаги требуют у игрока наличия Space Age.
+  space_age_marker: |
+    Мод с жёсткой зависимостью `space-age` (без префикса или с `~`) несёт
+    хотя бы один feature-флаг, даже если ни одной возможности флага не
+    использует: только по флагам мод-портал помечает мод как требующий
+    Space Age, entity `mod-portal`, `requires_space_age`. Флаг по умолчанию —
+    `space_travel_required`. Проверяет `npm run validate`.
 
 dependencies_syntax: |
   Строка вида "<prefix> <mod-name> <operator> <version>". Префиксы:

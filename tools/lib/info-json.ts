@@ -3,6 +3,7 @@ import { basename, dirname, join, relative } from 'node:path';
 
 import {
   FACTORIO_VERSION_TRACKS,
+  FEATURE_FLAGS,
   MOD_AUTHOR,
   MOD_FORK_NAME_SUFFIX,
   MOD_FORK_TITLE_SUFFIX,
@@ -12,6 +13,7 @@ import {
   MOD_NAME_PREFIX,
   MOD_TITLE_MAX_LENGTH,
   MOD_TITLE_FORBIDDEN_NICK,
+  SPACE_AGE_MOD,
   VERSION_PART_MAX,
 } from './conventions.ts';
 import { error, type Problem } from './problems.ts';
@@ -28,6 +30,14 @@ export interface InfoJson {
 
 const DEPENDENCY_PATTERN =
   /^(?:!|\(\?\)|\?|~)?\s*[A-Za-z0-9_ -]+?(?:\s*(?:<=|>=|=|<|>)\s*\d+\.\d+\.\d+)?$/;
+
+/** Жёсткая зависимость: без префикса или с `~`, который влияет только на порядок загрузки. */
+const HARD_DEPENDENCY_PATTERN =
+  /^(?:~)?\s*([A-Za-z0-9_ -]+?)(?:\s*(?:<=|>=|=|<|>)\s*\d+\.\d+\.\d+)?$/;
+
+function isHardDependencyOn(dep: string, mod: string): boolean {
+  return HARD_DEPENDENCY_PATTERN.exec(dep.trim())?.[1] === mod;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -244,6 +254,19 @@ export function checkInfoJsonText(
         dependencies.push(dep);
       }
     }
+  }
+
+  const hasFeatureFlag = FEATURE_FLAGS.some((flag) => parsed[flag] === true);
+  if (
+    !hasFeatureFlag &&
+    dependencies.some((dep) => isHardDependencyOn(dep, SPACE_AGE_MOD))
+  ) {
+    problems.push(
+      error(
+        file,
+        `жёсткая зависимость "${SPACE_AGE_MOD}" без feature-флага: портал не пометит мод как требующий Space Age, добавь хотя бы один флаг (по умолчанию "space_travel_required": true)`,
+      ),
+    );
   }
 
   if (

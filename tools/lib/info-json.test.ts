@@ -183,3 +183,33 @@ test('неразбираемая зависимость и не массив —
     messages(infoJson({ dependencies: 'base' })).some((m) => /массивом строк/.test(m)),
   );
 });
+
+test('жёсткая зависимость space-age без feature-флага — ошибка', () => {
+  for (const dep of ['space-age', 'space-age >= 2.1.0', '~ space-age']) {
+    const { problems } = check(infoJson({ dependencies: ['base', dep] }));
+    assert.equal(countErrors(problems), 1, dep);
+    assert.ok(problems.some((p) => p.message.includes('feature-флага')), dep);
+  }
+});
+
+test('space-age с feature-флагом или не жёсткой зависимостью проходит', () => {
+  const cases: Record<string, unknown>[] = [
+    { dependencies: ['space-age >= 2.1.0'], space_travel_required: true },
+    { dependencies: ['space-age'], quality_required: true },
+    { dependencies: ['? space-age'] },
+    { dependencies: ['(?) space-age'] },
+    { dependencies: ['! space-age'] },
+    { dependencies: ['space-age-addon'] },
+    { space_travel_required: true },
+  ];
+  for (const overrides of cases) {
+    assert.deepEqual(check(infoJson(overrides)).problems, [], JSON.stringify(overrides));
+  }
+});
+
+test('флаг со значением false не считается', () => {
+  const { problems } = check(
+    infoJson({ dependencies: ['space-age'], space_travel_required: false }),
+  );
+  assert.equal(countErrors(problems), 1);
+});

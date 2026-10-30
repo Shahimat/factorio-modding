@@ -47,6 +47,25 @@ export const VERSION_PART_MAX = 65535;
  */
 export const FACTORIO_VERSION_TRACKS = ['2.1'] as const;
 
+/**
+ * Feature-флаги info.json: каждый требует у игрока Space Age, entity
+ * `mod-package`. Мод с жёсткой зависимостью `space-age` несёт хотя бы один —
+ * иначе мод-портал не помечает его как требующий Space Age, entity
+ * `mod-portal`, `requires_space_age`.
+ */
+export const FEATURE_FLAGS = [
+  'quality_required',
+  'rail_bridges_required',
+  'spoiling_required',
+  'freezing_required',
+  'segmented_units_required',
+  'expansion_shaders_required',
+  'space_travel_required',
+] as const;
+
+/** Имя мода дополнения Space Age в зависимостях. */
+export const SPACE_AGE_MOD = 'space-age';
+
 /** Разделитель секции в changelog.txt — ровно столько дефисов. */
 export const CHANGELOG_SEPARATOR_LENGTH = 99;
 

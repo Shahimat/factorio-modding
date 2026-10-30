@@ -1,6 +1,6 @@
 {
   "name": "shm-advanced-belts",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "title": "Advanced Belts",
   "author": "Shahimat",
   "factorio_version": "2.1",
@@ -9,5 +9,6 @@
     "base >= 2.1.0",
     "space-age >= 2.1.0",
     "? aai-loaders >= 0.3.0"
-  ]
+  ],
+  "space_travel_required": true
 }

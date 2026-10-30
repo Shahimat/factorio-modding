@@ -35,6 +35,12 @@ package:
     - base >= 2.1.0
     - space-age >= 2.1.0
     - "? aai-loaders >= 0.3.0"
+  feature_flags: [space_travel_required]
+  feature_flags_note: |
+    Возможности флага мод не использует: флаг стоит только ради пометки
+    «требует Space Age» на мод-портале, которую жёсткая зависимость
+    `space-age` не даёт, entity `mod-package`, `space_age_marker`. Добавлен в
+    1.0.3 после дискуссии игрока на портале.
   dependencies_note: |
     AAI Loaders опционален: без него мод даёт ленты, подземки и сплиттеры, а
     настройки лоадеров AAI ни на что не влияют. Стак и ожидание полной
