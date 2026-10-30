@@ -33,7 +33,14 @@ package:
     Сценарии в игре идут с Space Age: им нужны его планеты и стартовый
     набор платформы.
   locale: Базовый набор языков, convention `localization`.
-  portal: Не опубликован. Картинка мода — `thumbnail.png`, раздел `art`.
+  portal: |
+    Опубликован 2026-10-30, релиз 0.1.0 — https://mods.factorio.com/mod/shm-orbital-logistics.
+    Версия 0.x: наполнение склада ракетами с настоящего силоса (K-01) ещё
+    не проверено, а в обычной игре мод почти не гонялся. Лицензия
+    `default_mit`, категория `utilities`, теги `logistics` и
+    `transportation`, описание — README пакета, summary — `description` из
+    `info.json`, `source_url` — репозиторий. Картинка мода —
+    `thumbnail.png`, раздел `art`.
 
 tags:
   where: имя ванильной logistic group секции, первая узнанная метка в квадратных скобках

@@ -56,5 +56,7 @@ verified_note: >-
   shm-advanced-belts 1.0.2 и shm-k2-superior-inserters-full-hand-switcher
   1.0.1 (SHA-1 совпали) и `edit_details` описания второго мода
   (`description=<README.md`, новый текст на странице через ~25 секунд).
-  Остальные сценарии (ошибки, backoff) ещё не
+  Повторено 2026-10-30 первой публикацией shm-orbital-logistics 0.1.0:
+  SHA-1 совпал, категория `utilities`, теги `logistics` и `transportation`,
+  summary через `edit_details` приняты. Остальные сценарии (ошибки, backoff) ещё не
   проверялись — поэтому `verified` остаётся `false`.

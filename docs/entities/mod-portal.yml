@@ -22,11 +22,12 @@ account:
 
       All mods are open source: https://github.com/Shahimat/factorio-modding
       Found a bug or have an idea? Drop it in the mod discussions.
-  published_mods: 3
+  published_mods: 4
   published:
     - K2-fuels-fork — https://mods.factorio.com/mod/K2-fuels-fork, первый релиз 1.0.0 2026-10-23
     - shm-k2-superior-inserters-full-hand-switcher — https://mods.factorio.com/mod/shm-k2-superior-inserters-full-hand-switcher, первый релиз 1.0.0 2026-10-25
     - shm-advanced-belts — https://mods.factorio.com/mod/shm-advanced-belts, первый релиз 1.0.0 2026-10-25
+    - shm-orbital-logistics — https://mods.factorio.com/mod/shm-orbital-logistics, первый релиз 0.1.0 2026-10-30
   confirmed_by: |
     Поле `service-username` в `~/Library/Application Support/factorio/player-data.json`
     равно `Shahimat` — в игре выполнен вход под этим аккаунтом (проверено

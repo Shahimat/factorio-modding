@@ -4,7 +4,7 @@
   "title": "Orbital Logistics",
   "author": "Shahimat",
   "factorio_version": "2.1",
-  "description": "Space platform depots and cargo on top of vanilla 2.1 platform-to-platform transfers. Tag a logistic group [reserve], [cargo→aquilo] or [depot:nauvis]: reserve is never given away, cargo is held until its destination, a depot serves other platforms in its orbits.",
+  "description": "Depots and cargo with a destination for space platforms, on top of the vanilla 2.1 platform-to-platform transfers. Mark a request group as reserve, cargo for chosen planets or a depot for chosen orbits right in the hub panel: reserve is never given away, cargo is held until its destination, a depot serves other platforms in its orbits. Supply lines keep one item list for a whole chain of depots, shuttles and landing pads.",
   "dependencies": [
     "base >= 2.1.0"
   ],
