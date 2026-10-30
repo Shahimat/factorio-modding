@@ -5,9 +5,16 @@
 Первичная настройка машины под разработку модов: новая машина, переустановка
 системы, или когда Factorio ещё не стоит.
 
+Поддерживаются две платформы: macOS и Linux. Шаги общие, различаются пути и
+пакетный менеджер — где они расходятся, указаны оба варианта.
+
 На 2026-10-04 на рабочем Mac шаги 1–3 и 10 уже выполнены: игра стоит из
 Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка), каталог данных создан,
 расширения редактора установлены. Остаётся выпустить API-ключи — шаги 5–7.
+
+На 2026-10-30 развёрнута вторая машина — Arch Linux: игра из Steam
+(`2.1.24`, `linux64`) во второй библиотеке Steam, Node 24, `lua` 5.5, FMTK.
+`npm run check`, Lua-тесты, `pack` и `npm run test:ingame` там зелёные.
 
 ## Шаги
 
@@ -19,34 +26,55 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
    заменяет локальную, потому что добавляет перенос файлов в каждую итерацию.
 
    Steam-покупка покрывает все три платформы одним appID 427520 — вторая
-   установка на macOS не требует доплаты. Сборка под Apple Silicon нативная
-   (с 1.1.71), Rosetta не нужна. Минимум по Steam: macOS 10.10+, 8 ГБ RAM,
-   5 ГБ на диске; рекомендуется Apple Silicon и 16 ГБ RAM.
+   установка на macOS или Linux не требует доплаты. Сборка под Apple Silicon
+   нативная (с 1.1.71), Rosetta не нужна. Минимум по Steam: macOS 10.10+,
+   8 ГБ RAM, 5 ГБ на диске; рекомендуется Apple Silicon и 16 ГБ RAM. Под
+   Linux сборка тоже нативная (`linux64`), Proton не нужен.
 
 2. Запусти игру один раз и закрой. Это создаст каталог пользовательских
-   данных. На macOS он здесь:
+   данных — дальше в манулах он называется **каталогом данных игры**:
 
    ```
-   ~/Library/Application Support/factorio
+   ~/Library/Application Support/factorio    # macOS
+   ~/.factorio                               # Linux
    ```
 
    Внутри тебя интересуют `mods/`, `saves/`, `config/config.ini`,
-   `player-data.json` и файлы логов `factorio-*.log`.
+   `player-data.json` и файлы логов `factorio-*.log`. Steam-сборка под
+   Linux держит `player-data.json` не здесь, а в Steam Cloud — см. шаг 13.
 
    Для справки, каталог приложения (там `data/` с ванильными прототипами —
    полезно подсматривать, как сделано в базовой игре):
 
    ```
-   /Applications/factorio.app/Contents
-   ~/Library/Application Support/Steam/steamapps/common/Factorio/factorio.app/Contents
+   /Applications/factorio.app/Contents                                   # macOS, с сайта
+   ~/Library/Application Support/Steam/steamapps/common/Factorio/factorio.app/Contents  # macOS, Steam
+   ~/.local/share/Steam/steamapps/common/Factorio                       # Linux, Steam
    ```
 
-   Первая строка — установка с сайта, вторая — через Steam. Чтобы запускать
-   игру из терминала командой `factorio`, добавь каталог бинарника в `PATH`
-   (в `~/.zshrc`; пример для Steam):
+   Бинарь игры — `factorio.app/Contents/MacOS/factorio` на macOS и
+   `bin/x64/factorio` на Linux. Если в Steam несколько библиотек, игра может
+   стоять не в основной: список библиотек — в
+   `~/.local/share/Steam/steamapps/libraryfolders.vdf`, игра — в
+   `<библиотека>/steamapps/common/Factorio`.
+
+   Инструменты репозитория (`test:ingame`, `recolor-sprites`,
+   `orbital-art`) ищут игру в типовых местах, а нестандартный путь берут из
+   переменной `FACTORIO_BIN`. Её задают в профиле оболочки, а не в
+   репозитории — путь содержит имя пользователя, convention `secrets`:
 
    ```bash
+   export FACTORIO_BIN=<библиотека>/steamapps/common/Factorio/bin/x64/factorio
+   ```
+
+   Чтобы запускать игру из терминала командой `factorio`, добавь каталог
+   бинарника в `PATH` (в `~/.zshrc` или `~/.bashrc`; примеры для Steam):
+
+   ```bash
+   # macOS
    export PATH="$PATH:$HOME/Library/Application Support/Steam/steamapps/common/Factorio/factorio.app/Contents/MacOS"
+   # Linux
+   export PATH="$PATH:$HOME/.local/share/Steam/steamapps/common/Factorio/bin/x64"
    ```
 
    У Steam-сборки есть особенность: запущенная напрямую, она перезапускает
@@ -66,8 +94,11 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
 3. Проверь, что каталог модов существует, и создай, если нет:
 
    ```bash
+   # macOS
    ls -d ~/Library/Application\ Support/factorio/mods \
      || mkdir -p ~/Library/Application\ Support/factorio/mods
+   # Linux
+   ls -d ~/.factorio/mods || mkdir -p ~/.factorio/mods
    ```
 
 4. Зафиксируй актуальные версии игры — они нужны для `factorio_version` и для
@@ -102,7 +133,7 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
    ```
 
    Имя переменной именно такое — его читает CLI `fmtk`, и оно имеет
-   приоритет над Keychain. Этим же именем пользуются примеры `curl` в
+   приоритет над хранилищем ключей системы. Этим же именем пользуются примеры `curl` в
    манулах `publish-new-mod.md` и `release-mod.md`, чтобы не держать три
    разных имени под один ключ.
 
@@ -149,19 +180,48 @@ Steam (на 2026-10-25 — `2.1.23`, `mac-arm64`, нативная сборка)
     (`npm run check:mod -- <mod-key>`):
 
     ```bash
-    brew install lua
+    brew install lua            # macOS
+    sudo pacman -S lua zip jq   # Arch Linux
     lua -v
     ```
 
-    Версия будет новее той, что исполняет игра: Factorio 2.0 работает на
+    Версия будет новее той, что исполняет игра: Factorio 2.x работает на
     патченном Lua 5.2, а формул `lua@5.2` и `lua@5.3` в Homebrew нет.
     Разницу диалектов ловит отдельная проверка в `npm run validate` —
     convention `testing`, раздел «Диалект Lua». Если нужен другой бинарь
-    (например, `luajit`), путь задаётся переменной `LUA_BIN`.
+    (например, `luajit`), путь задаётся переменной `LUA_BIN`. В Arch есть
+    отдельный пакет `lua52`, но тесты проекта идут на системном `lua` на
+    обеих платформах — решение и его граница в том же разделе convention.
 
 11. Поставь расширения редактора — раздел «Редактор» ниже.
 
 12. Настрой страховочный hook по manual `setup-safety-hooks.md`.
+
+13. Прогони стенд тестов внутри игры — заодно это проверит, что инструменты
+    видят игру:
+
+    ```bash
+    npm run test:ingame
+    ```
+
+    При первом прогоне CLI `factorio-test` качает с портала мод
+    `factorio-test` и для этого ищет вход в аккаунт: переменные
+    `FACTORIO_USERNAME` / `FACTORIO_TOKEN`, иначе `player-data.json` в
+    каталоге игры и в каталоге данных игры. На macOS файл лежит в каталоге
+    данных и находится сам. Steam-сборка под Linux хранит его в Steam Cloud,
+    `~/.local/share/Steam/userdata/<steam-id>/427520/remote/player-data.json`,
+    где CLI не ищет, — креды передаются переменными на один прогон:
+
+    ```bash
+    PD=$(ls ~/.local/share/Steam/userdata/*/427520/remote/player-data.json | head -1)
+    FACTORIO_USERNAME=$(jq -r '."service-username"' "$PD") \
+    FACTORIO_TOKEN=$(jq -r '."service-token"' "$PD") \
+      npm run test:ingame
+    ```
+
+    Скачанный мод остаётся в `.work/ingame-stand/data/mods/`, следующие
+    прогоны идут без кредов. Токен не кладётся ни в `.env.local`, ни в
+    репозиторий. Проверено 2026-10-30 на 2.1.24 (`linux64`, `steam`).
 
 ## Редактор
 
@@ -187,8 +247,9 @@ EmmyLua отдельное `svizzini.factorio-lua-api-autocomplete` не нуж�
   `changelog.txt`: ошибки формата (99 дефисов, отступы 2/4/6) видны прямо при
   вводе, а не только на `npm run validate`;
 - задачи `Package`, `Upload`, `Details` в панели «Factorio Mod Packages»;
-  API-ключ хранится в Keychain macOS либо берётся из переменной
-  `FACTORIO_UPLOAD_API_KEY`.
+  API-ключ хранится в хранилище ключей системы (Keychain на macOS, Secret
+  Service — GNOME Keyring или KWallet — на Linux) либо берётся из
+  переменной `FACTORIO_UPLOAD_API_KEY`.
 
 ## Если забыт e-mail аккаунта
 
@@ -199,11 +260,15 @@ EmmyLua отдельное `svizzini.factorio-lua-api-autocomplete` не нуж�
 Как узнать, под каким аккаунтом ты вообще залогинен:
 
 ```bash
+# macOS
 python3 -c "import json;print(json.load(open('$HOME/Library/Application Support/factorio/player-data.json'))['service-username'])"
+# Linux, Steam
+jq -r '."service-username"' ~/.local/share/Steam/userdata/*/427520/remote/player-data.json
 ```
 
 Файл `player-data.json` хранит `service-username` и `service-token` — это
-аккаунт, под которым выполнен вход в самой игре. На Windows тот же файл лежит
+аккаунт, под которым выполнен вход в самой игре. Steam-сборка под Linux
+держит его в Steam Cloud, а не в каталоге данных игры. На Windows тот же файл лежит
 в `%appdata%\Factorio`, а при установке через Steam его копия — в
 `C:\Program Files (x86)\Steam\userdata\<id>\427520\remote`. E-mail там не
 хранится, только имя аккаунта.

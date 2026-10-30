@@ -16,7 +16,7 @@ namespaces:
         one_liner: логика инструментов покрыта юнит-тестами, npm test входит в npm run check
     manuals:
       - id: setup-dev-environment
-        one_liner: установка Factorio, каталог данных, API-ключи, Node, npm ci
+        one_liner: установка Factorio на macOS и Linux, каталог данных, API-ключи, Node, npm ci, первый прогон стенда
       - id: setup-safety-hooks
         one_liner: hook, блокирующий запись проектных фактов в memory агента
     conventions:

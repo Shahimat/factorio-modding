@@ -56,7 +56,8 @@ runtime:
     zip: нужен для сборки архива релиза; на macOS и типовых Linux есть из коробки
     jq: нужен страховочному hook, см. manual setup-safety-hooks
     lua: |
-      нужен для Lua-тестов модов (`npm run check:mod`). Локально 5.5, в игре
+      нужен для Lua-тестов модов (`npm run check:mod`). Локально 5.5 на обеих
+      машинах (Homebrew на macOS, пакет `lua` в Arch Linux), в игре
       патченный 5.2; формул `lua@5.2` / `lua@5.3` в Homebrew нет. Бинарь
       переопределяется переменной `LUA_BIN`. Разницу диалектов ловит
       `tools/lib/lua-dialect.ts`, граница гарантии — convention `testing`.
@@ -66,7 +67,9 @@ runtime:
       определяется автоматически (Steam-бандл, `/Applications`, типовые
       установки Linux) и переопределяется переменной `FACTORIO_BIN` — по той
       же причине, что `LUA_BIN`: абсолютный путь с именем пользователя в
-      версионируемые файлы попасть не может, convention `secrets`.
+      версионируемые файлы попасть не может, convention `secrets`. Игру во
+      второй библиотеке Steam автоматический поиск не видит — там нужна
+      `FACTORIO_BIN`, см. manual `setup-dev-environment`, шаг 2.
 
 tools_implemented:
   npm-scripts: |
@@ -205,7 +208,11 @@ ingame_test_stand:
     `npm run test:ingame -- "<lua-паттерн>"`, другой конфиг —
     `-c <путь>`. Рабочий каталог (моды стенда, сейвы, `config.ini`,
     `player-data.json`) — `.work/ingame-stand/`, вне git: там оказываются
-    креды мод-портала.
+    креды мод-портала. Креды нужны CLI один раз, чтобы скачать мод
+    `factorio-test`. Steam-сборка под Linux держит `player-data.json` в
+    Steam Cloud, где CLI его не ищет, поэтому там первый прогон идёт с
+    `FACTORIO_USERNAME` / `FACTORIO_TOKEN`, manual `setup-dev-environment`,
+    шаг 13.
   per_mod_config: |
     Мод со своими тестами держит конфиг в `mods/<name>/tests/ingame/`
     (каталог `tests/` вырезается упаковкой) и npm-скрипты в своём

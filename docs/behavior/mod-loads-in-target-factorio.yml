@@ -30,4 +30,4 @@ verified_note: >-
   `shm-k2-fuels`) с `factorio_version: "2.1"` загрузился в Factorio 2.1.23
   (Steam, `mac-arm64`) без ошибок, по логу игры. Не проверены: отказ мода 2.1
   в игре 2.0 (игра 2.0 на машине больше не стоит) и прогон с
-  `--check-unused-prototype-data` по manual `test-mod-locally`, шаг 4.
+  `--check-unused-prototype-data` по manual `test-mod-locally`, шаг 5.

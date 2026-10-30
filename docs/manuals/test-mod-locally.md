@@ -13,8 +13,19 @@
 
 ## Как игра находит мод
 
-Игра читает каталог `~/Library/Application Support/factorio/mods`. Мод в нём
-может лежать тремя способами:
+Игра читает каталог `mods/` в каталоге данных игры:
+`~/Library/Application Support/factorio/mods` на macOS, `~/.factorio/mods` на
+Linux. Ниже в командах — переменная `FD` с каталогом данных:
+
+```bash
+FD=~/Library/Application\ Support/factorio   # macOS
+FD=~/.factorio                               # Linux
+```
+
+Бинарь игры в командах — `factorio`: он в `PATH` или задан полным путём,
+см. `setup-dev-environment.md`, шаг 2.
+
+Мод в каталоге модов может лежать тремя способами:
 
 - папкой `{name}_{version}` — как после установки с портала;
 - папкой просто `{name}` — версия берётся из `info.json`;
@@ -28,47 +39,54 @@
 
 ## Шаги
 
-1. Симлинкни пакет мода в каталог модов игры:
+1. Убедись, что в каталоге модов нет того же мода, поставленного с портала
+   (`shm-<mod-key>_<версия>.zip` или папки с версией). Две копии с одним
+   `name` игра не загрузит — убери релизную копию из `mods/` на время
+   разработки:
 
    ```bash
-   ln -s "$PWD/mods/shm-<mod-key>" \
-     ~/Library/Application\ Support/factorio/mods/shm-<mod-key>
+   ls "$FD/mods" | grep '^shm-<mod-key>'
+   ```
+
+2. Симлинкни пакет мода в каталог модов игры:
+
+   ```bash
+   ln -s "$PWD/mods/shm-<mod-key>" "$FD/mods/shm-<mod-key>"
    ```
 
    Проверь, что ссылка живая:
 
    ```bash
-   ls -l ~/Library/Application\ Support/factorio/mods/shm-<mod-key>/info.json
+   ls -l "$FD/mods/shm-<mod-key>/info.json"
    ```
 
-2. Запусти игру. Открой «Мод-менеджер» и убедись, что мод в списке, включён,
+3. Запусти игру. Открой «Мод-менеджер» и убедись, что мод в списке, включён,
    а в строке мода показаны ожидаемые `title` и версия.
 
    Альтернатива правке через GUI — файл `mod-list.json` в каталоге модов:
    игра хранит в нём список модов с флагом `enabled`. Править руками можно,
    но при конфликте проще включить мод через GUI и перезапустить игру.
 
-3. Создай или загрузи тестовый сейв и проверь то, что мод должен делать.
+4. Создай или загрузи тестовый сейв и проверь то, что мод должен делать.
    Горячей перезагрузки у стадии данных нет: любая правка `data*.lua`,
    `settings*.lua` или `info.json` требует **перезапуска игры**.
 
-4. Прогон с проверкой неиспользованных данных прототипов — ловит опечатки в
+5. Прогон с проверкой неиспользованных данных прототипов — ловит опечатки в
    ключах прототипов, которые игра иначе молча игнорирует:
 
    ```bash
-   /Applications/factorio.app/Contents/MacOS/factorio --check-unused-prototype-data
+   factorio --check-unused-prototype-data
    ```
 
-5. Посмотри лог после каждого запуска. Там же оказываются ошибки парсинга
+6. Посмотри лог после каждого запуска. Там же оказываются ошибки парсинга
    `info.json` и `changelog.txt`:
 
    ```bash
-   ls -t ~/Library/Application\ Support/factorio/factorio-current.log
-   grep -i -E "error|warning|changelog" \
-     ~/Library/Application\ Support/factorio/factorio-current.log
+   ls -t "$FD/factorio-current.log"
+   grep -i -E "error|warning|changelog" "$FD/factorio-current.log"
    ```
 
-6. Проверь changelog глазами: открой страницу мода в мод-менеджере, вкладку
+7. Проверь changelog глазами: открой страницу мода в мод-менеджере, вкладку
    с историей изменений. Если секции не отображаются — формат сломан, разбор
    правил в behavior `changelog-parses-in-game`.
 
@@ -78,8 +96,7 @@
 модов) или проверить совместимость двух своих модов между собой:
 
 ```bash
-/Applications/factorio.app/Contents/MacOS/factorio \
-  --mod-directory /tmp/factorio-mods-clean
+factorio --mod-directory /tmp/factorio-mods-clean
 ```
 
 В каталог кладутся только нужные моды. Это надёжнее, чем выключать десятки

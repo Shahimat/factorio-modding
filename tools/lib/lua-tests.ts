@@ -56,7 +56,7 @@ async function spawnLua(args: readonly string[]): Promise<Spawned> {
     };
     if (detail.code === 'ENOENT') {
       throw new Error(
-        `не найден интерпретатор "${LUA_BIN}". Поставь Lua (\`brew install lua\`) либо укажи другой бинарь через LUA_BIN`,
+        `не найден интерпретатор "${LUA_BIN}". Поставь Lua (\`brew install lua\` на macOS, \`pacman -S lua\` на Arch Linux) либо укажи другой бинарь через LUA_BIN`,
       );
     }
     return {

@@ -8,11 +8,12 @@
 ## Запуск
 
 Прототип подключается к игре симлинком, как обычный мод, —
-`docs/manuals/test-mod-locally.md`, шаг 1, только путь ведёт в `poc/`:
+`docs/manuals/test-mod-locally.md`, шаг 2, только путь ведёт в `poc/`
+(`FD` — каталог данных игры, там же):
 
 ```bash
 ln -s "$PWD/poc/shm-logistic-buildings-probe" \
-  ~/Library/Application\ Support/factorio/mods/shm-logistic-buildings-probe
+  "$FD/mods/shm-logistic-buildings-probe"
 ```
 
 Дальше в игре, на любой карте:
