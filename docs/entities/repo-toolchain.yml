@@ -71,11 +71,13 @@ tools_implemented:
   npm-scripts: |
     typecheck, test, test:mod, test:lua:all, test:ingame, check-secrets,
     check-docs, check-lua, validate, pack, recolor-sprites, orbital-art,
-    check, check:mod. Скоупы разделены
+    publish:mod, check, check:mod. Скоупы разделены
     сознательно: `check` не заходит в моды, `check:mod -- <mod-key>`
     проверяет один мод, `check-lua -- <скоуп>` требует явный скоуп —
     convention `testing`, раздел «Скоупы запуска». `test:ingame` запускает
-    игру и в `npm run check` тоже не входит.
+    игру и в `npm run check` тоже не входит. `publish:mod -- <mod-key>`
+    публикует готовый `dist/<name>_<version>.zip` на портал одной командой,
+    ключ берёт из окружения или `.env.local`/`.env` в корне.
   tools/check-secrets.ts: |
     Защита публичного репозитория от утечек, convention `secrets`.
     Сканирует множество `git ls-files` + неигнорируемые untracked, то есть
@@ -291,12 +293,14 @@ editor_tooling:
     svizzini.factorio-lua-api-autocomplete: |
       Не нужен при связке FMTK + EmmyLua: определения API генерирует FMTK.
   overlap_with_own_tools: |
-    FMTK умеет Package, Upload и Details, то есть покрывает всё, что
-    планировалось в собственном инструменте `publish`, включая хранение
-    API-ключа в Keychain. Свой `publish` поэтому не пишем. Собственные
-    `validate` и `pack` остаются: FMTK не знает про приставку `shm-`,
-    префикс `title`, обязательный `LICENSE` и сверку верхней секции
-    changelog с версией релиза.
+    FMTK умеет Package, Upload и Details, включая хранение API-ключа в
+    Keychain. Релиз с 2026-11-03 публикует свой `publish:mod` (см.
+    `tools_implemented.npm-scripts`): решение «свой publish не пишем»
+    пересмотрено после запрета /tmp-скриптов. Package и правка страницы
+    мода остаются за FMTK и руками. Собственные `validate` и `pack`
+    остаются: FMTK не знает про приставку `shm-`, префикс `title`,
+    обязательный `LICENSE` и сверку верхней секции changelog с версией
+    релиза.
   forbidden: |
     Команда FMTK `Publish` — всё-в-одном: сама делает git commit, ставит тег
     и пушит в upstream. Это нарушает правило проекта, что git-операции

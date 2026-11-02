@@ -9,7 +9,8 @@
 
 - API-ключ с usage `ModPortal: Upload Mods`, для правки страницы мода — ещё и
   `ModPortal: Edit Mods`. У нас это один ключ с тремя usage, см.
-  `setup-dev-environment.md`, шаги 6–7.
+  `setup-dev-environment.md`, шаги 6–7. Ключ `FACTORIO_UPLOAD_API_KEY`
+  читается из окружения или из `.env.local`/`.env` в корне репозитория.
 - Вместо `curl` из этого манула те же два шага умеет FMTK — задачи `Upload` и
   `Details` в панели «Factorio Mod Packages». Команду FMTK `Publish` не
   использовать: она сама делает git commit, тег и push.
@@ -35,32 +36,20 @@
 4. Собери zip `{name}_{version}.zip` — требования к архиву в behavior
    `mod-zip-matches-portal-rules`.
 
-5. Запроси `upload_url`:
+5. Опубликуй релиз одной командой:
 
    ```bash
-   curl -fsS -X POST \
-     -H "Authorization: Bearer $FACTORIO_UPLOAD_API_KEY" \
-     -F "mod=shm-<mod-key>" \
-     https://mods.factorio.com/api/v2/mods/releases/init_upload
+   npm run publish:mod -- <mod-key>
    ```
 
-6. Загрузи архив:
-
-   ```bash
-   curl -fsS -X POST -F "file=@shm-<mod-key>_<version>.zip" "<upload_url>"
-   ```
-
-   Успех — `{"success": true}`.
-
-7. Проверь, что релиз появился:
-
-   ```bash
-   curl -fsS https://mods.factorio.com/api/mods/shm-<mod-key> \
-     | python3 -m json.tool
-   ```
-
-   В списке `releases` должна быть новая версия с ожидаемым
-   `info_json.factorio_version`.
+   Приставку `shm-` можно опустить. Инструмент сам делает остальное:
+   находит `dist/<name>_<version>.zip` по `info.json` (нет архива —
+   подсказка собрать `npm run pack`), запрашивает `upload_url`, загружает
+   архив и ждёт ответ `{"success": true}`, затем публичным API ждёт
+   появления новой версии с ожидаемым `factorio_version` (повторы).
+   Ключ берёт из окружения или `.env.local`/`.env` в корне; ключ нигде
+   не печатается. Ошибки портала выводятся с кодом и текстом;
+   git-действий и правок страницы мода в инструменте нет.
 
 ## Формат changelog.txt
 
@@ -129,6 +118,38 @@ curl -fsS -X POST -F "image=@screenshot.png" "<upload_url>"
 ```
 
 ## Если что-то пошло не так
+
+Ручной резерв для диагностики — те же шаги curl'ом, что делает
+`publish:mod` (шаг 5):
+
+1. Запроси `upload_url`:
+
+   ```bash
+   curl -fsS -X POST \
+     -H "Authorization: Bearer $FACTORIO_UPLOAD_API_KEY" \
+     -F "mod=shm-<mod-key>" \
+     https://mods.factorio.com/api/v2/mods/releases/init_upload
+   ```
+
+2. Загрузи архив:
+
+   ```bash
+   curl -fsS -X POST -F "file=@shm-<mod-key>_<version>.zip" "<upload_url>"
+   ```
+
+   Успех — `{"success": true}`.
+
+3. Проверь, что релиз появился:
+
+   ```bash
+   curl -fsS https://mods.factorio.com/api/mods/shm-<mod-key> \
+     | python3 -m json.tool
+   ```
+
+   В списке `releases` должна быть новая версия с ожидаемым
+   `info_json.factorio_version`.
+
+Ошибки портала:
 
 - `UnknownMod` — мода нет на портале, значит это первая публикация, иди в
   `publish-new-mod.md`.

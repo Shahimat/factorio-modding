@@ -58,5 +58,8 @@ verified_note: >-
   (`description=<README.md`, новый текст на странице через ~25 секунд).
   Повторено 2026-10-30 первой публикацией shm-orbital-logistics 0.1.0:
   SHA-1 совпал, категория `utilities`, теги `logistics` и `transportation`,
-  summary через `edit_details` приняты. Остальные сценарии (ошибки, backoff) ещё не
+  summary через `edit_details` приняты. Повторено 2026-11-03 релизом
+  shm-orbital-logistics 0.1.1 по manual `release-mod`: `init_upload` →
+  загрузка zip на `upload_url` → `{"success":true}`, релиз виден в
+  публичном API. Остальные сценарии (ошибки, backoff) ещё не
   проверялись — поэтому `verified` остаётся `false`.
