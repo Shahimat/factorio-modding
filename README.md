@@ -17,6 +17,7 @@
 
 ## Куда идти
 
+- ручные процедуры — [docs/manuals/](docs/manuals/)
 - развернуть окружение с нуля —
   [setup-dev-environment.md](docs/manuals/setup-dev-environment.md)
 - прогнать мод локально —

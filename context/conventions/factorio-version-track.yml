@@ -1,4 +1,5 @@
 key: factorio-version-track
+summary: "Одна мажорная версия игры на релиз; проект поддерживает только Factorio 2.1."
 rule: |
   Поле `factorio_version` в `info.json` указывает **ровно одну** мажорную
   версию игры (формат `number.number`, например `"2.1"`). Поддержка двух

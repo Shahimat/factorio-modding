@@ -63,7 +63,14 @@ export function scanLine(
     }
   }
 
-  if (!HASH_KEY_PATTERN.test(line)) {
+  // Строка YAML вида «имя: <чистый hex>» — SHA-чекпоинт контракта v3:
+  // sync.contract.parts и manifest'ы модулей держат хеш значением
+  // именованного ключа. Секретные ключи всё равно ловит правило
+  // присваивания выше.
+  const isHashValueLine =
+    /^\s*["']?[\w.-]+["']?\s*:\s*["']?[A-Fa-f0-9]{30,}["']?,?\s*$/.test(line);
+
+  if (!HASH_KEY_PATTERN.test(line) && !isHashValueLine) {
     for (const match of line.matchAll(LONG_HEX_PATTERN)) {
       problems.push(
         error(

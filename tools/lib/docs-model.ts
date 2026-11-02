@@ -12,7 +12,6 @@ export const DIRS = {
   manuals: join(REPO_ROOT, 'docs', 'manuals'),
   conventions: join(REPO_ROOT, 'context', 'conventions'),
   modules: join(REPO_ROOT, 'context', 'modules'),
-  views: join(REPO_ROOT, 'context', 'views'),
   specs: join(REPO_ROOT, 'specs'),
 } as const;
 

@@ -15,12 +15,14 @@ export interface SecretRule {
 }
 
 /**
- * Публичные адреса, опубликованные самой Wube в справке. Всё остальное,
- * похожее на e-mail, считается утечкой.
+ * Публичные адреса, опубликованные самими вендорами в их же файлах.
+ * Всё остальное, похожее на e-mail, считается утечкой.
  */
 export const ALLOWED_EMAILS = [
   'support@factorio.com',
   'factorio@factorio.com',
+  // Майнтайнер npm: его адрес стоит в deprecated-сообщениях package-lock.
+  'i@izs.me',
 ] as const;
 
 /**

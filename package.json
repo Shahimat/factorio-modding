@@ -7,7 +7,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22.6.0"
+    "node": ">=24"
   },
   "workspaces": [
     "mods/*"
@@ -30,11 +30,14 @@
     "orbital-art": "node tools/orbital-art.ts"
   },
   "devDependencies": {
+    "@shahimat/ai-core": "^0.1.2",
+    "@shahimat/oc3": "^0.1.0",
     "@types/node": "^24.9.2",
     "@types/pngjs": "^6.0.5",
     "factorio-test-cli": "^3.6.0",
     "pngjs": "^7.0.0",
     "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
     "yaml": "^2.9.1"
   }
 }

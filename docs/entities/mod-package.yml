@@ -3,10 +3,7 @@ kind: entity
 namespace: mods
 version: "1"
 title: Пакет мода в монорепозитории
-summary: |
-  Один мод = один каталог `mods/shm-<mod-key>/` (у форка — `mods/<name>/`), он же npm-workspace-пакет, он
-  же содержимое zip-релиза. Имя каталога совпадает с полем `name` из
-  `info.json`.
+summary: "Один мод — один каталог mods/shm-<mod-key>/, он же npm-workspace-пакет, он же содержимое zip-релиза; имя каталога совпадает с name из info.json."
 
 layout:
   required:

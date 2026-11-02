@@ -13,8 +13,8 @@ import { error, warning, type Problem } from './problems.ts';
 
 const MAX_ENTITIES_PER_NAMESPACE = 7;
 /**
- * Контракт даёт ориентир 12; поднят до 100 отклонением
- * `namespace-behaviors-threshold` в `context/project.yml`.
+ * Ориентир контракта 12 поднят до 100 — договорённость проекта: namespace
+ * `mods` общий для всех модов монорепозитория.
  */
 const MAX_BEHAVIORS_PER_NAMESPACE = 100;
 
@@ -29,6 +29,21 @@ function expectedFileName(id: string): string {
 /** Слова длиннее трёх символов из kebab-case ключа фичи. */
 function featureWords(feature: string): string[] {
   return feature.split(/[-_]/).filter((w) => w.length > 3);
+}
+
+/** summary/title одной строкой — поле слоя для индекса (`oc3 context index`). */
+function checkIndexLine(
+  problems: Problem[],
+  file: string,
+  data: LoadedYaml['data'],
+  field: 'summary' | 'title',
+): void {
+  const value = asString(data[field]);
+  if (value === null || value.trim() === '') {
+    problems.push(error(file, `нет поля "${field}" (одна строка для индекса)`));
+  } else if (value.includes('\n')) {
+    problems.push(error(file, `"${field}" должно быть одной строкой`));
+  }
 }
 
 export interface LayerCheck {
@@ -70,6 +85,7 @@ export async function checkLayers(): Promise<LayerCheck> {
       continue;
     }
     entityById.set(id, item);
+    checkIndexLine(problems, item.file, item.data, 'summary');
   }
 
   const behaviorById = new Map<string, LoadedYaml>();
@@ -89,6 +105,7 @@ export async function checkLayers(): Promise<LayerCheck> {
       continue;
     }
     behaviorById.set(id, item);
+    checkIndexLine(problems, item.file, item.data, 'title');
   }
 
   const conventionKeys: string[] = [];
@@ -106,6 +123,7 @@ export async function checkLayers(): Promise<LayerCheck> {
     if (!asString(item.data['rule'])) {
       problems.push(error(item.file, 'нет непустого поля "rule"'));
     }
+    checkIndexLine(problems, item.file, item.data, 'summary');
     conventionKeys.push(key);
   }
 

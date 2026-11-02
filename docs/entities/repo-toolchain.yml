@@ -3,10 +3,7 @@ kind: entity
 namespace: platform
 version: "1"
 title: Монорепозиторий и инструментальный контур
-summary: |
-  npm-workspaces монорепозиторий. Исходники модов — Lua (без транспиляции).
-  Инструменты сборки, валидации и публикации — TypeScript в strict-режиме,
-  запускаются через npm-скрипты корня.
+summary: "npm-workspaces монорепозиторий: моды на Lua без транспиляции, инструменты сборки, валидации и публикации — TypeScript в strict-режиме."
 
 structure:
   mods/: пакеты модов, один каталог на мод, он же npm-workspace

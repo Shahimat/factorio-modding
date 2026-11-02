@@ -1,0 +1,13 @@
+key: manuals
+source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/modules/manuals.md
+synced_sha: 0ee521b900e178c27c916a2e085c08f5600d70c48e4621aa5636603f15e22283
+synced_at: 2026-11-02
+provides:
+  layers: [docs/manuals/]
+  files: []
+  skills: [manuals]
+  agents_md_block: true
+  harness_checks: []
+parts:
+  skills:
+    manuals: 0f9c59671658804ae673fe95af2f55198b3fff73d4953b1a2357b587acc26e3f

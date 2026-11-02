@@ -1,4 +1,5 @@
 key: mod-naming
+summary: "Приписка shm- в name и прототипах, title без ника; форк — суффикс -fork вместо shm-; правила проверяет npm run validate."
 rule: |
   Все моды этого репозитория несут авторскую приписку `shm-` (от ника
   Shahimat).

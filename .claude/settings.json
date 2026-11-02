@@ -8,5 +8,6 @@
       "Bash(cat:*)",
       "Bash(ls:*)"
     ]
-  }
+  },
+  "autoMemoryEnabled": false
 }

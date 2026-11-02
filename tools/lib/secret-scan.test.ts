@@ -99,6 +99,17 @@ test('hex рядом с полем хеша не считается секрет
   assert.deepEqual(ids(`"integrity": "sha512-${sha}"`), []);
 });
 
+test('строка «имя: чистый hex» — SHA-чекпоинт контракта, не секрет', () => {
+  // sync.contract.parts и manifest'ы модулей держат SHA значением ключа.
+  // Фикстура с · — чтобы сам тест не поймал свой литерал.
+  const sha = fx('4afe17218d9044d8cc1ee0f873f3·df239fa53e94eb8c836dac257906e·df7a109');
+  assert.deepEqual(ids(`  contract-setup: ${sha}`), []);
+  assert.deepEqual(ids(`    domain: ${sha}`), []);
+  // Секретный ключ ловится правилом присваивания независимо от формы значения.
+  const line = 'api_key·: ${sha}'.replace('·', '').replace('${sha}', sha);
+  assert.ok(ids(line).includes('secret-assignment'));
+});
+
 test('файловый путь не принимается за base64', () => {
   // Регрессия: слеш входил в алфавит base64, пути давали ложные находки.
   assert.deepEqual(

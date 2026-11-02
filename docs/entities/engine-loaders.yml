@@ -3,9 +3,7 @@ kind: entity
 namespace: engine
 version: "1"
 title: Лоадеры — режим полной стопки только в прототипе, что переносит fast_replace скриптом
-summary: |
-  Факты о лоадерах, выясненные тестами в игре при разработке
-  shm-advanced-belts. Пара к `engine-inserters`: механика та же, поля другие.
+summary: "Факты о лоадерах из тестов в игре при разработке shm-advanced-belts; пара к engine-inserters — механика та же, поля другие."
 
 facts:
   - claim: |

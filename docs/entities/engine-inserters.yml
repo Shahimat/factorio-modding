@@ -3,10 +3,7 @@ kind: entity
 namespace: engine
 version: "1"
 title: Манипуляторы — режимы руки, стопки на ленте, замена скриптом
-summary: |
-  Факты о манипуляторах, выясненные тестами в игре при разработке
-  shm-k2-superior-inserters-full-hand-switcher. Документация на эти вопросы
-  либо молчит, либо отвечает неочевидно.
+summary: "Факты о манипуляторах из тестов в игре при разработке shm-k2-superior-inserters-full-hand-switcher."
 
 facts:
   - claim: |

@@ -1,0 +1,108 @@
+# Реестр skills: что установлено, привязка к ролям.
+# `roles` — единственный runtime-источник привязки; оператору допустимы только
+# operator-feedback и явный browser-read. Core-skills обновляет source-sync,
+# проект их не редактирует. Проверка — `oc3 skills check`.
+skills:
+  # --- core: ai-prompts, привязка по role_skills пресета operational ---
+  - key: research
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/research
+    sha: 25838c9b9231be96671a70058a7febdc5a83259fc4beff994c44ad88cf506bd2
+    roles: [researcher]
+  - key: executor
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/executor
+    sha: afda091c062bef1fdd3f43de837d0caeca3e963f096251d2fd02ba084f4f45ac
+    roles: [executor]
+  - key: judge
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/judge
+    sha: 10371178f17102184bd2222953ffa726e2f93d40a12756cba33c55ec98ac1ad8
+    roles: [judge]
+  - key: librarian
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/librarian
+    sha: fa448751b970ab024f28a911a47610e3721c4235ffd01c414f88878816b8b98d
+    roles: [librarian]
+  - key: domain
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/domain
+    sha: 0c78da93b52466c85381f859b29514fe3674539e313c12053e1f239c79885950
+    roles: [researcher, executor, judge, librarian]
+  - key: manuals
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/manuals
+    sha: 0f9c59671658804ae673fe95af2f55198b3fff73d4953b1a2357b587acc26e3f
+    roles: [researcher, executor, judge, librarian]
+  - key: operator-feedback
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/operator-feedback
+    sha: 0c04f0e40c897eb2f6976af070f648312b91b7599af03e44bd5a104a4f4c9b0e
+    roles: [operator]
+
+  # --- core: контрактные, без ролевой привязки (доступны primary-сессии) ---
+  - key: contract-setup
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/contract-setup
+    sha: 4afe17218d9044d8cc1ee0f873f3df239fa53e94eb8c836dac257906edf7a109
+    roles: []
+  - key: workflow
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/workflow
+    sha: c514178263ee7b29ba268a17d345e7a064a92c6e2028ea9e749295c06d1a5ae8
+    roles: []
+  - key: source-sync
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/source-sync
+    sha: 0f23df915aae0a269ebc6fe17ee235b8c26580f6247ceb66b8451981f64b442d
+    roles: []
+  - key: cli
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/cli
+    sha: d2e72714c8628c9541339f7413c438a9ed530533accd94991d20a387eaf9d6ef
+    roles: []
+
+  # --- project-skills: процедуры сессии и спек-программ, без ролевой
+  #     привязки: загружает primary-сессия (OpenCode читает .agents/skills
+  #     нативно). Правку контракта в источник — через skill source-feedback. ---
+  - key: startup
+    kind: core
+    source: project
+    path: .agents/skills/startup
+    sha: d5cdb1ab715df3c29800729ba803ad435f01eb27cf3120817ecb774201149136
+    roles: []
+  - key: closeout
+    kind: core
+    source: project
+    path: .agents/skills/closeout
+    sha: 3f1c0cb872eba1b8a2c3d1e90b454262ceb6aab04034e9e528ad5959963a0d11
+    roles: []
+  - key: plan-spec
+    kind: core
+    source: project
+    path: .agents/skills/plan-spec
+    sha: 174984bc1d9ec605c831a0a3ca793faae98044ab0bae348608d9a6fe4b3cde7d
+    roles: []
+  - key: verify-plan
+    kind: core
+    source: project
+    path: .agents/skills/verify-plan
+    sha: 25fc1b7058ec8c84d98f937394d7775040baef2f024ca383822144fcc8317a6c
+    roles: []
+  - key: review
+    kind: core
+    source: project
+    path: .agents/skills/review
+    sha: 1dd87e2a32e4b9b4fd422618c7349d2ec1a36c5e621360fd7a69c716eb910a7c
+    roles: []

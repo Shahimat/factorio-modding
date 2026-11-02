@@ -9,23 +9,16 @@
  * связи между слоями целы.
  */
 import { checkLayers } from './lib/check-docs-layers.ts';
-import {
-  checkGoals,
-  checkIndex,
-  checkModules,
-  checkProject,
-} from './lib/check-docs-context.ts';
+import { checkModules, checkProject } from './lib/check-docs-context.ts';
 import { countErrors, formatProblem, type Problem } from './lib/problems.ts';
 
 async function main(): Promise<void> {
   const layers = await checkLayers();
 
   const sections: Array<{ title: string; problems: readonly Problem[] }> = [
-    { title: 'слои docs/', problems: layers.problems },
-    { title: 'context/index.yml', problems: await checkIndex(layers) },
+    { title: 'слои docs/ и conventions/', problems: layers.problems },
     { title: 'context/project.yml', problems: await checkProject() },
     { title: 'context/modules/', problems: await checkModules() },
-    { title: 'context/views/ (цели)', problems: await checkGoals(layers) },
   ];
 
   let errorsTotal = 0;

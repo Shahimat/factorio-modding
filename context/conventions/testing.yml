@@ -1,4 +1,5 @@
 key: testing
+summary: "Каждый инструмент покрыт юнит-тестами на node:test, логика модов — Lua-тестами своего harness; npm test входит в npm run check."
 rule: |
   Каждый инструмент в `tools/` покрывается юнит-тестами. Это базовое правило
   проверки, а не опция: `npm test` входит в `npm run check`.
