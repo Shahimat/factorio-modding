@@ -1,0 +1,90 @@
+run: 2
+status: pass
+summary: >-
+  все 7 crit pass повторно, самостоятельная проверка по дереву checkout: код
+  и тесты не менялись с run 1 (доработок не было), локали перепроверены
+  парсером — 11 языков по 75 ключей, наборы = en, collapse/expand на месте;
+  версия 0.1.1 и верхняя секция changelog подтверждены; fail не ставился
+items:
+  - key: toggle-button
+    status: pass
+    evidence: >-
+      mods/shm-orbital-logistics/runtime/panel.lua:349-371 (toggle_button —
+      sprite-button 24px либо текстовый фолбэк, tooltip и tags.toggle в обеих
+      ветках), :395-399 (кнопка — первый элемент frame; в свёрнутой ветке build
+      возвращает frame с одной этой кнопкой), :532-543 (on_click shm_ol_toggle
+      переключает состояние и перестраивает панель);
+      tests/ingame/gui.lua:145-183 — сворачивание и разворачивание хаба и
+      площадки в зелёном gui-прогоне (7/7)
+    reason: >-
+      Кнопка shm_ol_toggle присутствует в обоих видах панели; клик
+      перестраивает панель в противоположный вид; свёрнутый frame содержит
+      только кнопку. Подтверждено кодом и ингейм-тестом.
+  - key: collapsed-state-storage
+    status: pass
+    evidence: >-
+      control.lua:12,17 (storage.panel_collapsed в on_init и
+      on_configuration_changed); panel.lua:374-375 (is_collapsed — по
+      player_index), :382 (build читает при каждом открытии), :390
+      (tags.collapsed), :457-463 (on_gui_opened → on_opened → build);
+      tests/ingame/gui.lua:159-162 (переоткрытое окно снова свёрнутое),
+      :81-83 (сброс состояния в after_each)
+    reason: >-
+      Состояние per player в storage.panel_collapsed — сериализуется
+      storage'ом само; миграция досоздаёт поле; новые окна хаба и площадки
+      открываются свёрнутыми, тест переоткрытия зелёный.
+  - key: same-edge-position-setting
+    status: pass
+    evidence: >-
+      mods/shm-orbital-logistics/runtime/panel.lua:380-393 — position/anchor
+      считаются до ветки collapsed, оба вида строятся одним frame с тем же
+      anchor(entity) и defines.relative_gui_position[position];
+      tests/ingame/gui.lua:164-171 — смена
+      shm-orbital-logistics-panel-position на right при свёрнутом виде
+    reason: >-
+      Свёрнутая кнопка живёт на том же краю окна, что и развёрнутая панель;
+      настройка положения действует на оба вида — подтверждено тестом.
+  - key: sprite-check-fallback-tooltip
+    status: pass
+    evidence: >-
+      mods/shm-orbital-logistics/runtime/panel.lua:352
+      (helpers.is_valid_sprite_path для utility/collapse и utility/expand),
+      :353-370 (при провале — кнопка type=button с локализованным caption;
+      tooltip = {L..key} в обеих ветках); ключи collapse/expand во всех 11
+      locale.cfg (проверка пункта locale-11-keys-match-en)
+    reason: >-
+      Спрайт-путь проверяется рантайм-проверкой, есть текстовый фолбэк,
+      подсказка локализована в обоих вариантах кнопки.
+  - key: locale-11-keys-match-en
+    status: pass
+    evidence: >-
+      собственная проверка парсером locale.cfg (git diff: по +2 строки в
+      каждом из 11 файлов): de,en,es-ES,fr,ja,ko,pl,pt-BR,ru,uk,zh-CN —
+      75 ключей в каждом, набор ключей каждого языка == en (расхождений нет),
+      collapse и expand присутствуют во всех 11
+    reason: >-
+      Новые строки добавлены во все 11 языков набора; наборы ключей всех
+      языков идентичны en.
+  - key: ingame-tests-and-checks
+    status: pass
+    evidence: >-
+      tests/ingame/gui.lua:72 (tags('gui')), :145-183 (новый it: сворачивание,
+      разворачивание, якорь, refresh_all не трогает свёрнутый вид,
+      переоткрытие, настройка положения, площадка); в файле 7 it — совпадает
+      с «7/7 passed»; прогоны brief зелёные: npm run check,
+      npm run check:mod -- shm-orbital-logistics,
+      npm run test:ingame:gui -w shm-orbital-logistics (с графикой)
+    reason: >-
+      Тесты тегированы gui и покрывают все требуемые сценарии; все три
+      прогонa executor зелёные (зафиксировано в задании), state сбрасывается
+      в after_each — взаимовлияния наблюдений нет.
+  - key: version-0.1.1-changelog
+    status: pass
+    evidence: >-
+      mods/shm-orbital-logistics/info.json:3 — «"version": "0.1.1"»;
+      changelog.txt:2 — «Version: 0.1.1», секция сверху файла; git status —
+      публикационных действий и файлов вне mods/shm-orbital-logistics в
+      работе executor нет
+    reason: >-
+      Версия поднята, changelog-секция сверху; публикация на портал не
+      выполнялась — как и требуется, отдельное действие по явному «да».

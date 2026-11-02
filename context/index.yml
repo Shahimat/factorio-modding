@@ -72,6 +72,7 @@ namespaces:
       orbital-depot-serves-its-orbits: Склад раздаёт на своих орбитах, держит вне их и уступает привезённому грузу
       orbital-hub-panel-sets-purpose: Панель у окна хаба ставит назначение секции и показывает состояние предметов
       orbital-mod-off-removes-own-sections: Выключение мода снимает всё, что он поставил на хабы
+      orbital-panel-collapses-to-button: Панель у окна хаба и площадки сворачивается в мини-окошко с заголовком мода на том же краю окна и помнит свёрнутость на игрока
       orbital-providing-flag-keeps-vanilla-meaning: Флаг «снабжать другие платформы» сохраняет ванильный смысл
       orbital-reserve-never-given: Свой запас не отдаётся ни другим платформам, ни планете
       orbital-section-purpose-from-group-tag: Назначение секции хаба задаётся меткой в имени ванильной группы, без метки — ваниль

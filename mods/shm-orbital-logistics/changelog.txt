@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 2026-11-02
+  Features:
+    - The panel next to the hub and landing pad windows can be collapsed into a small "Orbital Logistics" titled frame with an expand button on the same edge of the window and expanded back with a click. While collapsed, newly opened hub and landing pad windows start collapsed too.
+  Locale:
+    - The collapse and expand buttons are translated into all 11 languages of the mod.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: 2026-10-30
   Features:

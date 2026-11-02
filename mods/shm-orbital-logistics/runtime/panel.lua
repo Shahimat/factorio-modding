@@ -344,18 +344,60 @@ local function position_of(player)
   return value
 end
 
+--- Кнопка свернуть/развернуть: значок есть в игре — значком, нет — текстом,
+--- как у значков статуса.
+local function toggle_button(parent, to_collapsed)
+  local path = to_collapsed and 'utility/collapse' or 'utility/expand'
+  local key = to_collapsed and 'collapse' or 'expand'
+  if helpers.is_valid_sprite_path(path) then
+    local button = parent.add({
+      type = 'sprite-button',
+      name = 'shm_ol_toggle',
+      sprite = path,
+      tooltip = { L .. key },
+      tags = { toggle = to_collapsed },
+    })
+    button.style.size = 24
+    return button
+  end
+  return parent.add({
+    type = 'button',
+    name = 'shm_ol_toggle',
+    caption = { L .. key },
+    tooltip = { L .. key },
+    tags = { toggle = to_collapsed },
+  })
+end
+
+--- «Свёрнуто» — на игрока: состояние переживает сохранение и загрузку само,
+--- storage сохраняется.
+local function is_collapsed(player_index)
+  return (storage.panel_collapsed or {})[player_index] == true
+end
+
 function panel.build(player, entity)
   panel.destroy(player)
   local position = position_of(player)
   local wide = position == 'bottom' or position == 'top'
+  local collapsed = is_collapsed(player.index)
   local frame = player.gui.relative.add({
     type = 'frame',
     name = panel.NAME,
     caption = { L .. 'panel-title' },
-    direction = wide and 'horizontal' or 'vertical',
+    direction = (wide or collapsed) and 'horizontal' or 'vertical',
     anchor = { gui = anchor(entity), position = defines.relative_gui_position[position] },
-    tags = { unit_number = entity.unit_number, signature = entity.type == 'space-platform-hub' and signature(entity) or nil },
+    tags = {
+      unit_number = entity.unit_number,
+      collapsed = collapsed or nil,
+      signature = (not collapsed and entity.type == 'space-platform-hub') and signature(entity) or nil,
+    },
   })
+  -- Кнопка сворачивания — первый элемент панели: слева в ряду, сверху в столбике.
+  toggle_button(frame, not collapsed)
+  if collapsed then
+    -- Свёрнутый вид: мини-окошко «Orbital Logistics» с кнопкой разворачивания.
+    return frame
+  end
   if not wide then
     frame.style.maximal_width = 560
   end
@@ -421,12 +463,13 @@ function panel.on_opened(event)
 end
 
 --- Раз в секунду: группы изменились — перестроить панель, иначе обновить
---- только «Отдача на этой орбите», чтобы не сбивать выбор в полях.
+--- только «Отдача на этой орбите», чтобы не сбивать выбор в полях. Свёрнутая
+--- кнопка без обновлений.
 function panel.refresh_all()
   for _, player in pairs(game.connected_players) do
     local frame = player.gui.relative[panel.NAME]
     local entity = frame and opened_entity(player)
-    if entity and entity.type == 'space-platform-hub' then
+    if entity and entity.type == 'space-platform-hub' and not frame.tags.collapsed then
       if frame.tags.signature ~= signature(entity) then
         panel.build(player, entity)
       else
@@ -486,6 +529,18 @@ function panel.on_click(event, open_lines)
   end
   local player = game.get_player(event.player_index)
   local entity = player and opened_entity(player)
+  if element.name == 'shm_ol_toggle' then
+    storage.panel_collapsed = storage.panel_collapsed or {}
+    if element.tags.toggle then
+      storage.panel_collapsed[event.player_index] = true
+    else
+      storage.panel_collapsed[event.player_index] = nil
+    end
+    if entity then
+      panel.build(player, entity)
+    end
+    return true
+  end
   if string.sub(element.name, 1, 13) == 'shm_ol_apply_' then
     if entity then
       apply_purpose(player, entity, element.tags.section)

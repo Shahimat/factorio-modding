@@ -1,0 +1,14 @@
+{
+  "run": 3,
+  "retry": true,
+  "items": [
+    { "key": "toggle-button", "status": "pass" },
+    { "key": "collapsed-view-panel-title", "status": "pass" },
+    { "key": "collapsed-state-storage", "status": "pass" },
+    { "key": "same-edge-position-setting", "status": "pass" },
+    { "key": "sprite-check-fallback-tooltip", "status": "pass" },
+    { "key": "locale-11-keys-match-en", "status": "pass" },
+    { "key": "ingame-tests-and-checks", "status": "pass" },
+    { "key": "version-0.1.1-changelog", "status": "pass" }
+  ]
+}

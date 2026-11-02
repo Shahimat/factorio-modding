@@ -1,0 +1,32 @@
+id: orbital-panel-collapses-to-button
+kind: behavior
+namespace: mods
+entities: [orbital-logistics]
+title: Панель у окна хаба и площадки сворачивается в мини-окошко с заголовком мода на том же краю окна и помнит свёрнутость на игрока
+scenarios:
+  - given: развёрнутая панель у окна хаба или площадки
+    when: игрок жмёт кнопку «свернуть» — первый элемент развёрнутой панели
+    then: >-
+      панель перестраивается в мини-окошко с заголовком „Orbital Logistics“
+      и кнопкой разворачивания на том же краю окна; клик по кнопке
+      разворачивает панель обратно
+  - given: панель свёрнута
+    when: игрок меняет настройку `shm-orbital-logistics-panel-position` на другой край окна
+    then: кнопка стоит на выбранном краю — настройка действует на свёрнутый и развёрнутый вид
+  - given: панель свёрнута
+    when: игрок переоткрывает окно хаба или площадки, сохраняет и загружает игру
+    then: >-
+      окна открываются снова свёрнутыми — состояние per player,
+      `storage.panel_collapsed` (init/migration в `control.lua`)
+  - given: панель свёрнута
+    when: проходит секунда и `refresh_all` обновляет панели открытых окон
+    then: свёрнутый вид не перестраивается; разворачивание строит полную панель заново
+check: npm run test:ingame:gui -w shm-orbital-logistics
+verified: true
+verified_at: 2026-11-02
+verified_note: >-
+  Прогон тикета ol-panel-minimize: тесты в игре с графикой (тег gui) —
+  judge run 1–3, в run 3 pass 8/8, включая добавленный пункт «свёрнутый
+  вид упоминает мод» (caption `panel-title`, заголовок «Orbital
+  Logistics»). Необновление свёрнутого вида refresh_all — чтение кода
+  `runtime/panel.lua` в ревью.

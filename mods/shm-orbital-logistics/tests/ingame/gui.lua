@@ -78,6 +78,9 @@ describe('интерфейс', function()
   end)
   after_each(function()
     player().opened = nil
+    -- Свёрнутость — состояние игрока: сбросить, чтобы падение одного
+    -- наблюдения не свернуло панели в следующих.
+    storage.panel_collapsed = {}
     if player().controller_type == defines.controllers.remote then
       player().exit_remote_view()
     end
@@ -137,6 +140,49 @@ describe('интерфейс', function()
     local ok = frame.anchor.position == defines.relative_gui_position.right and frame.direction == 'vertical'
     player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
     assert(ok, 'настройка положения не действует')
+  end)
+
+  it('панель сворачивается в мини-окошко с названием мода на том же краю и разворачивается, состояние переживает переоткрытие окна', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })
+    local frame = open(hub)
+    assert(find(frame, 'shm_ol_toggle'), 'нет кнопки сворачивания')
+    click(find(frame, 'shm_ol_toggle'))
+    frame = player().gui.relative[panel.NAME]
+    assert(frame and frame.tags.collapsed, 'панель не свернулась')
+    assert(frame.anchor.position == defines.relative_gui_position.bottom, 'кнопка не на том же краю')
+    assert(type(frame.caption) == 'table' and frame.caption[1] == 'shm-orbital-logistics.panel-title', 'свёрнутый вид не называет мод')
+    assert(find(frame, 'shm_ol_toggle'), 'нет кнопки разворачивания')
+    assert(not find(frame, 'shm_ol_open_lines'), 'свёрнутый вид показывает блоки панели')
+    panel.refresh_all()
+    assert(player().gui.relative[panel.NAME].tags.collapsed, 'свёрнутый вид перестроился в панель')
+
+    -- Переоткрытие окна: открывается снова свёрнутым.
+    player().opened = nil
+    frame = open(hub)
+    assert(frame and frame.tags.collapsed, 'переоткрытое окно развернулось')
+
+    -- Настройка положения действует и на свёрнутую кнопку. Смена настройки
+    -- сама перестраивает панель, поэтому ссылку на фрейм обновляем.
+    player().mod_settings[panel.POSITION_SETTING] = { value = 'right' }
+    frame = player().gui.relative[panel.NAME]
+    local ok = frame.anchor.position == defines.relative_gui_position.right and frame.tags.collapsed
+    player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
+    frame = player().gui.relative[panel.NAME]
+    assert(ok, 'настройка положения не действует на кнопку')
+
+    click(find(frame, 'shm_ol_toggle'))
+    frame = player().gui.relative[panel.NAME]
+    assert(frame and not frame.tags.collapsed and find(frame, 'shm_ol_open_lines'), 'панель не развернулась обратно')
+    assert(type(frame.caption) == 'table' and frame.caption[1] == 'shm-orbital-logistics.panel-title', 'развёрнутый вид потерял заголовок')
+
+    -- Площадка сворачивается так же.
+    frame = open(f.pad())
+    click(find(frame, 'shm_ol_toggle'))
+    frame = player().gui.relative[panel.NAME]
+    assert(frame and frame.tags.collapsed, 'панель площадки не свернулась')
+    click(find(frame, 'shm_ol_toggle'))
+    assert(not player().gui.relative[panel.NAME].tags.collapsed, 'панель площадки не развернулась')
   end)
 
   it('панель подхватывает новую группу и помечает группу груза, выключенную модом', function()
