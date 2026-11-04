@@ -155,14 +155,6 @@ function tags.from_choice(kind, places)
   return nil
 end
 
---- Места метки списком через запятую — для поля панели.
-function tags.places(tag)
-  if tag == nil then
-    return ''
-  end
-  return table.concat(sorted(tag.dests or tag.orbits), ', ')
-end
-
 --- Имя группы без узнанных меток — чужие скобки и текст остаются.
 function tags.strip(group)
   local result = string.gsub(group or '', '%s*(%[[^%]]*%])', function(bracket)

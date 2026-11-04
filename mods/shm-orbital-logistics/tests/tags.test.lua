@@ -92,7 +92,6 @@ describe('метки в имени группы', function()
     assert_eq(tags.from_choice('depot', 'nauvis'), { kind = 'depot', orbits = { nauvis = true } })
     assert_eq(tags.from_choice('reserve', 'x'), { kind = 'reserve' })
     assert_nil(tags.from_choice('none', 'nauvis'))
-    assert_eq(tags.places(tags.parse('[cargo→vulcanus,aquilo]')), 'aquilo, vulcanus')
   end)
 
   it('замена метки в имени группы, чужие скобки остаются', function()
