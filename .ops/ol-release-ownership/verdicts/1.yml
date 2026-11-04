@@ -1,0 +1,56 @@
+run: 1
+status: pass
+summary: Все три крита сходятся по коду и прогонам; спор notes 35 (ol-panel-content) разобран — прав executor'у.
+items:
+  - key: reenable-only-mod-disabled
+    status: pass
+    evidence: worktree orbital-02 runtime/controller.lua:376-443 (write_release, owned_off); тест tests/ingame/core.lua:681-714
+    reason: >
+      В момент первого выключения группы flags[members] = section.active
+      (controller.lua:441) — уже снятая игроком секция получает false.
+      Пока группа держится, включённая игроком секция переводится в false
+      (controller.lua:392-394), так что даже обратное снятие галочки до отлёта
+      не превращает её в выключение мода. На отлёте мод включает только
+      «not (flags[members] == false)» (controller.lua:421-423). Позиции —
+      среди секций группы: удаление секции выше состав группы не меняет,
+      K-13-кейс не ломается (позиции пересчитываются по sections.sections_count
+      при каждом проходе). Несовпадение счётчика (правка состава самой группы)
+      сбрасывает owned_off[group] = nil (controller.lua:396-398) — мод ведёт
+      себя по-старому; fallback честно задокументирован в докстринге
+      controller.lua:372-375 и в отчёте (reports/1.md, «Осталось и риски»).
+      Старые сохранения без owned_off — по-старому, миграция не нужна
+      («flags and ...» в 423). release_all идёт через write_release({})
+      (controller.lua:646-650), так что owned_off чистится вместе с released.
+  - key: panel-no-held-label-on-re-enabled
+    status: pass
+    evidence: worktree orbital-02 runtime/panel.lua:246-259 (now_data), 901-913 (fill_details), 1033-1041 (representative), 1058-1066 (mark); controller.lua:292-294 (vanilla_active)
+    reason: >
+      Снапшот отдаёт vanilla_active рядом со схлопнутым active. now_data
+      передаёт в group_state «released_by_mod and not section.active» —
+      подпись «выключена до отлёта» только про реально снятую модом секцию;
+      fill_details считает held по vanilla_active; метка section-released-mark
+      требует vanilla_active ~= true; представитель ×N выбирается по живой
+      галочке. Спор notes 35 (ol-panel-content): моё наблюдение «fill_details
+      показывает „выключена“» на HEAD не воспроизводится — active в снапшоте
+      схлопнут (active or released[group]==true), поэтому для мод-выключенной
+      секции проверка active ~= true не срабатывала и «выключена до отлёта»
+      показывалась. Реальный дефект был обратным: та же подпись вешалась на
+      секцию, включённую игроком (collapsed active = true, released
+      передавался безусловно). Executor прав; правка по сути замечания
+      сделана, финальное состояние соответствует DoD. Gui-тест покрывает
+      возврат галочки в «Отдаче», деталях и метке строки (gui.lua:836-867).
+  - key: ingame-manual-survives-and-k13
+    status: pass
+    evidence: worktree orbital-02 tests/ingame/core.lua:681-714; npm test 38/38 (перегнан мной); in-game 40 passed и gui passed — из отчёта (runs_note)
+    reason: >
+      Ассерты осмысленные и по шагам: до мода ручная секция не включается;
+      мод выключает только вторую; на отлёте включена только мод-выключенная,
+      ручная снята; на прилёте мод снова выключает только свою; после возврата
+      галочки игроком мод не пере-выключает и на отлёте не трогает.
+      K-13 («выключенная секция груза после правки состава», core.lua:660-679)
+      в диффе не тронут и по отчёту зелёный.
+changes: []
+notes:
+  - Регрессии вне тикета: дифф ограничен 4 файлами (controller.lua, panel.lua, tests/ingame/core.lua, tests/ingame/gui.lua) — depot-source-предупреждения, детали предметов, агрегация ×N, каркас не задеты.
+  - Прогоны judge'а: npm test -w shm-orbital-logistics — 38/38; node tools/check-secrets.ts — 0 ошибок, 0 замечаний. in-game (40 passed) и gui — из отчёта executor'а, самостоятельно не перегонялись (runs_note).
+  - Коммит за оператором — сообщение в отчёте (worktree orbital-02, .ops/ol-release-ownership/reports/1.md).

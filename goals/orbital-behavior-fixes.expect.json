@@ -25,6 +25,73 @@
         { "key": "arrived-cargo-depot-collectors-invariants", "status": "pass" },
         { "key": "v04d-depot-platforms-import-own-planet-drops", "status": "pass" }
       ]
+    },
+    {
+      "run": 1,
+      "ticket": "ol-release-ownership",
+      "verdict": ".ops/ol-release-ownership/verdicts/1.yml",
+      "status": "pass",
+      "items": [
+        { "key": "reenable-only-mod-disabled", "status": "pass" },
+        { "key": "panel-no-held-label-on-re-enabled", "status": "pass" },
+        { "key": "ingame-manual-survives-and-k13", "status": "pass" }
+      ]
+    },
+    {
+      "run": 1,
+      "ticket": "ol-tag-tools",
+      "verdict": ".ops/ol-tag-tools/verdicts/1.yml",
+      "status": "pass",
+      "items": [
+        { "key": "tag-removal-fallback", "status": "pass" },
+        { "key": "cargo-no-places-noop", "status": "pass" },
+        { "key": "reserve-row-picker-fix", "status": "pass" },
+        { "key": "depot-anywhere-risk", "status": "pass" },
+        { "key": "tests", "status": "pass" }
+      ]
+    },
+    {
+      "run": 1,
+      "ticket": "ol-lines-safety",
+      "verdict": ".ops/ol-lines-safety/verdicts/1.yml",
+      "status": "fail",
+      "items": [
+        { "key": "delete-groups-foreign-members", "status": "pass" },
+        { "key": "strip-exact-known-groups", "status": "pass" },
+        { "key": "vanilla-delete-logistic-group-fact", "status": "fail" }
+      ]
+    },
+    {
+      "run": 2,
+      "ticket": "ol-lines-safety",
+      "verdict": ".ops/ol-lines-safety/verdicts/2.yml",
+      "status": "pass",
+      "items": [
+        { "key": "delete-groups-foreign-members", "status": "pass" },
+        { "key": "strip-exact-known-groups", "status": "pass" },
+        { "key": "vanilla-delete-logistic-group-fact", "status": "pass" }
+      ]
+    },
+    {
+      "run": 1,
+      "ticket": "ol-descriptions",
+      "verdict": ".ops/ol-descriptions/verdicts/1.yml",
+      "status": "fail",
+      "items": [
+        { "key": "crit-README", "status": "fail" },
+        { "key": "crit-tips", "status": "pass" }
+      ]
+    },
+    {
+      "run": 2,
+      "ticket": "ol-descriptions",
+      "verdict": ".ops/ol-descriptions/verdicts/2.yml",
+      "status": "pass",
+      "items": [
+        { "key": "crit-README", "status": "pass" },
+        { "key": "crit-tips", "status": "pass" }
+      ],
+      "runs_note": "Замечание run 1 устранено одной строкой README:62; доказательства run 1 в силе — дифф остального не менял."
     }
   ]
 }

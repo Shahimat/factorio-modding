@@ -3,6 +3,7 @@
 Формат: «когда» и «почему». Текущее состояние — в `docs/entities/*.yml`,
 `docs/behavior/*.yml` и коде.
 
+- 2026-11-04 · [milestone] Orbital: цель 1.0.0, выход из беты · раунд orbital-02 закрыт, перед релизом — ручной прогон
 - 2026-11-04 · [dep] Синк v3 без Claude Code: адаптер opencode, guards в плагине @shahimat/oc3 · source-sync
 - 2026-11-04 · [arch] Модели flash#max / judge flash#low — override в roles.models · переживает sync, заполняет oc3
 - 2026-11-03 · [dep] Контракт: брифинг ролей, приёмка у judge, модели glm-5.3#max/flash#low · source-sync ai-prompts

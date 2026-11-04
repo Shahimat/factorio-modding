@@ -1,0 +1,41 @@
+run: 1
+status: pass
+summary: Все 7 критов DoD подтверждены кодом и gui-тестами; прогонки зелёные (38/38 unit, gui PASS, check-lua 0, check-secrets 0). Замечания вне критов — см. notes.
+items:
+  - key: crit-1
+    status: pass
+    evidence: runtime/panel.lua — now_data (корзины by_type по ключу локализации), items_tooltip (куски по ~9 предметов, вложенные группы по 10 — лимит 20 параметров обойдён), fill_now (сетка column_count=10, «+N ещё» now-more, тултип на строке и метке); tests/ingame/gui.lua — тест «исключения агрегированы по типу состояния»: 15 исключений → 2 строки, 13 иконок (10+3), «+2 ещё», тултип со всеми 12 предметами; обновлённый тест 12 складов → 1 строка. Все PASS.
+    reason: —
+  - key: crit-2
+    status: pass
+    evidence: runtime/panel.lua — add_sections: buckets по имени группы, «#»+index для безымянных, представитель = первая активная, caption с « ×N».
+    reason: —
+  - key: crit-3
+    status: pass
+    evidence: now_data — disabled = not section.active and not released_by_mod → now-inactive, предметы выключенной исключены из expected/reserved/blocked; тест «выключенная игроком секция не „раздаёт“»: now-inactive=1, now-depot-here=0; мод-выключенная группа груза — now-released=1, now-inactive=0. PASS.
+    reason: —
+  - key: crit-4
+    status: pass
+    evidence: group_state — count==0 → 'empty', now-empty-group; тест «группа без фильтров» — now-empty-group=2, ни now-depot-here, ни now-cargo-any. PASS.
+    reason: —
+  - key: crit-5
+    status: pass
+    evidence: add_sections — пикер мест строится только при tag.kind ~= 'reserve'; «(предметов: N)» → «(фильтров: N)» в 4 ключах во всех 11 локалях (новые ключи now-inactive/now-empty-group/now-more = 3 в каждой; оставшиеся «предметов» в ru — описания мода, не счётчики). Тест «счётчик строк „Отдачи“» PASS.
+    reason: —
+  - key: crit-6
+    status: pass
+    evidence: 5 новых gui-тестов с осмысленными ассертами (строки/иконки/×N/тултип/статусы/счётчик) + обновлённый тест 12 складов — все PASS в прогоне test:ingame:gui.
+    reason: —
+  - key: crit-7
+    status: pass
+    evidence: npm test -w shm-orbital-logistics — 38/38; test:ingame:gui — все PASS (перегнан judge'ом); check-lua — 28 файлов, 0 ошибок (перегнан judge'ом); node tools/check-secrets.ts — 0 ошибок, 0 замечаний (перегнан judge'ом).
+    reason: —
+notes:
+  - Поведение «Применить» в строке ×N переименовывает только секцию-представителя: после смены имени строки честно расходятся по новым именам («NewName» и «OldName ×(N-1)») — скрытой поломки нет, расхождение видно игроку сразу. Приемлемо.
+  - Замечание (не крит): в свёрнутых деталях «Групп» (fill_details) секция, выключенная модом до отлёта, теперь показывает «выключена» (now-inactive) вместо прежней «выключена до отлёта» — проверка section.active ~= true идёт без поправки на released. Ложного обещания нет, expectation крита сформулирован про «Отдачу», где подпись сохранена; но нюанс для игрока теряется. Предложено executor'у добавить ту же поправку на released_by_mod в fill_details.
+  - Замечание (не крит): released_by_mod определяется по факту записи в released[section.group] — секция игрока, выключенная вручную внутри группы, которую мод держит (та же group), классифицируется как мод-выключенная. Крайний случай, группы мода уникальны по имени — не блокирует.
+  - Регрессии проверены полным gui-прогоном: детали предметов, предпросмотр «будет: …», предупреждения depot-source, каркас (потолок/скроллы/сворачивание с итогами), глобальное сворачивание, сигнатурная перестройка, per-second — все PASS.
+  - In-game gui руками executor'ом не прогонялся (в отчёте только автотесты) — runs_note: вердикт опирается на автоматический gui-прогон headless; живой in-game осмотр не выполнялся ни кем.
+  - Абсолютных путей в отчёте executor'а нет; check-secrets зелёный.
+  - expect.json: счётчик не был сброшен оператором после прошлого тикета (run 2) — записан run 1 текущего цикла ol-panel-content.
+  - Писать в worktree judge не мог (guard сессии) — вердикт и run записаны в корне репозитория; executor/оператор учитывают это при merge.

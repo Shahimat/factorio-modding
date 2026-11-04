@@ -1,5 +1,5 @@
 {
-  "run": 2,
+  "run": 1,
   "items": [
     { "key": "crit-1", "status": "pass" },
     { "key": "crit-2", "status": "pass" },

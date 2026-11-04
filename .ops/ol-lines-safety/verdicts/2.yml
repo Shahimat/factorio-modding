@@ -1,0 +1,22 @@
+run: 2
+status: pass
+summary: Все 3 crits pass — факт delete_logistic_group записан librarian в engine-space-platforms, дифф кода не менялся
+items:
+  - key: delete-groups-foreign-members
+    status: pass
+    evidence: runtime/lines.lua — has_foreign_members (~113–124) проверяет info.members через force.get_logistic_group(name), owns_entity (~105–111) сравнивает participant.entity == member.owner; мёртвые члены пропускаются (member.valid). delete_groups (~132–139) удаляет только при `not has_foreign_members`. Тест «группа с чужим членом переживает удаление линии» (tests/ingame/lines.lua ~163–182).
+    reason: Группа с живым членом вне участников линии не удаляется; проверено в run 1, с run 2 не менялось.
+  - key: strip-exact-known-groups
+    status: pass
+    evidence: runtime/lines.lua — known_groups (~75–83) = line.groups (памятка, `or {}`) ∪ точные logic.group_name по участникам; strip (~85–102) удаляет только при точном совпадении known[section.group] И logic.owns (префикс — доп. признак). Смена роли покрыта памяткой (line.groups = written в конце sync); rename снимает known до смены line.name. Тест коллизии префикса (~148–161).
+    reason: Сносится только секция с именем точь-в-точь из известных; проверено в run 1, с run 2 не менялось.
+  - key: vanilla-delete-logistic-group-fact
+    status: pass
+    evidence: Тест «ванниль: delete_logistic_group…» (tests/ingame/lines.lua ~185–201) ловит факт; в run 1 недоставало записи в доках — теперь она есть: docs/entities/engine-space-platforms.yml:127–132 — «LuaForce::delete_logistic_group удаляет группу, даже если у неё есть живые секции-члены: секции остаются ручными, сохраняют фильтры и множитель, но теряют имя группы (group = '') и исчезают из get_logistic_groups», checked_on 2.1.24, 2026-11-04, со ссылкой на тест tests/ingame/lines.lua («ванниль: delete_logistic_group…»). check-docs зелёный (со слов оператора).
+    reason: Факт дословно фиксирует claim из вердикта run 1 и ссылается на пинящий тест.
+checks:
+  - дифф кода не менялся с run 1: git diff HEAD --stat — те же 2 файла (runtime/lines.lua +82, tests/ingame/lines.lua +57)
+  - npm test -w shm-orbital-logistics — 38/38 зелёных (перегонял в run 1, код не менялся)
+  - node tools/check-secrets.ts — 0 ошибок (run 1)
+  - in-game 44 passed / 0 failed — из отчёта исполнителя (runs_note)
+changes: []

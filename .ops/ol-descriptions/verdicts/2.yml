@@ -1,0 +1,17 @@
+run: 2
+status: pass
+summary: Замечание run 1 устранено — строка Planet в README-таблице теперь согласна с V-04/V-04d и с tips; остальной дифф не менялся
+items:
+  - key: crit-README (строка таблицы Planet)
+    status: pass
+    evidence: mods/shm-orbital-logistics/README.md:62 — «| *Planet* | Fills from the planet below; does not block giving to platforms. Importing from the planet the depot is over blocks dropping onto it — to supply that planet, use *Platforms* or import from another planet. |»
+    reason: теперь не лжёт: блокировку сброса при импорте с планеты под складом сказано честно (V-04/V-04d), совет «Platforms или импорт с другой планеты» совпадает с буллетом tips; «does not block giving to platforms» — верно по V-01a
+  - key: дифф не разросся
+    status: pass
+    evidence: git diff HEAD --stat — те же 13 файлов (README.md, 11 locale.cfg, info.json), 86+/89- как в run 1
+    reason: правка только в строке 62 README, остальной дифф не менялся
+  - key: crit-tips, согласованность mod-description/info.json, паритет локалей, факты Platforms/All, тон
+    status: pass
+    evidence: вердикт run 1 (.ops/ol-descriptions/verdicts/1.yml) — все остальные пункты pass, дифф их не затрагивает
+    reason: повторная проверка не требуется — доказательства run 1 в силе
+changes: []
