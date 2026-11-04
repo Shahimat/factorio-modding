@@ -4,7 +4,7 @@
   "title": "Orbital Logistics",
   "author": "Shahimat",
   "factorio_version": "2.1",
-  "description": "Depots and cargo with a destination for space platforms, on top of the vanilla 2.1 platform-to-platform transfers. Mark a request group as reserve, cargo for chosen planets or a depot for chosen orbits right in the hub panel: reserve is never given away, cargo is held until its destination, a depot serves other platforms in its orbits. Supply lines keep one item list for a whole chain of depots, shuttles and landing pads.",
+  "description": "Depots and cargo with a destination for space platforms, on top of the vanilla 2.1 platform-to-platform transfers. Mark request groups in the hub panel as reserve, cargo for chosen planets, or a depot for chosen orbits. Reserve is never given away, cargo is held until its destination, a depot serves platforms in its orbits. Keep its request source on «Planet»: sources «Platforms» and «All» never give to platforms. Supply lines keep one item list for a chain of depots, shuttles and landing pads.",
   "dependencies": [
     "base >= 2.1.0"
   ],

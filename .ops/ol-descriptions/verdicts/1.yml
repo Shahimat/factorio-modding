@@ -1,0 +1,42 @@
+run: 1
+status: fail
+summary: README-таблица Troubleshooting лжёт в строке «Planet» — по V-04d источник Planet с импортом с планеты под складом блокирует сброс на неё, а таблица обещает «does not block dropping»
+items:
+  - key: crit-README (crit.todo «README переписан короче: пример „до/после“ и раздел Troubleshooting»)
+    status: fail
+    evidence: mods/shm-orbital-logistics/README.md, раздел «Troubleshooting: a depot does not give», строка «| *Planet* | Fills from the planet below; does not block giving or dropping. …»
+    reason: >
+      Фактическая ошибка против docs/entities/engine-space-platforms.yml
+      V-04d: запрос с import_from текущей планеты при источнике planet
+      (и all) запрещает сброс предмета на неё. Тот же факт говорит третий
+      буллет tips («Importing from the planet the depot is over (with
+      «Planet» or «All») blocks dropping onto it») — README противоречит
+      собственному tips. Типичный склад импортирует с планеты под собой,
+      так что строка вводит в тот самый капкан, на который жаловались.
+      «Не мешает отдаче платформам» — верно (V-01a), оставить; обещание
+      про сброс убрать/уточнить, например «does not block giving to
+      platforms; importing from the planet below blocks dropping onto
+      it». Остальное по пункту в порядке: README короче (100 → 97 строк),
+      пример «до/после» есть, служебная группа / Removing the mod /
+      Source сохранены.
+  - key: crit-tips (crit.todo «страница tips говорит явно про источник „Планета“; описание мода согласовано»)
+    status: pass
+    evidence: locale/en/locale.cfg [tips-and-tricks-item-description] — «A depot that serves other platforms must request with source «Planet»…» + буллет «„Planet“ … does not block giving to platforms»; ru — «Склад, который снабжает другие платформы, должен запрашивать с источником „Планета“…»; de — «Ein Depot, das andere Plattformen versorgt, muss mit der Quelle „Planet“ anfragen…»; связь с Troubleshooting есть во всех трёх
+    reason: прямое правило присутствует; буллет «Планета» теперь обещает только «не мешает отдаче» (V-01a), без ложного обещания про сброс
+  - key: согласованность mod-description / info.json
+    status: pass
+    evidence: en-строка [mod-description] в locale/en/locale.cfg === info.json description символ в символ, 499 = 499 символов (скрипт-проверка judge)
+    reason: совпадение подтверждено независимо
+  - key: паритет ключей локалей
+    status: pass
+    evidence: 113 ключей в каждом из 11 каталогов locale/, множества равны en, missing/extra пусто (скрипт-проверка judge); в диффе правки только mod-description и tips-and-tricks-item-description во всех 11
+    reason: паритет подтверждён независимо
+  - key: фактическая точность прочих заявлений (против docs/entities/engine-space-platforms.yml)
+    status: pass
+    evidence: README-таблица Platforms/All против V-01b/V-02/V-04d; tips-буллеты против V-01a/V-01b/V-04d; mod-description против V-01b
+    reason: «Platforms/All — никогда не отдаёт платформам, даже с набранным запросом» — верно (V-01b, V-02); «Platforms сброс не блокирует» — верно (V-04d «но не при platforms»); «All + импорт с планеты под складом блокирует сброс» — верно (V-04d); «Planet не мешает отдаче платформам» — верно (V-01a). Ложно только обещание Planet про сброс в README (пункт 1)
+  - key: тон
+    status: pass
+    evidence: git diff README.md — «What you get» и «fixes that without replacing anything» удалены, список «Also in the mod» механический
+    reason: маркетинг убран, фразы короткие
+changes: []
