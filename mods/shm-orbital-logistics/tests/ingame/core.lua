@@ -336,6 +336,133 @@ describe('ядро', function()
     end)
   end)
 
+  -- Сценарий владельца: встречный обмен двух планет одним челноком. Ноги
+  -- «планета → свой склад» заменены вставкой в хаб склада (вместо ракет, как
+  -- в живой сцене). Привозное держится на складе-получателе на запросе с
+  -- платформ и импортом со своей планеты: сброс на её площадку такой запрос
+  -- разрешает (V-04d), а отдачу платформам запрещает (V-01b), поэтому челнок
+  -- не может увезти привозное обратно.
+  it('встречный обмен двух планет одним челноком: грузы доходят до площадок', function()
+    local COPPER = 'copper-plate'
+    local _, depot_a = f.platform('depot-a')
+    depot_a.providing_to_other_platforms = true
+    local stock_a = f.request(depot_a, 500, { group = 'Trade [depot:nauvis]', from = 'planet', import_from = f.PLANET })
+    stock_a.set_slot(2, {
+      value = { type = 'item', name = COPPER, quality = 'normal', comparator = '=' },
+      min = 200,
+      request_from = 'platforms',
+      import_from = f.PLANET,
+    })
+    depot_a.insert({ name = f.ITEM, count = 500 })
+    local _, depot_b = f.platform('depot-b', f.OTHER_PLANET)
+    depot_b.providing_to_other_platforms = true
+    local stock_b = f.request(depot_b, 500, { item = COPPER, group = 'Trade [depot:vulcanus]', from = 'planet', import_from = f.OTHER_PLANET })
+    stock_b.set_slot(2, {
+      value = { type = 'item', name = f.ITEM, quality = 'normal', comparator = '=' },
+      min = 150,
+      request_from = 'platforms',
+      import_from = f.OTHER_PLANET,
+    })
+    depot_b.insert({ name = COPPER, count = 500 })
+    local _, shuttle = f.platform('shuttle')
+    shuttle.providing_to_other_platforms = true
+    f.request(shuttle, 200, { group = 'Trade [cargo→vulcanus]', from = 'platforms', import_from = f.PLANET })
+    f.request(shuttle, 200, { item = COPPER, group = 'Trade [cargo→nauvis]', from = 'platforms', import_from = f.OTHER_PLANET })
+    controller.pass()
+
+    -- Над Нависом челнок грузит плиты со склада A.
+    wait({ depot_a }, function()
+      return f.count(shuttle) >= 200
+    end, function(lows, reached)
+      assert(reached, 'челнок не загрузился над A: у него ' .. f.count(shuttle))
+      assert(lows[1] <= 300, 'плиты взяты не со склада A: минимум склада ' .. lows[1])
+      -- Над Вулканом склад B добирает привезённое транзитом ровно до своей
+      -- цели 150: излишек остаётся у челнока.
+      shuttle.surface.platform.space_location = f.OTHER_PLANET
+      controller.pass()
+      wait({ depot_b }, function()
+        return f.count(depot_b) >= 150
+      end, function(_, arrived)
+        assert(arrived, 'склад B не получил плиты транзитом: ' .. f.count(depot_b))
+        local settled = f.count(depot_b) + f.incoming(depot_b)
+        assert(settled <= 150, 'склад B взял сверх цели: ' .. settled .. ' при цели 150')
+        assert(f.count(shuttle) == 50, 'излишек должен остаться у челнока: ' .. f.count(shuttle))
+        -- Обратно над Нависом челнок сдаёт медь складу A до его цели 200.
+        shuttle.surface.platform.space_location = f.PLANET
+        controller.pass()
+        wait({ depot_a }, function()
+          return f.count(depot_a, COPPER) >= 200 and f.count(shuttle, COPPER) == 0
+        end, function(_, handed)
+          assert(handed, 'склад A не принял медь: ' .. f.count(depot_a, COPPER)
+            .. ', у челнока ' .. f.count(shuttle, COPPER))
+          local settled_a = f.count(depot_a, COPPER) + f.incoming(depot_a, COPPER)
+          assert(settled_a <= 200, 'склад A взял сверх цели: ' .. settled_a .. ' при цели 200')
+          controller.pass()
+          -- Челнок опустошён. Теперь склады сами отдают и сбрасывают:
+          -- площадки запрашивают, и каждая получает своё со своего склада —
+          -- над Нависом медь держит только склад A, над Вулканом плиты только
+          -- склад B, челнок медью не разжился.
+          f.request(f.pad(f.PLANET), 50, { item = COPPER })
+          f.request(f.pad(f.OTHER_PLANET), 50)
+          wait({}, function()
+            return f.count(f.pad(f.PLANET), COPPER) >= 50 and f.count(f.pad(f.OTHER_PLANET)) >= 50
+          end, function(_, dropped)
+            assert(dropped, 'площадки не получили: Навис ' .. f.count(f.pad(f.PLANET), COPPER)
+              .. ', Вулкан ' .. f.count(f.pad(f.OTHER_PLANET)))
+            assert(f.count(depot_a, COPPER) == 150, 'склад A не сбросил медь сам: ' .. f.count(depot_a, COPPER))
+            assert(f.count(depot_b) == 100, 'склад B не сбросил плиты сам: ' .. f.count(depot_b))
+            assert(f.count(shuttle) == 200, 'склад A не отдал плиты опустошённому челноку: ' .. f.count(shuttle))
+            assert(f.count(shuttle, COPPER) == 0, 'челнок разжился медью: ' .. f.count(shuttle, COPPER))
+            assert(f.trash(depot_a, COPPER) == 0 and f.trash(depot_b) == 0,
+              'излишки ушли в мусорные слоты: ' .. f.trash(depot_a, COPPER) .. ', ' .. f.trash(depot_b))
+          end)
+        end)
+      end)
+    end)
+  end)
+
+  -- Привезённый груз разбирают склад-прокси и два сборщика одновременно:
+  -- порядок доставок решает ваниль, проверяем итоговые состояния после
+  -- стабилизации и окно тишины против перекачки.
+  it('прибывший груз, склад ниже цели и два сборщика: итоги без перекачки', function()
+    local shuttle = supplier('s', 300, { item = HOLMIUM })
+    f.request(shuttle, 300, { item = HOLMIUM, group = 'Holmium [cargo→nauvis]', from = 'planet', import_from = 'fulgora' })
+    local _, depot = f.platform('d')
+    depot.providing_to_other_platforms = true
+    f.request(depot, 200, { item = HOLMIUM, group = 'Holmium [depot:nauvis]', from = 'platforms', import_from = f.PLANET })
+    local first = requester('c1', 50, { item = HOLMIUM })
+    local second = requester('c2', 50, { item = HOLMIUM })
+    controller.pass()
+    wait({ shuttle, depot }, function()
+      return f.count(shuttle, HOLMIUM) == 0
+        and f.count(depot, HOLMIUM) >= 200
+        and f.count(first, HOLMIUM) >= 50
+        and f.count(second, HOLMIUM) >= 50
+    end, function(_, reached)
+      assert(reached, 'итог не сошёлся: челнок ' .. f.count(shuttle, HOLMIUM)
+        .. ', склад ' .. f.count(depot, HOLMIUM)
+        .. ', сборщики ' .. f.count(first, HOLMIUM) .. ' и ' .. f.count(second, HOLMIUM))
+      local settled = f.count(depot, HOLMIUM) + f.incoming(depot, HOLMIUM)
+      assert(settled <= 200, 'склад взял сверх цели: ' .. settled .. ' при цели 200')
+      controller.pass()
+      -- Тишина на полный круг передач: если бы склад и челнок перекачивали
+      -- предмет или склад отдавал сверх цели, это проявилось бы в итоге.
+      local tracker = f.track(depot, HOLMIUM)
+      f.watch(f.WAIT, function()
+        tracker.step()
+        return false
+      end, function()
+        assert(tracker.lowest >= 200, 'склад отдал привезённое назад: минимум ' .. tracker.lowest)
+        assert(f.count(depot, HOLMIUM) == 200, 'склад не при цели: ' .. f.count(depot, HOLMIUM))
+        assert(f.count(shuttle, HOLMIUM) == 0, 'челнок закачал груз назад: ' .. f.count(shuttle, HOLMIUM))
+        assert(f.count(first, HOLMIUM) == 50 and f.count(second, HOLMIUM) == 50,
+          'сборщики не при запросе: ' .. f.count(first, HOLMIUM) .. ' и ' .. f.count(second, HOLMIUM))
+        assert(f.trash(depot, HOLMIUM) == 0, 'склад унёс излишек в мусор: ' .. f.trash(depot, HOLMIUM))
+        assert(f.count(f.pad(), HOLMIUM) == 0, 'излишек сброшен на площадку: ' .. f.count(f.pad(), HOLMIUM))
+      end)
+    end)
+  end)
+
   it('выключение мода снимает свои секции и включает секции груза', function()
     local a = supplier('a', 100, { planet = 'fulgora' })
     f.request(a, 100, { group = 'Fuel [reserve]', from = 'planet', import_from = 'fulgora' })

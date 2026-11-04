@@ -91,23 +91,26 @@ function fixture.incoming(entity, item)
   return total
 end
 
---- Грузовая площадка на Нависе. Площадка одна на поверхность, поэтому
---- создаётся один раз и чистится между наблюдениями.
-function fixture.pad()
-  local surface = game.surfaces[fixture.PLANET]
-  local pad = pads[1]
+--- Грузовая площадка на поверхности `planet` (по умолчанию Навис). Площадка
+--- одна на поверхность, поэтому создаётся один раз и чистится между
+--- наблюдениями.
+function fixture.pad(planet)
+  planet = planet or fixture.PLANET
+  local surface = game.surfaces[planet]
+  assert(surface, 'нет поверхности: ' .. planet)
+  local pad = pads[planet]
   if pad and pad.valid then
     return pad
   end
   for _, existing in pairs(surface.find_entities_filtered({ type = 'cargo-landing-pad' })) do
-    pads[1] = existing
+    pads[planet] = existing
     return existing
   end
   surface.request_to_generate_chunks({ 0, 0 }, 2)
   surface.force_generate_chunk_requests()
   pad = surface.create_entity({ name = 'cargo-landing-pad', position = { 0, 0 }, force = force() })
   assert(pad, 'площадка не создана')
-  pads[1] = pad
+  pads[planet] = pad
   return pad
 end
 
