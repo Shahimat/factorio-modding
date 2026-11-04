@@ -10,7 +10,8 @@ local lines = {}
 
 --- storage.lines[индекс силы] = { next_id, by_id = { [id] = линия } }
 --- линия = { id, name, items = { { name, quality, count } },
----   participants = { { entity, kind = 'hub' | 'pad', role, places, import_from, request_from, multiplier } } }
+---   participants = { { entity, kind = 'hub' | 'pad', role, places, import_from, request_from, multiplier } },
+---   groups = { [имя группы] = true } — имена, которые линия вела на прошлой синхронизации }
 local function book(force)
   storage.lines = storage.lines or {}
   local entry = storage.lines[force.index]
@@ -58,7 +59,7 @@ function lines.create(force, name)
     return nil, 'name-taken'
   end
   local entry = book(force)
-  local line = { id = entry.next_id, name = name, items = {}, participants = {} }
+  local line = { id = entry.next_id, name = name, items = {}, participants = {}, groups = {} }
   entry.by_id[line.id] = line
   entry.next_id = entry.next_id + 1
   return line
@@ -68,33 +69,83 @@ local function sections_of(entity)
   return entity and entity.valid and entity.get_logistic_sections() or nil
 end
 
---- Снимает с сущности все секции этой линии, кроме `keep`.
-local function strip(entity, line_name, keep)
+--- Известные линии имена групп: памятка прошлой синхронизации плюс точные
+--- имена по текущим участникам. Прежние имена нужны, чтобы снять с
+--- участников секции, оставшиеся от старой роли или старого имени линии.
+local function known_groups(line)
+  local known = {}
+  for name in pairs(line.groups or {}) do
+    known[name] = true
+  end
+  for _, participant in ipairs(line.participants) do
+    known[logic.group_name(line.name, participant)] = true
+  end
+  return known
+end
+
+--- Снимает с сущности все секции этой линии, кроме `keep`. Секция линии —
+--- только та, чья группа точь-в-точь входит в известные имена линии;
+--- префикс — дополнительный признак, чтобы не пострадала ручная секция
+--- участника с чужим именем, совпадающим лишь префиксом.
+local function strip(entity, line_name, keep, known)
   local sections = sections_of(entity)
   if not sections then
     return
   end
   for index = sections.sections_count, 1, -1 do
     local section = sections.get_section(index)
-    if section.is_manual and logic.owns(line_name, section.group) and section.group ~= keep then
+    if section.is_manual
+        and section.group ~= keep
+        and known[section.group]
+        and logic.owns(line_name, section.group) then
       sections.remove_section(index)
     end
   end
 end
 
-local function delete_groups(force, line_name, keep)
+--- Есть ли участник линии на этой сущности?
+local function owns_entity(line, entity)
+  for _, participant in ipairs(line.participants) do
+    if participant.entity and participant.entity.valid and participant.entity == entity then
+      return true
+    end
+  end
+  return false
+end
+
+--- У группы есть живые члены вне участников линии — её имя занял кто-то
+--- чужой, и удаление группы молча затёрло бы его секции. Мёртвые члены
+--- удалению не мешают.
+local function has_foreign_members(force, line, name)
+  local info = force.get_logistic_group(name)
+  if not info then
+    return false
+  end
+  for _, member in ipairs(info.members) do
+    if member.valid and not owns_entity(line, member.owner) then
+      return true
+    end
+  end
+  return false
+end
+
+--- Удаляет группы силы этой линии, кроме `keep`, оставляя группы с чужими
+--- членами.
+local function delete_groups(force, line, keep, known)
   for _, group in pairs(force.get_logistic_groups()) do
-    if logic.owns(line_name, group) and not (keep and keep[group]) then
+    if logic.owns(line.name, group) and known[group] and not (keep and keep[group])
+        and not has_foreign_members(force, line, group) then
       force.delete_logistic_group(group)
     end
   end
 end
 
 function lines.delete(force, line)
+  local known = known_groups(line)
   for _, participant in ipairs(line.participants) do
-    strip(participant.entity, line.name)
+    strip(participant.entity, line.name, nil, known)
   end
-  delete_groups(force, line.name)
+  delete_groups(force, line, nil, known)
   book(force).by_id[line.id] = nil
 end
 
@@ -106,10 +157,11 @@ function lines.rename(force, line, name)
   if name_taken(force, name, line) then
     return false, 'name-taken'
   end
+  local known = known_groups(line)
   for _, participant in ipairs(line.participants) do
-    strip(participant.entity, line.name)
+    strip(participant.entity, line.name, nil, known)
   end
-  delete_groups(force, line.name)
+  delete_groups(force, line, nil, known)
   line.name = name
   lines.sync(force, line)
   return true
@@ -149,7 +201,7 @@ function lines.detach(force, line, index)
   if not participant then
     return
   end
-  strip(participant.entity, line.name)
+  strip(participant.entity, line.name, nil, known_groups(line))
   table.remove(line.participants, index)
   lines.sync(force, line)
 end
@@ -180,10 +232,11 @@ function lines.sync(force, line)
   end
   line.participants = alive
 
+  local known = known_groups(line)
   local written = {}
   for _, participant in ipairs(line.participants) do
     local name = logic.group_name(line.name, participant)
-    strip(participant.entity, line.name, name)
+    strip(participant.entity, line.name, name, known)
     local sections = sections_of(participant.entity)
     local section = nil
     for index = 1, sections.sections_count do
@@ -204,7 +257,8 @@ function lines.sync(force, line)
       end
     end
   end
-  delete_groups(force, line.name, written)
+  delete_groups(force, line, written, known)
+  line.groups = written
 end
 
 --- Линии, где участвует сущность, — для панели у её окна.

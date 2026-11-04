@@ -1,6 +1,7 @@
 -- Линии снабжения: K-15 (правка шапки доходит до всех), K-16 (ручные секции
 -- рядом с секциями линии), K-17 (площадка — участник со своим множителем),
--- K-21 (одна группа, разные множители), удаление участника и линии.
+-- K-21 (одна группа, разные множители), удаление участника и линии,
+-- защита чужих секций и групп с коллизией имён.
 
 local f = require('tests.ingame.fixture')
 local lines = require('runtime.lines')
@@ -142,5 +143,59 @@ describe('линии снабжения', function()
       local old = 'Test rename · '
       assert(string.sub(group, 1, #old) ~= old, 'старая группа осталась: ' .. group)
     end
+  end)
+
+  it('ручная секция участника с коллизией префикса имени переживает линию', function()
+    local force = game.forces.player
+    local line = assert(lines.create(force, 'Test collide'))
+    line.items = { { name = f.ITEM, quality = 'normal', count = 100 } }
+    local _, hub = f.platform('a')
+    local manual = f.request(hub, 42, { group = 'Test collide · custom', from = 'planet', import_from = f.PLANET })
+    lines.attach(force, line, hub)
+    lines.sync(force, line)
+    assert(manual.valid and manual.group == 'Test collide · custom' and manual.get_slot(1).min == 42,
+      'ручная секция с коллизией префикса затёрта: ' .. tostring(manual.group))
+    local sections = hub.get_logistic_sections()
+    local line_sections = 0
+    for index = 1, sections.sections_count do
+      if sections.get_section(index).group == 'Test collide · nauvis/platforms' then
+        line_sections = line_sections + 1
+      end
+    end
+    assert(line_sections == 1, 'секций линии ' .. line_sections)
+  end)
+
+  it('группа с чужим членом переживает удаление линии', function()
+    local force = game.forces.player
+    local line = assert(lines.create(force, 'Test foreign'))
+    line.items = { { name = f.ITEM, quality = 'normal', count = 100 } }
+    local _, a = f.platform('a')
+    local _, b = f.platform('b')
+    lines.attach(force, line, a)
+    lines.sync(force, line)
+    local name = line_section(a, line).group
+    local foreign = b.get_logistic_sections().add_section(name)
+    foreign.multiplier = 2
+    lines.delete(force, line)
+    assert(force.get_logistic_group(name) ~= nil, 'группа с чужим членом удалена: ' .. name)
+    assert(foreign.valid and foreign.group == name, 'чужая секция потеряла группу: ' .. tostring(foreign.group))
+    force.delete_logistic_group(name)
+  end)
+
+  it('ванниль: delete_logistic_group на группу с живыми членами снимает членство, секции сохраняют фильтры', function()
+    local force = game.forces.player
+    local _, a = f.platform('a')
+    local _, b = f.platform('b')
+    local name = 'Test vanilla delete'
+    local sa = a.get_logistic_sections().add_section(name)
+    local sb = b.get_logistic_sections().add_section(name)
+    sa.set_slot(1, { value = { type = 'item', name = f.ITEM, quality = 'normal', comparator = '=' }, min = 42 })
+    sb.multiplier = 2
+    force.delete_logistic_group(name)
+    assert(force.get_logistic_group(name) == nil, 'группа осталась в списке силы')
+    assert(sa.valid and sa.group == '' and sa.get_slot(1).min == 42,
+      'секция A изменилась: group=' .. tostring(sa.group) .. ' min=' .. tostring(sa.get_slot(1).min))
+    assert(sb.valid and sb.group == '' and sb.multiplier == 2,
+      'секция B изменилась: group=' .. tostring(sb.group) .. ' mult=' .. tostring(sb.multiplier))
   end)
 end)
