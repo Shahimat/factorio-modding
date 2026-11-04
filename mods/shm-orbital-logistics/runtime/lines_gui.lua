@@ -6,6 +6,7 @@ local logic = require('logic.lines')
 local lines = require('runtime.lines')
 local controller = require('runtime.controller')
 local picker = require('runtime.places_picker')
+local tags = require('logic.tags')
 
 local window = {}
 
@@ -142,6 +143,30 @@ local function add_participants(frame, line, force)
   end
 end
 
+local function depot_warning(frame, name, caption)
+  local label = frame.add({ type = 'label', name = name, caption = caption })
+  label.style.font_color = { 1, 0.3, 0.3 }
+  label.style.single_line = false
+end
+
+--- Ловушки источников роли «Склад» — красными строками под таблицей.
+local function add_depot_warnings(frame, line)
+  for _, participant in ipairs(line.participants) do
+    if participant.kind == 'hub' and participant.role == 'depot' and participant.entity.valid then
+      local platform = participant.entity.surface.platform
+      local location = platform and platform.space_location and platform.space_location.name
+      local give, drop = tags.source_problems(participant, location)
+      local who = participant_caption(participant)
+      if give then
+        depot_warning(frame, 'shm_ol_lines_warning_source', { L .. 'lines-warning-source', who })
+      end
+      if drop then
+        depot_warning(frame, 'shm_ol_lines_warning_drop', { L .. 'lines-warning-drop', who })
+      end
+    end
+  end
+end
+
 function window.close(player)
   local existing = player.gui.screen[window.NAME]
   if existing then
@@ -168,6 +193,7 @@ function window.open(player, line_id)
   if line then
     add_items(body, line)
     add_participants(body, line, player.force)
+    add_depot_warnings(body, line)
     body.add({ type = 'button', name = 'shm_ol_line_apply', caption = { L .. 'apply' }, style = 'confirm_button' })
   else
     body.add({ type = 'label', caption = { L .. 'line-select' } })

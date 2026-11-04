@@ -237,7 +237,9 @@ describe('интерфейс', function()
     local _, hub = f.platform('a')
     hub.insert({ name = f.ITEM, count = 50 })
     f.request(hub, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })
-    f.request(hub, 100, { item = 'copper-plate', group = 'Test depot [depot:nauvis]', from = 'planet', import_from = f.PLANET })
+    -- Склад с импортом с другой планеты: источник не задевает ловушки,
+    -- о которых предупреждает панель (см. тест ниже).
+    f.request(hub, 100, { item = 'copper-plate', group = 'Test depot [depot:nauvis]', from = 'planet', import_from = f.OTHER_PLANET })
     f.request(hub, 10, { item = 'steel-plate', group = 'Test plain', from = 'planet', import_from = f.PLANET })
     f.request(hub, 10, { item = 'stone', group = 'Test far [depot:vulcanus]', from = 'planet', import_from = f.PLANET })
     remote.call('shm-orbital-logistics', 'pass')
@@ -273,6 +275,53 @@ describe('интерфейс', function()
     frame = open(shuttle)
     keys = now_keys(frame)
     assert(keys['now-cargo-here'] == 1, 'груз на назначении не «отдаёт»: ' .. serpent.line(keys))
+  end)
+
+  it('предупреждения об источниках склада: «Платформы» не отдаёт, импорт с текущей планеты не сбрасывает', function()
+    local _, give_hub = f.platform('a')
+    f.request(give_hub, 100, { group = 'Test depot [depot:nauvis]', from = 'platforms' })
+    local _, drop_hub = f.platform('b')
+    f.request(drop_hub, 100, { group = 'Test depot two [depot:nauvis]', from = 'planet', import_from = f.PLANET })
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(give_hub)
+    assert(find(frame, 'shm_ol_warning_depot_source'), 'нет предупреждения про источник «Платформы»')
+    assert(find(frame, 'shm_ol_warning_depot_drop') == nil, 'предупреждение про сброс без импорта с текущей планеты')
+    local keys = now_keys(frame)
+    -- Все предметы склада с источником «Платформы»: строка группы сама
+    -- говорит «не сможет отдавать платформам», в исключениях повтора нет.
+    assert(keys['now-depot-no-give'] == 1, 'нет строки «не сможет отдавать платформам»: ' .. serpent.line(keys))
+    player().opened = nil
+    frame = open(drop_hub)
+    assert(find(frame, 'shm_ol_warning_depot_drop'), 'нет предупреждения про сброс на текущую планету')
+    assert(find(frame, 'shm_ol_warning_depot_source') == nil, 'предупреждение про «Платформы» у источника «Планета»')
+    keys = now_keys(frame)
+    assert(keys['now-depot-here'] == 1, 'склад с «Планетой» должен отдавать платформам: ' .. serpent.line(keys))
+    assert(keys['now-depot-no-drop'] == 1, 'нет исключения «не сбросит на эту планету»: ' .. serpent.line(keys))
+  end)
+
+  it('окно линий: роль «Склад» с ловушкой источника получает предупреждение', function()
+    local p = player()
+    lines_gui.open(p)
+    local window = p.gui.screen[lines_gui.NAME]
+    find(window, 'shm_ol_line_name').text = 'Test depot line'
+    click(find(window, 'shm_ol_line_create'))
+    local _, hub = f.platform('a')
+    local frame = open(hub)
+    click(find(frame, 'shm_ol_attach'))
+    p.opened = nil
+    -- При подключении источник по умолчанию «Платформы»: у роли «Склад» —
+    -- предупреждение о том, что платформам склад не отдаст.
+    window = p.gui.screen[lines_gui.NAME]
+    find(window, 'shm_ol_role_1').selected_index = 2
+    click(find(window, 'shm_ol_line_apply'))
+    window = p.gui.screen[lines_gui.NAME]
+    assert(find(window, 'shm_ol_lines_warning_source'), 'нет предупреждения про источник «Платформы» у роли «Склад»')
+    -- Источник «Планета» с импортом с текущей планеты: предупреждение о сбросе.
+    find(window, 'shm_ol_source_1').selected_index = 1
+    click(find(window, 'shm_ol_line_apply'))
+    window = p.gui.screen[lines_gui.NAME]
+    assert(find(window, 'shm_ol_lines_warning_drop'), 'нет предупреждения про сброс на текущую планету')
+    assert(find(window, 'shm_ol_lines_warning_source') == nil, 'предупреждение про «Платформы» осталось у источника «Планета»')
   end)
 
   it('окно линий: создать линию, подключить хаб и площадку из панели, задать шапку и роль', function()

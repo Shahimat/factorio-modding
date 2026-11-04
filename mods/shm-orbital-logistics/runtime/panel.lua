@@ -126,6 +126,9 @@ local STATUS_ICONS = {
   -- тёмные и на тёмном фоне не видны.
   released = 'utility/status_blue',
   transit = 'utility/status_inactive',
+  -- Ловушка источника запроса склада: платформам не отдаст или на планету
+  -- под хабом не сбросит. Красных точек статуса в игре нет — треугольник «!».
+  warn = 'utility/warning_icon',
 }
 
 local function icon(kind)
@@ -140,12 +143,27 @@ local function quality_of(value)
   return value.quality and (type(value.quality) == 'string' and value.quality or value.quality.name) or nil
 end
 
+local function name_of(value)
+  if value == nil then
+    return nil
+  end
+  if type(value) == 'string' then
+    return value
+  end
+  return value.name
+end
+
 local function item_filters(section)
   local list = {}
   for _, slot in pairs(section.filters) do
     local value = slot.value
     if value and value.name and (value.type == nil or value.type == 'item') and prototypes.item[value.name] then
-      list[#list + 1] = { name = value.name, quality = quality_of(value) }
+      list[#list + 1] = {
+        name = value.name,
+        quality = quality_of(value),
+        request_from = slot.request_from,
+        import_from = name_of(slot.import_from),
+      }
     end
   end
   return list
@@ -171,8 +189,11 @@ local function places_caption(set)
   return caption
 end
 
---- Состояние группы с меткой на текущей орбите: вид значка и строка.
-local function group_state(tag, location, released, count)
+--- Состояние группы с меткой на текущей орбите: вид значка и строка. Для
+--- склада — третий итог: true, когда строка группы уже сказала «не сможет
+--- отдавать платформам» и предметам повторять это не нужно.
+local function group_state(tag, location, released, items)
+  local count = #items
   if tag.kind == 'reserve' then
     return 'held', { L .. 'now-reserve', count }
   end
@@ -189,6 +210,19 @@ local function group_state(tag, location, released, count)
     return 'held', { L .. 'now-cargo-held', places_caption(tag.dests), count }
   end
   if tags.depot_active_at(tag, location) then
+    -- У всех предметов источник «Платформы»/«Все» — склад не отдаёт никому,
+    -- и «раздаёт» было бы ложью (V-01b/V-02).
+    local blocked = count > 0
+    for _, item in ipairs(items) do
+      local give = tags.source_problems(item, location)
+      if not give then
+        blocked = false
+        break
+      end
+    end
+    if blocked then
+      return 'held', { L .. 'now-depot-no-give' }, true
+    end
     return 'giving', { L .. 'now-depot-here' }
   end
   if tag.anywhere then
@@ -214,6 +248,9 @@ local function fill_now(flow, hub)
   local expected = {}
   local reserved = {}
   local first_item = {}
+  local blocked_give = {}
+  local blocked_drop = {}
+  local row_covered = {}
   local rows = 0
   local sections = hub.get_logistic_sections()
   for index = 1, sections.sections_count do
@@ -221,7 +258,7 @@ local function fill_now(flow, hub)
     local tag = section.is_manual and not controller.is_service(section.group) and tags.parse(section.group)
     if tag then
       local items = item_filters(section)
-      local kind, caption = group_state(tag, location, released[section.group], #items)
+      local kind, caption, covered = group_state(tag, location, released[section.group], items)
       local anchor = items[1]
       groups.add({
         type = 'sprite-button',
@@ -234,11 +271,20 @@ local function fill_now(flow, hub)
       name.style.font = 'default-semibold'
       groups.add({ type = 'label', caption = { '', icon(kind), caption } })
       rows = rows + 1
+      local on_duty = tag.kind == 'depot' and tags.depot_active_at(tag, location)
       for _, item in ipairs(items) do
         local key = own_section.key(item.name, item.quality)
         first_item[key] = first_item[key] or item
         if tag.kind == 'reserve' then
           reserved[key] = true
+        end
+        if covered then
+          row_covered[key] = true
+        end
+        if on_duty then
+          local give, drop = tags.source_problems(item, location)
+          blocked_give[key] = blocked_give[key] or give
+          blocked_drop[key] = blocked_drop[key] or drop
         end
         if expected[key] ~= 'held' then
           expected[key] = (kind == 'held') and 'held' or 'open'
@@ -255,6 +301,8 @@ local function fill_now(flow, hub)
   for key, item in pairs(first_item) do
     local text = nil
     local kind = nil
+    -- Свои состояния мода важнее: транзит и замки объясняют, что мод делает
+    -- с предметом; ловушка источника склада — про ванильную отдачу и сброс.
     if state.transit[key] then
       kind, text = 'transit', { L .. 'now-ex-transit' }
     elseif state.locks[key] and expected[key] == 'open' then
@@ -262,6 +310,15 @@ local function fill_now(flow, hub)
       text = reserved[key] and { L .. 'now-ex-reserve-left' } or { L .. 'now-ex-yield' }
     elseif not state.locks[key] and expected[key] == 'held' and reserved[key] then
       kind, text = 'giving', { L .. 'now-ex-over-reserve' }
+    else
+      local give_marked = blocked_give[key] and not row_covered[key]
+      if give_marked and blocked_drop[key] then
+        kind, text = 'warn', { L .. 'now-depot-no-both' }
+      elseif give_marked then
+        kind, text = 'warn', { L .. 'now-depot-no-give' }
+      elseif blocked_drop[key] then
+        kind, text = 'warn', { L .. 'now-depot-no-drop' }
+      end
     end
     if text then
       exceptions[#exceptions + 1] = { item = item, kind = kind, text = text, key = key }
@@ -284,6 +341,51 @@ local function fill_now(flow, hub)
       }).style.size = 32
       list.add({ type = 'label', caption = { '', icon(entry.kind), entry.text } })
     end
+  end
+end
+
+--- Ловушки источников у секций склада хаба — для красных предупреждений.
+local function depot_source_problems(hub, location)
+  local give, drop = false, false
+  local sections = hub.get_logistic_sections()
+  for index = 1, sections.sections_count do
+    local section = sections.get_section(index)
+    if section.is_manual and not controller.is_service(section.group) then
+      local tag = tags.parse(section.group)
+      if tag and tag.kind == 'depot' then
+        for _, item in ipairs(item_filters(section)) do
+          local item_give, item_drop = tags.source_problems(item, location)
+          give = give or item_give
+          drop = drop or item_drop
+        end
+      end
+    end
+  end
+  return give, drop
+end
+
+local function warn(flow, name, caption)
+  local label = flow.add({ type = 'label', name = name, caption = caption })
+  label.style.font_color = { 1, 0.3, 0.3 }
+  label.style.single_line = false
+  label.style.maximal_width = 500
+end
+
+--- Красные предупреждения: выключенная раздача и ловушки источников склада.
+--- Перечитывается раз в секунду, поэтому живёт в своём контейнере.
+local function fill_warnings(flow, hub)
+  flow.clear()
+  if not hub.providing_to_other_platforms and giving_tags(hub) then
+    warn(flow, 'shm_ol_warning', { L .. 'warning-providing' })
+  end
+  local platform = hub.surface.platform
+  local location = platform and platform.space_location and platform.space_location.name
+  local give, drop = depot_source_problems(hub, location)
+  if give then
+    warn(flow, 'shm_ol_warning_depot_source', { L .. 'warning-depot-source' })
+  end
+  if drop then
+    warn(flow, 'shm_ol_warning_depot_drop', { L .. 'warning-depot-drop' })
   end
 end
 
@@ -418,12 +520,7 @@ function panel.build(player, entity)
   end
   if entity.type == 'space-platform-hub' then
     local main = block()
-    if not entity.providing_to_other_platforms and giving_tags(entity) then
-      local warning = main.add({ type = 'label', name = 'shm_ol_warning', caption = { L .. 'warning-providing' } })
-      warning.style.font_color = { 1, 0.3, 0.3 }
-      warning.style.single_line = false
-      warning.style.maximal_width = 500
-    end
+    fill_warnings(main.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), entity)
     add_sections(main, entity)
     local now = block()
     now.add({ type = 'label', caption = { L .. 'now' }, style = 'caption_label' })
@@ -473,12 +570,16 @@ function panel.refresh_all()
       if frame.tags.signature ~= signature(entity) then
         panel.build(player, entity)
       else
-        local now = nil
+        local now, warnings = nil, nil
         for _, child in pairs(frame.children) do
           now = now or (child.name == 'shm_ol_now' and child) or child['shm_ol_now']
+          warnings = warnings or (child.name == 'shm_ol_warnings' and child) or child['shm_ol_warnings']
         end
         if now then
           fill_now(now, entity)
+        end
+        if warnings then
+          fill_warnings(warnings, entity)
         end
       end
     end

@@ -96,6 +96,19 @@ function tags.depot_active_at(tag, location)
   return tag.anywhere == true or tag.orbits[location] == true
 end
 
+--- Ловушки источника запроса склада (факты V-01b/V-02 и V-04 из
+--- docs/entities/engine-space-platforms.yml): запрос с источником «Платформы»
+--- или «Все» запрещает хабу отдавать предмет платформам — всегда, даже с
+--- набранным запросом; сброс на планету это не затрагивает. Запрос «Планета»
+--- или «Все» с импортом с планеты `location` запрещает сброс предмета на неё.
+--- В `filter.import_from` — имя планеты строкой или nil.
+function tags.source_problems(filter, location)
+  local source = filter.request_from or 'planet'
+  local give = source == 'platforms' or source == 'all'
+  local drop = source ~= 'platforms' and location ~= nil and filter.import_from == location
+  return give, drop
+end
+
 local function sorted(set)
   local list = {}
   for name in pairs(set or {}) do

@@ -43,8 +43,9 @@ Open a hub: the panel below its window lists the hub's request sections.
 - *Giving in this orbit* shows one line per marked section — whether it
   holds its items or gives them here — and the exceptions, such as a depot
   taking brought cargo.
-- A red warning shows up when *Provide to other platforms* is off while the
-  hub has a depot or cargo with a destination.
+- Red warnings show up when *Provide to other platforms* is off while the
+  hub has a depot or cargo with a destination, and when depot request
+  sources block giving or dropping (see *Good to know*).
 - *Supply lines…* opens the supply lines window, also `/shm-orbital-lines`.
 
 The panel can sit below, above, left or right of the window:
@@ -78,6 +79,14 @@ works as usual.
   take some of the reserve: vanilla chooses the size of each delivery.
 - *Provide to other platforms* keeps its vanilla meaning: off means nothing
   is given to platforms; dropping to the planet is not affected.
+- Depot request sources matter. A depot request with source *Platforms* or
+  *All* never gives that item to platforms — even when the request is
+  filled — so keep depot requests on *Planet* if the depot serves
+  platforms; dropping to the planet below is not affected. A depot request
+  importing from the planet the depot is over (source *Planet* or *All*)
+  blocks dropping onto it: to supply the planet below, use source
+  *Platforms* or import from another planet. The panel warns about both
+  traps and marks such items in *Giving in this orbit*.
 - The controller goes over platforms in small slices: about 1 ms every 10
   ticks for 40 platforms with 160 filters each in one orbit.
 
