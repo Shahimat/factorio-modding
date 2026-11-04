@@ -31,8 +31,8 @@
     "orbital-art": "node tools/orbital-art.ts"
   },
   "devDependencies": {
-    "@shahimat/ai-core": "^0.1.5",
-    "@shahimat/oc3": "^0.1.2",
+    "@shahimat/ai-core": "^0.1.6",
+    "@shahimat/oc3": "^0.1.3",
     "@types/node": "^24.9.2",
     "@types/pngjs": "^6.0.5",
     "factorio-test-cli": "^3.6.0",
