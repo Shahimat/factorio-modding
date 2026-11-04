@@ -1,0 +1,78 @@
+run: 1
+status: fail
+summary: все 7 crit pass — разворачиватель с коротким статусом и построчными деталями, фразы из фильтров/меток по разделу 4 ТЗ и facts V-01/V-04/V-15, предпросмотр «будет: …» до «Применить», resolver.resolve на controller.snapshot без копии правил, ванильные виджеты с [planet]/[item], ванильный груз по фильтрам на орбитах со складом, состав по разделу 8, локали 11/11 (110 ключей, паритет перегнан judge'ом); красный один check-secrets — в .ops/ol-panel-item-details/reports/1.md:3 абсолютный путь с именем пользователя в ~/…-форме (правило home-absolute-path)
+items:
+  - key: crit-1
+    status: pass
+    evidence: runtime/panel.lua — add_sections(): toggle_button(table, 'shm_ol_expand', false, { details = index }) у каждой строки; fill_details(): не развёрнуто — detail_label с icon(kind) + group_state(section.tag, location, released[group], snap_items(section)) (та же короткая строка, что в «Отдаче»), развёрнуто — по detail_row на фильтр; expander.tags.expanded по умолчанию отсутствует (false → свёрнуто)
+    reason: >-
+      Разворачиватель есть у каждой секции «Групп» (включая немаркированные —
+      надмножество требования), свёрнутое состояние показывает ту же краткую
+      строку статуса, развёрнутое — по строке на предмет; по умолчанию всё
+      свёрнуто: tags.expanded не выставляется ни в build, ни в refresh_all.
+  - key: crit-2
+    status: pass
+    evidence: panel.lua — item_phrase(): reserve → 'details-reserve' («наполняется до N»); depot на своей орбите → 'details-depot-here' («пополняется с орбиты последним и только до цели, уступает привезённому грузу, отдаёт сверх запаса платформам и планете»), в полёте → 'details-depot-flight' («держится в полёте»), вне орбит → 'details-depot-away'; cargo с dests → 'details-cargo-dest' («запрашивается на __1__, раздаётся на __2__, включая платформы») или 'details-cargo-held' («держится в полёте и вне назначения»); без dests → 'details-cargo-vanilla' («отдаётся везде, кроме __1__»); locale/en/locale.cfg:70–89
+    reason: >-
+      Формулировки дословно соответствуют разделу 4 ТЗ и не обещают лишнего:
+      «уступает привезённому грузу» — мягкая защита из 4.2 («отдаёт сверх
+      защищённой части» в details-st-giving согласовано с ней); «везде,
+      кроме источника» согласуется с V-01a/V-04 (запрос planet с import_from
+      разрешает отдачу платформам и планете, кроме import_from-орбиты);
+      «платформы включены» — V-01a; защита import_from текущей орбиты —
+      V-04d. Замок/транзит в фразы не приписывается — статус идёт отдельной
+      строкой из resolver.
+  - key: crit-3
+    status: pass
+    evidence: panel.lua, конец fill_details(): dropdown 'shm_ol_purpose_N' + places 'shm_ol_places_N' → tags.from_choice(...) → same_tag(chosen, section.tag) каноническим текстом tags.format; если отличается — по строке detail_label { L..'details-preview', item_phrase(chosen, …) }, ключ details-preview = «will be: __1__»; gui-тест «выбранное, но не применённое назначение показывает "будет: …" до "Применить"»
+    reason: >-
+      Предпросмотр строится из текущего выбора drop-down/picker до нажатия
+      «Применить», сравнение с применённой меткой — по каноническому тексту
+      (множества мест без порядка), после применения строки гаснут. Дефолт
+      владельца 2026-11-04 оставлен — отказа в отчёте нет.
+  - key: crit-4
+    status: pass
+    evidence: panel.lua add_sections()/refresh_all()/on_click 'shm_ol_expand': snap = controller.snapshot(entity); result = resolver.resolve(snap, cargo_here) — один общий на все строки; статусы предметов — result.locks / result.transit (item_status). controller.lua: controller.snapshot() собирает ровно те же секции/фильтры/contents/targeted_items_deliver, что ест resolve; diff resolver.lua — только amount → resolver.amount (публичное имя) и вызовы; item_totals/giving_keys/held_reason в panel — агрегаты «для показа», решение остаётся за resolver
+    reason: >-
+      Панель не переписывает правила замков/транзита: держит/едет/можно
+      отдать читаются из результата resolver.resolve на снимке; собственные
+      проходы по секциям в панели лишь объясняют причину и считают суммы
+      для показа. Переписывания правил в диффе нет.
+  - key: crit-5
+    status: pass
+    evidence: panel.lua — новые элементы: flow/table/label/sprite-button (slot_button, utility/collapse|expand через helpers.is_valid_sprite_path), toggle_button как в остальных блоках; места — place_link() через '[planet=' .. name .. ']' с fallback на текст при отсутствии в prototypes.space_location; предметы — '[item=…[,quality=…]]'; значки статуса — тот же icon(kind)/STATUS_ICONS, что в «Отдаче»
+    reason: >-
+      Только ванильные виджеты и rich text; значок статуса предмета — тот
+      же набор, что у строк «Отдачи»; [planet=…] применён с проверкой
+      прототипа и прецедентом pad-name в моде.
+  - key: crit-6
+    status: pass
+    evidence: panel.lua, fill_details() ветка «section.tag == nil»: depot_orbit(snap.platform) по storage.orbit, источники из filter.import_from при request_from=='planet'; свёрнуто — строка 'details-cargo-vanilla' с places_rich(sources) и значком giving/held («везде, кроме ⟨откуда⟩»), развёрнуто — detail_row на фильтр; комментарий ссылается на fact V-01a entity engine-space-platforms
+    reason: >-
+      Ванильный груз без метки описан по своим фильтрам именно на орбитах
+      со складом (там решатель ищет его для транзита); вне таких орбит —
+      details-none. Смысл согласован с V-01a/V-04: «везде, кроме источника»
+      не обещает защиты, которой нет.
+  - key: crit-7
+    status: pass
+    evidence: паритет перегнан judge'ом awk-скриптом по 11 каталогам locale/*/locale.cfg: отсортированные множества ключей «[section]/key» идентичны en, везде по 110 ключей (было 90 + 20 новых details-*); npm test -w shm-orbital-logistics перегнан — 38 прошло / 0 упало; gui-тесты: 4 новых it() в tests/ingame/gui.lua — детали reserve+depot, cargo с планетами (на назначении/в пути), ванильный груз на орбите со складом, предпросмотр «будет: …»
+    reason: >-
+      Ключи во всех 11 языках совпадают с en по множеству и количеству —
+      проверено независимо, не по отчёту. Node-тесты зелёные. In-game gui
+      17 PASS взят из отчёта executor'а (runs_note) — тяжёлый прогон
+      judge'ом не перегонялся.
+regressions:
+  - behavior: orbital-hub-panel-sets-purpose
+    status: ok
+    evidence: drop-down/picker/apply с теми же именами и tags.section, обработчик shm_ol_apply_* не изменён; предпросмотр не блокирует применённое состояние (same_tag после применения гасит строки «будет»)
+  - behavior: orbital-panel-blocks (итоги свёрнутых блоков, collapsed-states)
+    status: ok
+    evidence: fill_now/fill_warnings/итоги блоков не тронуты; детали обновляются в refresh_all отдельным collect_named('shm_ol_details_') на свежем снимке, строки таблицы не пересоздаются — выбор в полях не сбивается
+runs_note: >-
+  npm test -w shm-orbital-logistics и node tools/check-secrets.ts перегнаны
+  judge'ом в worktree. npm test: 38 прошло / 0 упало. check-secrets: красный
+  — .ops/ol-panel-item-details/reports/1.md:3 содержит абсолютный путь
+  «/home_user/…»-вид абсолютного пути (правило home-absolute-path); это артефакт отчёта
+  executor'а, не кода. In-game gui 17 PASS — из отчёта executor'а
+  (.ops/ol-panel-item-details/reports/1.md), judge'ом не перегонялся.
+changes: []

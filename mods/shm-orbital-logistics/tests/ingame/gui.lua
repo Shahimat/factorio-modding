@@ -187,6 +187,105 @@ describe('интерфейс', function()
     return found
   end
 
+  --- Все ключи деталей в узле подписи: в одной строке их бывает два — статус
+  --- и числа, предпросмотр и фраза.
+  local function caption_keys(node, acc)
+    acc = acc or {}
+    if type(node) == 'string' then
+      local key = string.match(node, '^shm%-orbital%-logistics%.(details%-.+)$')
+      if key then
+        acc[key] = true
+      end
+    elseif type(node) == 'table' then
+      for _, item in pairs(node) do
+        caption_keys(item, acc)
+      end
+    end
+    return acc
+  end
+
+  --- { [ключ деталей] = число строк с ним } по всем подписям в дереве.
+  local function detail_keys(root)
+    local found = {}
+    local function scan(element)
+      if element.type == 'label' and type(element.caption) == 'table' then
+        for key in pairs(caption_keys(element.caption)) do
+          found[key] = (found[key] or 0) + 1
+        end
+      end
+      for _, child in pairs(element.children) do
+        scan(child)
+      end
+    end
+    scan(root)
+    return found
+  end
+
+  --- Локализованная таблица подписи с ключом: из неё читаются аргументы —
+  --- числа фразы и ссылки на места.
+  local function find_caption(root, key)
+    if not root then
+      return nil
+    end
+    if root.type == 'label' and type(root.caption) == 'table' then
+      local function walk(node)
+        if type(node) == 'table' then
+          if node[1] == 'shm-orbital-logistics.' .. key then
+            return node
+          end
+          for _, item in pairs(node) do
+            local found = walk(item)
+            if found then
+              return found
+            end
+          end
+        end
+        return nil
+      end
+      local found = walk(root.caption)
+      if found then
+        return found
+      end
+    end
+    for _, child in pairs(root.children) do
+      local found = find_caption(child, key)
+      if found then
+        return found
+      end
+    end
+    return nil
+  end
+
+  --- Треугольник деталей секции: по тегу `details` — имена у них одинаковые.
+  local function details_toggle(root, index)
+    if not root then
+      return nil
+    end
+    if root.name == 'shm_ol_expand' and root.tags.details == index then
+      return root
+    end
+    for _, child in pairs(root.children) do
+      local found = details_toggle(child, index)
+      if found then
+        return found
+      end
+    end
+    return nil
+  end
+
+  --- Индекс первой секции с фильтрами; с `needle` — среди групп с этим куском
+  --- имени. Без метки — секция ванильного груза.
+  local function first_filtered_index(hub, needle)
+    local sections = hub.get_logistic_sections()
+    for index = 1, sections.sections_count do
+      local section = sections.get_section(index)
+      if section.filters_count > 0 and (needle == nil or string.find(section.group, needle, 1, true)) then
+        return index
+      end
+    end
+    return nil
+  end
+
   it('каркас при 12+ группах: панель не выше потолка рабочей области, у блоков прокрутка, потолок и при нижнем и верхнем положении', function()
     local _, hub = f.platform('a')
     local items = { 'iron-plate', 'copper-plate', 'steel-plate', 'stone', 'coal', 'iron-gear-wheel', 'copper-cable', 'electronic-circuit', 'plastic-bar', 'sulfur', 'concrete', 'battery' }
@@ -466,6 +565,132 @@ describe('интерфейс', function()
     frame = open(shuttle)
     keys = now_keys(frame)
     assert(keys['now-cargo-here'] == 1, 'груз на назначении не «отдаёт»: ' .. serpent.line(keys))
+  end)
+
+  it('детали предметов: склад на своей орбите отдаёт сверх запаса, запас держит', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 200, { group = 'Test det reserve [reserve]', from = 'planet', import_from = f.PLANET })
+    f.request(hub, 100, { item = 'copper-plate', group = 'Test det depot [depot:nauvis]', from = 'planet', import_from = f.OTHER_PLANET })
+    hub.insert({ name = f.ITEM, count = 500 })
+    hub.insert({ name = 'copper-plate', count = 12000 })
+    local copper_count = hub.get_inventory(defines.inventory.hub_main).get_item_count('copper-plate')
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    -- По умолчанию всё свёрнуто: строк на предметы ещё нет.
+    assert(detail_keys(frame)['details-amounts'] == nil, 'детали развернуты по умолчанию')
+
+    -- Склад на своей орбите: фраза про цель и отдачу сверх запаса.
+    local depot_index = first_filtered_index(hub, 'Test det depot')
+    assert(depot_index, 'нет секции склада')
+    click(details_toggle(frame, depot_index))
+    frame = player().gui.relative[panel.NAME]
+    local keys = detail_keys(frame)
+    assert(keys['details-depot-here'] == 1, 'нет фразы склада на орбите: ' .. serpent.line(keys))
+    assert(keys['details-amounts'] == 1, 'нет чисел по предмету: ' .. serpent.line(keys))
+    local phrase = find_caption(frame, 'details-depot-here')
+    assert(phrase and tonumber(phrase[2]) == 100, 'цель склада не во фразе: ' .. serpent.line(phrase))
+    local amounts = find_caption(frame, 'details-amounts')
+    assert(amounts and tonumber(amounts[2]) == copper_count and tonumber(amounts[5]) == 100, 'числа предмета: ' .. serpent.line(amounts))
+    assert(type(amounts[7]) == 'table' and amounts[7][1] == 'shm-orbital-logistics.details-yes', 'склад сверх цели должен отдаваться')
+
+    -- Запас: держит, объяснение — остался запас.
+    local reserve_index = first_filtered_index(hub, 'Test det reserve')
+    click(details_toggle(frame, reserve_index))
+    frame = player().gui.relative[panel.NAME]
+    keys = detail_keys(frame)
+    assert(keys['details-reserve'] == 1, 'нет фразы запаса: ' .. serpent.line(keys))
+    assert(keys['details-st-held-reserve'] == 1, 'запас не «стоит»: ' .. serpent.line(keys))
+
+    -- Развёрнутость переживает обновление раз в секунду.
+    panel.refresh_all()
+    keys = detail_keys(frame)
+    assert(keys['details-reserve'] == 1 and keys['details-depot-here'] == 1, 'обновление сбросило детали: ' .. serpent.line(keys))
+  end)
+
+  it('детали груза: на назначении раздаётся, включая платформы, в пути держится', function()
+    local at_dest = select(2, f.platform('c', 'vulcanus'))
+    f.request(at_dest, 300, { item = 'holmium-plate', group = 'Test det cargo dest [cargo→vulcanus]', from = 'planet', import_from = 'fulgora' })
+    at_dest.insert({ name = 'holmium-plate', count = 50 })
+    local away = select(2, f.platform('w'))
+    f.request(away, 300, { item = 'holmium-plate', group = 'Test det cargo held [cargo→vulcanus]', from = 'planet', import_from = 'fulgora' })
+    away.insert({ name = 'holmium-plate', count = 50 })
+    remote.call('shm-orbital-logistics', 'pass')
+
+    local frame = open(at_dest)
+    local index = first_filtered_index(at_dest, 'Test det cargo dest')
+    click(details_toggle(frame, index))
+    frame = player().gui.relative[panel.NAME]
+    local keys = detail_keys(frame)
+    assert(keys['details-cargo-dest'] == 1, 'груз на назначении не «раздаётся»: ' .. serpent.line(keys))
+    local phrase = find_caption(frame, 'details-cargo-dest')
+    assert(serpent.line(phrase):find('planet=vulcanus', 1, true), 'куда не ссылкой: ' .. serpent.line(phrase))
+    assert(serpent.line(phrase):find('planet=fulgora', 1, true), 'откуда не ссылкой: ' .. serpent.line(phrase))
+    local amounts = find_caption(frame, 'details-amounts')
+    assert(amounts and tonumber(amounts[4]) == 300, 'цель груза не в числах: ' .. serpent.line(amounts))
+    assert(type(amounts[7]) == 'table' and amounts[7][1] == 'shm-orbital-logistics.details-yes', 'груз на назначении должен отдаваться')
+
+    player().opened = nil
+    frame = open(away)
+    index = first_filtered_index(away, 'Test det cargo held')
+    click(details_toggle(frame, index))
+    frame = player().gui.relative[panel.NAME]
+    keys = detail_keys(frame)
+    assert(keys['details-cargo-held'] == 1, 'груз в пути не «держится»: ' .. serpent.line(keys))
+    assert(keys['details-st-held-cargo'] == 1, 'нет причины «вне назначения»: ' .. serpent.line(keys))
+  end)
+
+  it('детали ванильного груза на орбите со складом: «везде, кроме откуда»', function()
+    local _, depot = f.platform('d')
+    f.request(depot, 100, { item = 'copper-plate', group = 'Test det depot d [depot:nauvis]', from = 'planet', import_from = f.OTHER_PLANET })
+    local _, hub = f.platform('v')
+    hub.insert({ name = f.ITEM, count = 40 })
+    f.request(hub, 100, { from = 'planet', import_from = 'fulgora' })
+    remote.call('shm-orbital-logistics', 'pass')
+
+    local frame = open(hub)
+    -- Свёрнуто: короткая строка про ванильный груз, чисел ещё нет.
+    local keys = detail_keys(frame)
+    assert(keys['details-cargo-vanilla'] == 1, 'ванильный груз не описан свёрнуто: ' .. serpent.line(keys))
+    assert(keys['details-amounts'] == nil, 'числа при свёрнутой строке')
+    local summary = find_caption(frame, 'details-cargo-vanilla')
+    assert(serpent.line(summary):find('planet=fulgora', 1, true), 'откуда не ссылкой: ' .. serpent.line(summary))
+
+    -- Развёрнуто: строка предмета с числами и статусом отдачи.
+    local index = first_filtered_index(hub, nil)
+    click(details_toggle(frame, index))
+    frame = player().gui.relative[panel.NAME]
+    keys = detail_keys(frame)
+    assert(keys['details-cargo-vanilla'] == 1, 'нет строки ванильного груза: ' .. serpent.line(keys))
+    assert(keys['details-amounts'] == 1, 'нет чисел по предмету: ' .. serpent.line(keys))
+    assert(keys['details-st-giving'] == 1, 'ванильный груз не «отдаётся»: ' .. serpent.line(keys))
+    local amounts = find_caption(frame, 'details-amounts')
+    assert(amounts and tonumber(amounts[2]) == 40, 'в числах нет «есть»: ' .. serpent.line(amounts))
+  end)
+
+  it('выбранное, но не применённое назначение показывает «будет: …» до «Применить»', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { group = 'Test det plain', from = 'planet', import_from = f.PLANET })
+    -- Прогон чистит записи орбит разрушенных платформ прошлых наблюдений.
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    local index = first_filtered_index(hub, nil)
+    panel.refresh_all()
+    assert(detail_keys(frame)['details-preview'] == nil, 'предпросмотр без смены назначения')
+
+    -- Выбран «Склад» на Вулкан: предпросмотр с фразой склада и местом-ссылкой.
+    find(frame, 'shm_ol_purpose_' .. index).selected_index = 4
+    pick(frame, 'shm_ol_places_' .. index, 'vulcanus')
+    panel.refresh_all()
+    local keys = detail_keys(frame)
+    assert(keys['details-preview'] == 1, 'нет строки предпросмотра: ' .. serpent.line(keys))
+    assert(keys['details-depot-away'] == 1, 'в предпросмотре не фраза склада: ' .. serpent.line(keys))
+    local preview = find_caption(frame, 'details-preview')
+    assert(serpent.line(preview):find('planet=vulcanus', 1, true), 'место в предпросмотре не ссылкой')
+
+    -- Применение убирает предпросмотр.
+    click(find(frame, 'shm_ol_apply_' .. index))
+    frame = player().gui.relative[panel.NAME]
+    assert(detail_keys(frame)['details-preview'] == nil, 'предпросмотр остался после «Применить»')
   end)
 
   it('предупреждения об источниках склада: «Платформы» не отдаёт, импорт с текущей планеты не сбрасывает', function()
