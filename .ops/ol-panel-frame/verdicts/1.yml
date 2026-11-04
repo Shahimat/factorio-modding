@@ -1,0 +1,63 @@
+run: 1
+status: pass
+summary: все 6 crit pass — потолок высоты во всех положениях со squashable-цепочкой, три своих scroll-pane, сворачивание блоков per player с итогом по реальному содержимому, пустой блок линий — одна кнопка, lines-none удалён из 11/11 локалей, 4 новых gui-сценария; npm test 38/0 и check-secrets зелёные (перегнаны judge'ом), gui-прогон 13 PASS — из отчёта executor'а
+items:
+  - key: crit-1
+    status: pass
+    evidence: mods/shm-orbital-logistics/runtime/panel.lua — height_cap() (display_resolution.height / display_scale * 0.8, panel.HEIGHT_SHARE экспортирован); в build() «if cap then frame.style.maximal_height = cap; frame.style.vertically_squashable = true end» — без ветки по положению, применяется и при bottom/top; блок-контейнеры и scroll_pane помечены vertically_stretchable/squashable, у каждой прокрутки свой maximal_height
+    reason: >-
+      Потолок считается от player.display_resolution с учётом display_scale и
+      ставится на рамку во всех четырёх положениях (широких и боковых) —
+      условие wide влияет только на maximal_width и раскладку, не на
+      потолок. Доведение до контента — через squashable-цепочку
+      рамка → блок → scroll-pane. В gui-тесте потолок ассертится на bottom,
+      top и right.
+  - key: crit-2
+    status: pass
+    evidence: panel.lua, build(): shm_ol_scroll_sections (внутри — flow shm_ol_warnings с предупреждениями + add_sections), shm_ol_scroll_now (fill_now), shm_ol_scroll_lines (add_lines) — все scroll-pane с direction = 'vertical'
+    reason: >-
+      Каждый из трёх блоков живёт в собственном вертикальном scroll-pane;
+      предупреждения «Групп» внутри прокрутки блока секций.
+  - key: crit-3
+    status: pass
+    evidence: storage.panel_block_collapsed[player_index][key]; control.lua — on_init и on_configuration_changed досоздают поле; panel.lua block_collapsed() читает в build(); refresh_all → find_named не находит контейнеры свёрнутого блока — fill_now/fill_warnings пропускаются; on_click 'shm_ol_block_toggle'/'shm_ol_block_summary' переключает состояние и перестраивает; gui-тест: независимое сворачивание, переоткрытие окна сохраняет состояние
+    reason: >-
+      Состояние per player в storage рядом с panel_collapsed, переживает
+      переоткрытие и сохранение/загрузку (storage сериализуется), init и
+      migration есть. Свёрнутый блок не перестраивается обновлениями
+      per-second. Разворачивание по клику подтверждено тестом.
+  - key: crit-4
+    status: pass
+    evidence: «Отдача» — итог из now_data() (те же данные, что у fill_now после рефактора); «Группы» — section_rows() с условием «section.is_manual and not controller.is_service(...)» — дословно тем же, по которому add_sections рендерит строки; «Линии» — #member; gui-тест сверяет итог с числом отрендеренных строк (shm_ol_apply_*), а не с константой
+    reason: >-
+      Числа считаются по реальному содержимому: условие итога «Групп»
+      совпадает с условием рендера строк, «Отдача» считается из общих с
+      отрисовкой данных. Тест закрепляет совпадение итога с фактом.
+  - key: crit-5
+    status: pass
+    evidence: panel.lua build(): при «#member == 0 and #lines.list(force) == 0» — единственная кнопка shm_ol_open_lines, без заголовка и прокрутки; ключ lines-none удалён; паритет проверен judge'ом: во всех 11 локалях по 90 ключей, отсортированные множества идентичны en, lines-none нигде нет; gui-тест ассертит отсутствие заголовка/прокрутки/lines-none у хаба и площадки и появление полного блока после создания линии
+    reason: >-
+      Пустой блок — одна кнопка «Линии снабжения…»; подпись «пока нет»
+      исчезла из кода и всех локалей; паритет ключей 11/11 подтверждён
+      независимо.
+  - key: crit-6
+    status: pass
+    evidence: tests/ingame/gui.lua — 4 новых it(): «каркас при 12+ группах» (12 секций, maximal_height == cap на bottom/top/right, обе прокрутки не выше потолка), «Отдача при 12 складах с исключениями» (12 строк now-depot-here + 12 now-depot-no-give, прокрутка в потолке), «блоки сворачиваются по отдельности» (итог 2/1 по caption, клик разворачивает, независимость блоков, переоткрытие), «пустой блок линий — одна кнопка» (хаб и площадка, превращение в полный)
+    reason: >-
+      Ассерты осмысленные и по содержимому: счётчики локализованных строк,
+      чтение аргументов локали из caption, сравнение итога с числом
+      отрендеренных строк, проверка обоих положений и обеих прокруток.
+regressions:
+  - behavior: orbital-panel-collapses-to-button
+    status: ok
+    evidence: toggle_button теперь принимает name/tags, но глобальная кнопка — shm_ol_toggle с tags.toggle = not collapsed, обработчик on_click не изменился; свёрнутый вид возвращает frame до контента; тест «панель сворачивается в мини-окошко…» остался и исполнен в gui-прогоне
+  - behavior: orbital-hub-panel-sets-purpose
+    status: ok
+    evidence: перестройка по signature сохранена (frame.tags.signature, refresh_all); per-second обновление «Отдачи» — find_named('shm_ol_now') + fill_now из тех же now_data; предупреждения depot-source (lines-warning-source/drop) — fill_warnings без изменений в диффе, контейнер shm_ol_warnings найден рекурсивно
+runs_note: >-
+  npm test -w shm-orbital-logistics и node tools/check-secrets.ts перегнаны
+  judge'ом в worktree (38 прошло / 0 упало; секретов нет). In-game gui-прогон
+  не перегонялся (тяжёлый): результат 13 PASS (9 старых + 4 новых,
+  «Test run finished: passed») взят из отчёта executor'а
+  (.ops/ol-panel-frame/reports/1.md).
+changes: []

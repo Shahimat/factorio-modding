@@ -8,8 +8,9 @@ local tags = require('logic.tags')
 
 local resolver = {}
 
---- Сколько секция запрашивает предмета с учётом множителя.
-local function amount(filter, multiplier)
+--- Сколько секция запрашивает предмета с учётом множителя. Публично: в
+--- деталях предметов панели показывается эта же цель («наполняется до N»).
+function resolver.amount(filter, multiplier)
   return math.floor((filter.min or 0) * (multiplier or 1) + 0.5)
 end
 
@@ -77,7 +78,7 @@ function resolver.resolve(hub, cargo_here)
     if section.active and tag then
       if tag.kind == 'reserve' then
         for _, filter in ipairs(section.filters) do
-          add(protected, filter.key, amount(filter, section.multiplier))
+          add(protected, filter.key, resolver.amount(filter, section.multiplier))
         end
       elseif tag.kind == 'cargo' and tag.dests then
         if tags.cargo_open_at(tag, location) then
@@ -89,13 +90,13 @@ function resolver.resolve(hub, cargo_here)
           end
         else
           for _, filter in ipairs(section.filters) do
-            add(protected, filter.key, amount(filter, section.multiplier))
+            add(protected, filter.key, resolver.amount(filter, section.multiplier))
           end
         end
       elseif tag.kind == 'depot' then
         local active = tags.depot_active_at(tag, location)
         for _, filter in ipairs(section.filters) do
-          local count = amount(filter, section.multiplier)
+          local count = resolver.amount(filter, section.multiplier)
           if active then
             add(depot_target, filter.key, count)
           else

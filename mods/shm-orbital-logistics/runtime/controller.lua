@@ -264,6 +264,48 @@ local function fill(snap, with_untagged)
   end
 end
 
+--- Снимок одного хаба для панели: те же данные, на которых решает решатель, —
+--- секции с фильтрами, содержимое и «в пути». Только чтение, кеш фильтров
+--- общий с контроллером; своя секция мода и служебные группы не входят.
+--- Фильтры секций без метки нужны панели всегда: по ним описывается
+--- ванильный груз на орбитах со складом, решатель их и так игнорирует.
+function controller.snapshot(hub)
+  local platform = hub.surface.platform
+  local sections = hub.get_logistic_sections()
+  local saved = storage.platforms and platform and storage.platforms[platform.index]
+  local released = saved and saved.released or {}
+  local own = find_own(sections, platform)
+  local list = {}
+  for index = 1, sections.sections_count do
+    local section = sections.get_section(index)
+    if section.is_manual and not controller.is_service(section.group) and not (own and own.index == index) then
+      local group = section.group
+      list[#list + 1] = {
+        index = index,
+        group = group,
+        tag = tag_of(group),
+        -- Выключенная модом секция груза для решателя по-прежнему действует.
+        active = section.active or (group ~= '' and released[group] == true),
+        multiplier = section.multiplier,
+        filters = cached_filters(section, hub, index, group),
+      }
+    end
+  end
+  local snap = {
+    platform = platform,
+    hub = hub,
+    location = platform.space_location and platform.space_location.name or nil,
+    sections = list,
+    contents = count_into({}, hub.get_inventory(defines.inventory.hub_main).get_contents()),
+    incoming = {},
+  }
+  local point = hub.get_logistic_point(defines.logistic_member_index.space_platform_hub_requester)
+  if point then
+    count_into(snap.incoming, point.targeted_items_deliver)
+  end
+  return snap
+end
+
 --- Своя секция переписана — её запись в кеше устарела. Без этого мод на
 --- следующем проходе не узнавал свою опустевшую секцию и заводил новую.
 local function forget(hub, index)

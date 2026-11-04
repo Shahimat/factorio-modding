@@ -1,11 +1,13 @@
 -- Панель у окна хаба и площадки: назначение секций меткой в имени группы,
--- состояние предметов по своей секции мода, предупреждение про флаг раздачи
--- и подключение к линиям снабжения. ТЗ, раздел 8.
+-- состояние предметов по своей секции мода, детали поведения предметов в
+-- группах, предупреждение про флаг раздачи и подключение к линиям снабжения.
+-- ТЗ, раздел 8.
 
 local tags = require('logic.tags')
 local groups = require('runtime.groups')
 local lines = require('runtime.lines')
 local own_section = require('logic.own_section')
+local resolver = require('logic.resolver')
 local controller = require('runtime.controller')
 local lines_logic = require('logic.lines')
 local picker = require('runtime.places_picker')
@@ -66,55 +68,6 @@ local function line_of(force, group)
     end
   end
   return nil
-end
-
-local function add_sections(frame, hub)
-  frame.add({ type = 'label', caption = { L .. 'sections' }, style = 'caption_label' })
-  local table = frame.add({ type = 'table', column_count = 4 })
-  local sections = hub.get_logistic_sections()
-  local saved = storage.platforms and storage.platforms[hub.surface.platform.index]
-  for index = 1, sections.sections_count do
-    local section = sections.get_section(index)
-    if section.is_manual and not controller.is_service(section.group) then
-      local tag = tags.parse(section.group)
-      local owner = line_of(hub.force, section.group)
-      local locked = owner and { L .. 'section-of-line', owner.name } or nil
-      local caption = section.group ~= '' and section.group or { L .. 'section-unnamed', index }
-      local label = table.add({ type = 'label', caption = caption, style = 'label' })
-      label.style.maximal_width = 220
-      if saved and saved.released and saved.released[section.group] then
-        -- Снятая галочка у группы груза — дело мода, а не поломка: подсказать.
-        label.caption = { '', caption, ' ', { L .. 'section-released-mark' } }
-        label.tooltip = { L .. 'section-released' }
-        label.style.font_color = { 1, 0.75, 0.3 }
-      end
-      local items = {}
-      for i, purpose in ipairs(PURPOSES) do
-        items[i] = { L .. 'purpose-' .. purpose }
-      end
-      table.add({
-        type = 'drop-down',
-        name = 'shm_ol_purpose_' .. index,
-        items = items,
-        selected_index = purpose_index(tag),
-        tags = { section = index },
-        enabled = locked == nil,
-        tooltip = locked,
-      })
-      picker.add(table, 'shm_ol_places_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
-        tooltip = locked or { L .. 'places-tooltip' },
-        enabled = locked == nil,
-      })
-      table.add({
-        type = 'button',
-        name = 'shm_ol_apply_' .. index,
-        caption = { L .. 'apply' },
-        tooltip = locked or { L .. 'apply-tooltip' },
-        tags = { section = index },
-        enabled = locked == nil,
-      }).style.minimal_width = 100
-    end
-  end
 end
 
 --- Предметы помеченных секций со состоянием по своей секции мода. Обновляется
@@ -189,6 +142,35 @@ local function places_caption(set)
   return caption
 end
 
+--- Ссылка на место rich text'ом [planet=…]: игра рисует значок с названием
+--- и по клику открывает Факториопедию, convention `localization`. Категории
+--- `planet` в LuaPrototypes нет, поэтому планета здесь — любое место из
+--- space-location: метки мода — орбиты и назначения, и `[planet=__1__]` в
+--- `pad-name` подставляет место так же.
+local function place_link(name)
+  if prototypes.space_location[name] then
+    return { '', '[planet=' .. name .. ']' }
+  end
+  return { '', name }
+end
+
+--- Множество мест ссылками — для фраз в деталях предметов.
+local function places_rich(set)
+  local caption = { '' }
+  local names = {}
+  for name in pairs(set or {}) do
+    names[#names + 1] = name
+  end
+  table.sort(names)
+  for i, name in ipairs(names) do
+    if i > 1 then
+      caption[#caption + 1] = ', '
+    end
+    caption[#caption + 1] = place_link(name)
+  end
+  return caption
+end
+
 --- Состояние группы с меткой на текущей орбите: вид значка и строка. Для
 --- склада — третий итог: true, когда строка группы уже сказала «не сможет
 --- отдавать платформам» и предметам повторять это не нужно.
@@ -231,27 +213,23 @@ local function group_state(tag, location, released, items)
   return 'held', { L .. 'now-depot-held', places_caption(tag.orbits), count }
 end
 
---- «Отдача на этой орбите»: строка на каждую группу с меткой — что мод с ней делает на
---- этой орбите, — и исключения: предметы, которые ведут себя не как их
---- группа. Обновляется раз в секунду, поэтому живёт в своём контейнере.
-local function fill_now(flow, hub)
-  flow.clear()
+--- «Отдача на этой орбите» без GUI: строка на каждую группу с меткой — что
+--- мод с ней делает на этой орбите, — и исключения: предметы, которые
+--- ведут себя не как их группа. Данные общие для блока и итога свёрнутого
+--- блока, чтобы итог не разошёлся с содержимым.
+local function now_data(hub)
   local state = own_state(hub)
   local platform = hub.surface.platform
   local location = platform and platform.space_location and platform.space_location.name
   local saved = storage.platforms and platform and storage.platforms[platform.index]
   local released = saved and saved.released or {}
-  local groups = flow.add({ type = 'table', column_count = 3 })
-  for column = 1, 3 do
-    groups.style.column_alignments[column] = 'middle-left'
-  end
+  local rows = {}
   local expected = {}
   local reserved = {}
   local first_item = {}
   local blocked_give = {}
   local blocked_drop = {}
   local row_covered = {}
-  local rows = 0
   local sections = hub.get_logistic_sections()
   for index = 1, sections.sections_count do
     local section = sections.get_section(index)
@@ -259,18 +237,7 @@ local function fill_now(flow, hub)
     if tag then
       local items = item_filters(section)
       local kind, caption, covered = group_state(tag, location, released[section.group], items)
-      local anchor = items[1]
-      groups.add({
-        type = 'sprite-button',
-        sprite = anchor and ('item/' .. anchor.name) or 'utility/questionmark',
-        style = 'slot_button',
-        tooltip = section.group,
-      }).style.size = 32
-      local name = groups.add({ type = 'label', caption = section.group })
-      name.style.maximal_width = 240
-      name.style.font = 'default-semibold'
-      groups.add({ type = 'label', caption = { '', icon(kind), caption } })
-      rows = rows + 1
+      rows[#rows + 1] = { group = section.group, kind = kind, caption = caption, anchor = items[1] }
       local on_duty = tag.kind == 'depot' and tags.depot_active_at(tag, location)
       for _, item in ipairs(items) do
         local key = own_section.key(item.name, item.quality)
@@ -291,11 +258,6 @@ local function fill_now(flow, hub)
         end
       end
     end
-  end
-  if rows == 0 then
-    flow.clear()
-    flow.add({ type = 'label', caption = { L .. 'now-nothing' } })
-    return
   end
   local exceptions = {}
   for key, item in pairs(first_item) do
@@ -324,8 +286,36 @@ local function fill_now(flow, hub)
       exceptions[#exceptions + 1] = { item = item, kind = kind, text = text, key = key }
     end
   end
+  table.sort(exceptions, function(a, b) return a.key < b.key end)
+  return rows, exceptions
+end
+
+--- Отрисовка «Отдачи» из данных `now_data`. Обновляется раз в секунду,
+--- поэтому живёт в своём контейнере.
+local function fill_now(flow, hub)
+  flow.clear()
+  local rows, exceptions = now_data(hub)
+  if #rows == 0 then
+    flow.add({ type = 'label', caption = { L .. 'now-nothing' } })
+    return
+  end
+  local groups = flow.add({ type = 'table', column_count = 3 })
+  for column = 1, 3 do
+    groups.style.column_alignments[column] = 'middle-left'
+  end
+  for _, row in ipairs(rows) do
+    groups.add({
+      type = 'sprite-button',
+      sprite = row.anchor and ('item/' .. row.anchor.name) or 'utility/questionmark',
+      style = 'slot_button',
+      tooltip = row.group,
+    }).style.size = 32
+    local name = groups.add({ type = 'label', caption = row.group })
+    name.style.maximal_width = 240
+    name.style.font = 'default-semibold'
+    groups.add({ type = 'label', caption = { '', icon(row.kind), row.caption } })
+  end
   if #exceptions > 0 then
-    table.sort(exceptions, function(a, b) return a.key < b.key end)
     flow.add({ type = 'label', caption = { L .. 'now-exceptions' }, style = 'caption_label' })
     local list = flow.add({ type = 'table', column_count = 2 })
     for column = 1, 2 do
@@ -389,24 +379,20 @@ local function fill_warnings(flow, hub)
   end
 end
 
+--- Подключение к линиям снабжения: участники, выбор линии и кнопка окна.
+--- Вызывается, только когда линии есть: пустой блок линий — одна кнопка.
 local function add_lines(frame, player, entity)
-  frame.add({ type = 'label', caption = { L .. 'lines' }, style = 'caption_label' })
   local member = lines.of_entity(player.force, entity)
   for _, entry in ipairs(member) do
     frame.add({ type = 'label', caption = { L .. 'lines-member', entry.line.name } })
   end
-  local all = lines.list(player.force)
   local flow = frame.add({ type = 'flow', direction = 'horizontal' })
-  if #all > 0 then
-    local items = {}
-    for i, line in ipairs(all) do
-      items[i] = line.name
-    end
-    flow.add({ type = 'drop-down', name = 'shm_ol_attach_line', items = items, selected_index = 1 })
-    flow.add({ type = 'button', name = 'shm_ol_attach', caption = { L .. 'lines-attach' } }).style.minimal_width = 100
-  else
-    flow.add({ type = 'label', caption = { L .. 'lines-none' } })
+  local items = {}
+  for i, line in ipairs(lines.list(player.force)) do
+    items[i] = line.name
   end
+  flow.add({ type = 'drop-down', name = 'shm_ol_attach_line', items = items, selected_index = 1 })
+  flow.add({ type = 'button', name = 'shm_ol_attach', caption = { L .. 'lines-attach' } }).style.minimal_width = 100
   frame.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } })
 end
 
@@ -447,27 +433,28 @@ local function position_of(player)
 end
 
 --- Кнопка свернуть/развернуть: значок есть в игре — значком, нет — текстом,
---- как у значков статуса.
-local function toggle_button(parent, to_collapsed)
+--- как у значков статуса. `to_collapsed` — что сделает клик: сворачивает
+--- (значок-треугольник вниз) или разворачивает (треугольник вбок).
+local function toggle_button(parent, name, to_collapsed, tags)
   local path = to_collapsed and 'utility/collapse' or 'utility/expand'
   local key = to_collapsed and 'collapse' or 'expand'
   if helpers.is_valid_sprite_path(path) then
     local button = parent.add({
       type = 'sprite-button',
-      name = 'shm_ol_toggle',
+      name = name,
       sprite = path,
       tooltip = { L .. key },
-      tags = { toggle = to_collapsed },
+      tags = tags,
     })
     button.style.size = 24
     return button
   end
   return parent.add({
     type = 'button',
-    name = 'shm_ol_toggle',
+    name = name,
     caption = { L .. key },
     tooltip = { L .. key },
-    tags = { toggle = to_collapsed },
+    tags = tags,
   })
 end
 
@@ -477,11 +464,514 @@ local function is_collapsed(player_index)
   return (storage.panel_collapsed or {})[player_index] == true
 end
 
+--- Свёрнутость блока — рядом с `panel_collapsed`: состояние на игрока,
+--- переживает переоткрытие окна, сохранение и загрузку.
+local function block_collapsed(player_index, key)
+  local state = storage.panel_block_collapsed
+  return (state and state[player_index] and state[player_index][key]) == true
+end
+
+--- Сколько строк в «Группах» — итог свёрнутого блока по реальному содержимому.
+local function section_rows(hub)
+  local rows = 0
+  local sections = hub.get_logistic_sections()
+  for index = 1, sections.sections_count do
+    local section = sections.get_section(index)
+    if section.is_manual and not controller.is_service(section.group) then
+      rows = rows + 1
+    end
+  end
+  return rows
+end
+
+--- Потолок высоты панели: доля рабочей области. display_resolution —
+--- экранные пиксели, display_scale переводит их в единицы GUI.
+local HEIGHT_SHARE = 0.8
+panel.HEIGHT_SHARE = HEIGHT_SHARE
+
+local function height_cap(player)
+  local resolution = player.display_resolution
+  local scale = player.display_scale
+  if not resolution or not scale or scale <= 0 then
+    return nil
+  end
+  return math.floor(resolution.height / scale * HEIGHT_SHARE)
+end
+
+--- Заголовок блока: треугольник сворачивания и название.
+local function block_header(parent, key, title_key)
+  local header = parent.add({ type = 'flow', direction = 'horizontal', name = 'shm_ol_header_' .. key })
+  toggle_button(header, 'shm_ol_block_toggle', true, { block = key })
+  header.add({ type = 'label', caption = { L .. title_key }, style = 'caption_label' })
+end
+
+--- Свёрнутый блок: треугольник и строка-итог; клик по строке разворачивает.
+local function collapsed_block(parent, key, summary)
+  toggle_button(parent, 'shm_ol_block_toggle', false, { block = key })
+  parent.add({
+    type = 'button',
+    name = 'shm_ol_block_summary',
+    caption = summary,
+    tags = { block = key },
+  })
+end
+
+--- Прокрутка блока: вертикальная, тянется вместе с рамкой, но не выше
+--- потолка; сжимаемая, чтобы потолок рамки доходил до неё.
+local function scroll_pane(parent, name, cap)
+  local scroll = parent.add({ type = 'scroll-pane', name = name, direction = 'vertical' })
+  scroll.style.vertically_stretchable = true
+  scroll.style.vertically_squashable = true
+  if cap then
+    scroll.style.maximal_height = cap
+  end
+  return scroll
+end
+
+--- Поиск по имени на любой глубине: контейнеры «Отдачи», предупреждений и
+--- деталей живут в прокрутках своих блоков.
+local function find_named(root, name)
+  if root.name == name then
+    return root
+  end
+  for _, child in pairs(root.children) do
+    local found = find_named(child, name)
+    if found then
+      return found
+    end
+  end
+  return nil
+end
+
+--- Все элементы с именами по префиксу: контейнеры деталей по каждой группе.
+local function collect_named(root, prefix, acc)
+  acc = acc or {}
+  if root.name and string.sub(root.name, 1, #prefix) == prefix then
+    acc[#acc + 1] = root
+  end
+  for _, child in pairs(root.children) do
+    collect_named(child, prefix, acc)
+  end
+  return acc
+end
+
+--- Груз на этой орбите на других хабах — как его видит контроллер: последние
+--- известные предложения соседей по орбите из storage.orbit.
+local function orbit_cargo(platform)
+  local location = platform.space_location and platform.space_location.name
+  if not location then
+    return {}
+  end
+  local where = platform.force.name .. '/' .. location
+  local set = {}
+  for index, entry in pairs(storage.orbit or {}) do
+    if index ~= platform.index and entry.where == where then
+      for key in pairs(entry.offered or {}) do
+        set[key] = true
+      end
+    end
+  end
+  return set
+end
+
+--- Есть ли на этой орбите склад: из последних известных состояний
+--- контроллера, как их видит решатель при транзите.
+local function depot_orbit(platform)
+  local location = platform.space_location and platform.space_location.name
+  if not location then
+    return false
+  end
+  local where = platform.force.name .. '/' .. location
+  for _, entry in pairs(storage.orbit or {}) do
+    if entry.where == where and entry.depot then
+      return true
+    end
+  end
+  return false
+end
+
+--- Предметы секции из снимка: то же представление, что у «Отдачи».
+local function snap_items(section)
+  local list = {}
+  for _, filter in ipairs(section.filters) do
+    local name, quality = own_section.split(filter.key)
+    list[#list + 1] = {
+      name = name,
+      quality = quality,
+      request_from = filter.request_from,
+      import_from = filter.import_from,
+    }
+  end
+  return list
+end
+
+--- Метки сравниваются каноническим текстом: множества мест без порядка.
+local function same_tag(a, b)
+  if (a == nil) ~= (b == nil) then
+    return false
+  end
+  return a == nil or tags.format(a) == tags.format(b)
+end
+
+--- Фраза поведения предмета в секции: короткая механическая формулировка из
+--- его фильтра, метки секции и текущей орбиты. Названия мест — ссылками.
+local function item_phrase(tag, location, filter, multiplier)
+  local n = resolver.amount(filter, multiplier)
+  if tag == nil then
+    local source = filter.request_from or 'planet'
+    if filter.import_from and source == 'planet' then
+      return { L .. 'details-cargo-vanilla', places_rich({ [filter.import_from] = true }) }
+    end
+    return { L .. 'details-none' }
+  end
+  if tag.kind == 'reserve' then
+    return { L .. 'details-reserve', n }
+  end
+  if tag.kind == 'cargo' then
+    local from = filter.import_from and places_rich({ [filter.import_from] = true }) or { L .. 'details-everywhere' }
+    if tag.dests == nil then
+      if filter.import_from then
+        return { L .. 'details-cargo-vanilla', from }
+      end
+      return { L .. 'details-cargo-anywhere' }
+    end
+    if tags.cargo_open_at(tag, location) then
+      return { L .. 'details-cargo-dest', from, places_rich(tag.dests) }
+    end
+    return { L .. 'details-cargo-held', from }
+  end
+  if tag.kind == 'depot' then
+    if location ~= nil and tags.depot_active_at(tag, location) then
+      return { L .. 'details-depot-here', n }
+    end
+    if location == nil then
+      return { L .. 'details-depot-flight' }
+    end
+    return { L .. 'details-depot-away', n, places_rich(tag.orbits) }
+  end
+  return { L .. 'details-none' }
+end
+
+--- Числа строки предмета: цели секций по предмету. Только для показа —
+--- замки и транзит по-прежнему решает resolver.resolve на снимке.
+local function item_totals(snap)
+  local totals = {}
+  for _, sec in ipairs(snap.sections) do
+    local tag = sec.tag
+    if sec.active and tag then
+      for _, filter in ipairs(sec.filters) do
+        local t = totals[filter.key]
+        if not t then
+          t = { reserve = 0, cargo = 0, depot = 0 }
+          totals[filter.key] = t
+        end
+        local n = resolver.amount(filter, sec.multiplier)
+        if tag.kind == 'reserve' then
+          t.reserve = t.reserve + n
+        elseif tag.kind == 'cargo' then
+          t.cargo = t.cargo + n
+        elseif tag.kind == 'depot' and tags.depot_active_at(tag, snap.location) then
+          t.depot = t.depot + n
+        end
+      end
+    end
+  end
+  return totals
+end
+
+--- Кому решатель разрешил отдачу: секции груза, открытые на этой орбите, —
+--- как в resolver.resolve, причина удержания склада считается по нему же.
+local function giving_keys(snap)
+  local giving = {}
+  for _, sec in ipairs(snap.sections) do
+    local tag = sec.tag
+    if sec.active and tag and tag.kind == 'cargo' and tag.dests ~= nil and tags.cargo_open_at(tag, snap.location) then
+      for _, filter in ipairs(sec.filters) do
+        giving[filter.key] = true
+      end
+    end
+  end
+  return giving
+end
+
+--- Почему предмет стоит: первая по порядку секций решателя, которая его
+--- защищает, — запас, груз вне назначения, склад вне орбит или уступка
+--- привезённому грузу.
+local function held_reason(snap, key, giving, cargo_here)
+  for _, sec in ipairs(snap.sections) do
+    local tag = sec.tag
+    if sec.active and tag then
+      local has = false
+      for _, filter in ipairs(sec.filters) do
+        has = has or filter.key == key
+      end
+      if has then
+        if tag.kind == 'reserve' then
+          return 'details-st-held-reserve'
+        end
+        if tag.kind == 'cargo' and tag.dests ~= nil and not tags.cargo_open_at(tag, snap.location) then
+          return 'details-st-held-cargo'
+        end
+        if tag.kind == 'depot' then
+          if not tags.depot_active_at(tag, snap.location) then
+            return 'details-st-held-depot'
+          end
+          if cargo_here[key] and not giving[key] then
+            return 'details-st-held-yield'
+          end
+        end
+      end
+    end
+  end
+  return 'details-st-held-reserve'
+end
+
+--- Значок и строка «почему предмет едет или стоит» — по решению на снимке.
+local function item_status(snap, result, key, giving, cargo_here)
+  if result.transit[key] then
+    return 'transit', { L .. 'details-st-transit' }
+  end
+  if result.locks[key] then
+    return 'held', { L .. held_reason(snap, key, giving, cargo_here) }
+  end
+  return 'giving', { L .. 'details-st-giving' }
+end
+
+--- Строка одного предмета в деталях: значок статуса, фраза поведения и числа
+--- «есть / свой запас / груз / склад / в пути / можно отдать» — ТЗ, раздел 8.
+local function detail_row(container, line)
+  local item_flow = container.add({ type = 'flow', direction = 'horizontal' })
+  item_flow.add({
+    type = 'sprite-button',
+    sprite = 'item/' .. line.name,
+    style = 'slot_button',
+    number = line.count,
+    tooltip = '[item=' .. line.name .. (line.quality and (',quality=' .. line.quality) or '') .. ']',
+  }).style.size = 32
+  local text = item_flow.add({ type = 'flow', direction = 'vertical' })
+  local phrase = text.add({ type = 'label', caption = { '', icon(line.kind), line.phrase } })
+  phrase.style.single_line = false
+  phrase.style.maximal_width = 440
+  local second = { '' }
+  if line.status then
+    second[#second + 1] = line.status
+    second[#second + 1] = ' · '
+  end
+  second[#second + 1] = line.amounts
+  local numbers = text.add({ type = 'label', caption = second })
+  numbers.style.single_line = false
+  numbers.style.maximal_width = 440
+  numbers.style.font_color = { 0.7, 0.7, 0.7 }
+end
+
+local function detail_label(container, caption)
+  local label = container.add({ type = 'label', caption = caption })
+  label.style.single_line = false
+  label.style.maximal_width = 440
+  return label
+end
+
+--- Детали группы в «Группах»: свёрнуто — короткая строка статуса, как в
+--- «Отдаче», развёрнуто — по строке на предмет с полным описанием поведения.
+--- Контейнер перечитывается раз в секунду и раскрытость не сбрасывает:
+--- раскрытость живёт в кнопке-треугольнике, а перестройка панели по
+--- сигнатуре её сбрасывает — это осознанно.
+local function fill_details(container, snap, result, cargo_here)
+  container.clear()
+  local index = container.tags.details
+  local section
+  for _, entry in ipairs(snap.sections) do
+    if entry.index == index then
+      section = entry
+      break
+    end
+  end
+  if section == nil then
+    return
+  end
+  local location = snap.location
+  local saved = storage.platforms and snap.platform and storage.platforms[snap.platform.index]
+  local released = saved and saved.released or {}
+  local row = container.parent
+  local expander = find_named(row, 'shm_ol_expand')
+  local expanded = (expander and expander.tags.expanded) == true
+  local totals = item_totals(snap)
+  local giving = giving_keys(snap)
+
+  if section.tag then
+    if not expanded then
+      local kind, caption = group_state(section.tag, location, released[section.group], snap_items(section))
+      detail_label(container, { '', icon(kind), caption })
+    else
+      for _, filter in ipairs(section.filters) do
+        local name, quality = own_section.split(filter.key)
+        local kind, status = item_status(snap, result, filter.key, giving, cargo_here)
+        local t = totals[filter.key]
+        detail_row(container, {
+          name = name,
+          quality = quality,
+          count = snap.contents[filter.key] or 0,
+          kind = kind,
+          phrase = item_phrase(section.tag, location, filter, section.multiplier),
+          status = status,
+          amounts = { L .. 'details-amounts',
+            snap.contents[filter.key] or 0,
+            t and t.reserve or 0,
+            t and t.cargo or 0,
+            t and t.depot or 0,
+            snap.incoming[filter.key] or 0,
+            (result.locks[filter.key] or result.transit[filter.key]) and { L .. 'details-no' } or { L .. 'details-yes' },
+          },
+        })
+      end
+    end
+  else
+    -- Секция без метки: ванильный груз описывается по своим фильтрам на
+    -- орбитах со складом — там решатель ищет его для транзита (fact V-01a,
+    -- entity `engine-space-platforms`).
+    local on_depot_orbit = depot_orbit(snap.platform)
+    local sources = {}
+    for _, filter in ipairs(section.filters) do
+      local source = filter.request_from or 'planet'
+      if filter.import_from and source == 'planet' then
+        sources[filter.import_from] = true
+      end
+    end
+    if not expanded then
+      if on_depot_orbit and next(sources) then
+        local offered = location ~= nil
+        for name in pairs(sources) do
+          offered = offered and name ~= location
+        end
+        detail_label(container, { '', icon(offered and 'giving' or 'held'), { L .. 'details-cargo-vanilla', places_rich(sources) } })
+      end
+    else
+      for _, filter in ipairs(section.filters) do
+        local name, quality = own_section.split(filter.key)
+        local source = filter.request_from or 'planet'
+        local kind, status
+        if result.locks[filter.key] then
+          kind, status = 'held', { L .. held_reason(snap, filter.key, giving, cargo_here) }
+        elseif filter.import_from and source == 'planet' and filter.import_from ~= location then
+          kind, status = 'giving', { L .. 'details-st-giving' }
+        elseif (filter.import_from and source == 'planet') or source ~= 'planet' then
+          -- Импорт с текущей планеты — ещё наполняется; источник с
+          -- платформами ваниль не отдаёт (V-01b).
+          kind = 'held'
+        else
+          -- Запрос «Планета» без импорта отдаётся, как и без запроса (V-01a).
+          kind, status = 'giving', { L .. 'details-st-giving' }
+        end
+        local phrase
+        if on_depot_orbit then
+          phrase = item_phrase(nil, location, filter, section.multiplier)
+        else
+          phrase = { L .. 'details-none' }
+        end
+        local t = totals[filter.key]
+        detail_row(container, {
+          name = name,
+          quality = quality,
+          count = snap.contents[filter.key] or 0,
+          kind = kind,
+          phrase = phrase,
+          status = status,
+          amounts = { L .. 'details-amounts',
+            snap.contents[filter.key] or 0,
+            t and t.reserve or 0,
+            t and t.cargo or 0,
+            t and t.depot or 0,
+            snap.incoming[filter.key] or 0,
+            (result.locks[filter.key] or result.transit[filter.key]) and { L .. 'details-no' } or { L .. 'details-yes' },
+          },
+        })
+      end
+    end
+  end
+
+  -- Выбранное, но не применённое назначение: строки «будет: …» до «Применить».
+  local dropdown = find_named(row, 'shm_ol_purpose_' .. index)
+  local places = find_named(row, 'shm_ol_places_' .. index)
+  if dropdown and places then
+    local kind = PURPOSES[dropdown.selected_index] or 'none'
+    local chosen = tags.from_choice(kind, picker.text(picker.read(places)))
+    if not same_tag(chosen, section.tag) then
+      for _, filter in ipairs(section.filters) do
+        detail_label(container, { L .. 'details-preview', item_phrase(chosen, location, filter, section.multiplier) })
+      end
+    end
+  end
+end
+
+--- «Группы»: по строке на секцию — треугольник деталей, имя, назначение,
+--- места и «Применить»; под строкой — контейнер деталей, перечитываемый раз
+--- в секунду. Снимок хаба и решение решателя общие для всех строк.
+local function add_sections(scroll, hub)
+  local snap = controller.snapshot(hub)
+  local cargo_here = orbit_cargo(hub.surface.platform)
+  local result = resolver.resolve(snap, cargo_here)
+  local saved = storage.platforms and storage.platforms[hub.surface.platform.index]
+  for _, section in ipairs(snap.sections) do
+    local index = section.index
+    local tag = section.tag
+    local owner = line_of(hub.force, section.group)
+    local locked = owner and { L .. 'section-of-line', owner.name } or nil
+    local caption = section.group ~= '' and section.group or { L .. 'section-unnamed', index }
+    local row = scroll.add({ type = 'flow', direction = 'vertical', name = 'shm_ol_row_' .. index })
+    local table = row.add({ type = 'table', column_count = 5 })
+    -- Треугольник у каждой строки: колонки строк выровнены, у группы с
+    -- меткой развёрнутость показывает детали предметов.
+    toggle_button(table, 'shm_ol_expand', false, { details = index })
+    local label = table.add({ type = 'label', caption = caption, style = 'label' })
+    label.style.maximal_width = 220
+    label.style.minimal_width = 220
+    if saved and saved.released and saved.released[section.group] then
+      -- Снятая галочка у группы груза — дело мода, а не поломка: подсказать.
+      label.caption = { '', caption, ' ', { L .. 'section-released-mark' } }
+      label.tooltip = { L .. 'section-released' }
+      label.style.font_color = { 1, 0.75, 0.3 }
+    end
+    local items = {}
+    for i, purpose in ipairs(PURPOSES) do
+      items[i] = { L .. 'purpose-' .. purpose }
+    end
+    table.add({
+      type = 'drop-down',
+      name = 'shm_ol_purpose_' .. index,
+      items = items,
+      selected_index = purpose_index(tag),
+      tags = { section = index },
+      enabled = locked == nil,
+      tooltip = locked,
+    })
+    picker.add(table, 'shm_ol_places_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
+      tooltip = locked or { L .. 'places-tooltip' },
+      enabled = locked == nil,
+    })
+    table.add({
+      type = 'button',
+      name = 'shm_ol_apply_' .. index,
+      caption = { L .. 'apply' },
+      tooltip = locked or { L .. 'apply-tooltip' },
+      tags = { section = index },
+      enabled = locked == nil,
+    }).style.minimal_width = 100
+    local container = row.add({
+      type = 'flow',
+      direction = 'vertical',
+      name = 'shm_ol_details_' .. index,
+      tags = { details = index },
+    })
+    fill_details(container, snap, result, cargo_here)
+  end
+end
+
 function panel.build(player, entity)
   panel.destroy(player)
   local position = position_of(player)
   local wide = position == 'bottom' or position == 'top'
   local collapsed = is_collapsed(player.index)
+  local cap = height_cap(player)
   local frame = player.gui.relative.add({
     type = 'frame',
     name = panel.NAME,
@@ -495,7 +985,7 @@ function panel.build(player, entity)
     },
   })
   -- Кнопка сворачивания — первый элемент панели: слева в ряду, сверху в столбике.
-  toggle_button(frame, not collapsed)
+  toggle_button(frame, 'shm_ol_toggle', not collapsed, { toggle = not collapsed })
   if collapsed then
     -- Свёрнутый вид: мини-окошко «Orbital Logistics» с кнопкой разворачивания.
     return frame
@@ -503,30 +993,63 @@ function panel.build(player, entity)
   if not wide then
     frame.style.maximal_width = 560
   end
+  if cap then
+    frame.style.maximal_height = cap
+    -- Потолок сжимает содержимое: без сжимаемости прокрутки блоки
+    -- выталкивались бы за рамку.
+    frame.style.vertically_squashable = true
+  end
   local first = 0
-  --- Блок панели: в ряду — свой столбец с разделителем, в столбике — сама рамка.
-  local function block()
-    if not wide then
-      return frame
-    end
-    if first > 0 then
+  --- Блок панели: в ряду — свой столбец с разделителем, в столбике — свой
+  --- поток. Тянется и сжимается по высоте, чтобы потолок рамки доходил
+  --- до прокрутки внутри.
+  local function block(name)
+    if wide and first > 0 then
       frame.add({ type = 'line', direction = 'vertical' })
     end
     first = first + 1
-    local column = frame.add({ type = 'flow', direction = 'vertical' })
-    column.style.right_padding = 8
-    column.style.left_padding = 8
-    return column
+    local container = frame.add({ type = 'flow', direction = 'vertical', name = name })
+    if wide then
+      container.style.right_padding = 8
+      container.style.left_padding = 8
+    end
+    container.style.vertically_stretchable = true
+    container.style.vertically_squashable = true
+    return container
   end
   if entity.type == 'space-platform-hub' then
-    local main = block()
-    fill_warnings(main.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), entity)
-    add_sections(main, entity)
-    local now = block()
-    now.add({ type = 'label', caption = { L .. 'now' }, style = 'caption_label' })
-    fill_now(now.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), entity)
+    -- «Группы»: предупреждения и секции.
+    local sections_block = block('shm_ol_block_sections')
+    if block_collapsed(player.index, 'sections') then
+      collapsed_block(sections_block, 'sections', { L .. 'collapsed-sections', section_rows(entity) })
+    else
+      block_header(sections_block, 'sections', 'sections')
+      local scroll = scroll_pane(sections_block, 'shm_ol_scroll_sections', cap)
+      fill_warnings(scroll.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), entity)
+      add_sections(scroll, entity)
+    end
+    -- «Отдача на этой орбите».
+    local now_block = block('shm_ol_block_now')
+    if block_collapsed(player.index, 'now') then
+      local rows, exceptions = now_data(entity)
+      collapsed_block(now_block, 'now', { L .. 'collapsed-now', #rows, #exceptions })
+    else
+      block_header(now_block, 'now', 'now')
+      local scroll = scroll_pane(now_block, 'shm_ol_scroll_now', cap)
+      fill_now(scroll.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), entity)
+    end
   end
-  add_lines(block(), player, entity)
+  -- «Линии»: пустой блок — одна кнопка, без заголовка и подписи «пока нет».
+  local lines_block = block('shm_ol_block_lines')
+  local member = lines.of_entity(player.force, entity)
+  if #member == 0 and #lines.list(player.force) == 0 then
+    lines_block.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } }).style.minimal_width = 100
+  elseif block_collapsed(player.index, 'lines') then
+    collapsed_block(lines_block, 'lines', { L .. 'collapsed-lines', #member })
+  else
+    block_header(lines_block, 'lines', 'lines')
+    add_lines(scroll_pane(lines_block, 'shm_ol_scroll_lines', cap), player, entity)
+  end
   return frame
 end
 
@@ -560,8 +1083,9 @@ function panel.on_opened(event)
 end
 
 --- Раз в секунду: группы изменились — перестроить панель, иначе обновить
---- только «Отдача на этой орбите», чтобы не сбивать выбор в полях. Свёрнутая
---- кнопка без обновлений.
+--- только «Отдачу», предупреждения и детали групп, чтобы не сбивать выбор
+--- в полях. Свёрнутая панель без обновлений; свёрнутый блок не имеет
+--- контейнера, и его обновление пропускается.
 function panel.refresh_all()
   for _, player in pairs(game.connected_players) do
     local frame = player.gui.relative[panel.NAME]
@@ -570,16 +1094,24 @@ function panel.refresh_all()
       if frame.tags.signature ~= signature(entity) then
         panel.build(player, entity)
       else
-        local now, warnings = nil, nil
-        for _, child in pairs(frame.children) do
-          now = now or (child.name == 'shm_ol_now' and child) or child['shm_ol_now']
-          warnings = warnings or (child.name == 'shm_ol_warnings' and child) or child['shm_ol_warnings']
-        end
+        local now = find_named(frame, 'shm_ol_now')
         if now then
           fill_now(now, entity)
         end
+        local warnings = find_named(frame, 'shm_ol_warnings')
         if warnings then
           fill_warnings(warnings, entity)
+        end
+        -- Детали групп: перечитать на свежем снимке; раскрытость остаётся,
+        -- потому что контейнеры не пересоздаются.
+        local details = collect_named(frame, 'shm_ol_details_')
+        if #details > 0 then
+          local snap = controller.snapshot(entity)
+          local cargo_here = orbit_cargo(entity.surface.platform)
+          local result = resolver.resolve(snap, cargo_here)
+          for _, container in ipairs(details) do
+            fill_details(container, snap, result, cargo_here)
+          end
         end
       end
     end
@@ -639,6 +1171,51 @@ function panel.on_click(event, open_lines)
     end
     if entity then
       panel.build(player, entity)
+    end
+    return true
+  end
+  -- Сворачивание блока: треугольник в заголовке или клик по строке-итогу.
+  if element.name == 'shm_ol_block_toggle' or element.name == 'shm_ol_block_summary' then
+    local key = element.tags.block
+    if key then
+      storage.panel_block_collapsed = storage.panel_block_collapsed or {}
+      local state = storage.panel_block_collapsed[event.player_index] or {}
+      if state[key] then
+        state[key] = nil
+      else
+        state[key] = true
+      end
+      storage.panel_block_collapsed[event.player_index] = state
+      if entity then
+        panel.build(player, entity)
+      end
+      return true
+    end
+  end
+  -- Разворачиватель деталей группы: состояние в самой кнопке, поэтому
+  -- обновление раз в секунду его не сбрасывает, а перестройка панели — да.
+  if element.name == 'shm_ol_expand' then
+    local state = element.tags
+    state.expanded = not state.expanded and true or nil
+    element.tags = state
+    local to_collapsed = state.expanded == true
+    local path = to_collapsed and 'utility/collapse' or 'utility/expand'
+    local key = to_collapsed and 'collapse' or 'expand'
+    if element.type == 'sprite-button' and helpers.is_valid_sprite_path(path) then
+      element.sprite = path
+    else
+      element.caption = { L .. key }
+    end
+    element.tooltip = { L .. key }
+    if entity then
+      local row = element.parent.parent
+      local container = row and row['shm_ol_details_' .. state.details]
+      if container then
+        local snap = controller.snapshot(entity)
+        local cargo_here = orbit_cargo(entity.surface.platform)
+        local result = resolver.resolve(snap, cargo_here)
+        fill_details(container, snap, result, cargo_here)
+      end
     end
     return true
   end
