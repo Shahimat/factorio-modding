@@ -1,0 +1,30 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "ticket": "ol-depot-source-warning",
+      "verdict": ".ops/ol-depot-source-warning/verdicts/1.yml",
+      "status": "pass",
+      "items": [
+        { "key": "panel-warning-platforms-all", "status": "pass" },
+        { "key": "panel-warning-planet-all-import", "status": "pass" },
+        { "key": "giving-in-orbit-marks", "status": "pass" },
+        { "key": "lines-window-depot-warning", "status": "pass" },
+        { "key": "locales-and-readme", "status": "pass" },
+        { "key": "ingame-test", "status": "pass" }
+      ]
+    },
+    {
+      "run": 1,
+      "ticket": "ol-cross-trade",
+      "verdict": ".ops/ol-cross-trade/verdicts/1.yml",
+      "status": "pass",
+      "items": [
+        { "key": "cross-trade-two-planets-one-shuttle", "status": "pass" },
+        { "key": "depot-proxy-transit-exact-then-self", "status": "pass" },
+        { "key": "arrived-cargo-depot-collectors-invariants", "status": "pass" },
+        { "key": "v04d-depot-platforms-import-own-planet-drops", "status": "pass" }
+      ]
+    }
+  ]
+}

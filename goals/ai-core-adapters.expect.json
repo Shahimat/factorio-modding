@@ -1,0 +1,24 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "oc3 adapters check зелёный при adapters: [opencode] в context/ai-core.yml: инструменты контракта распознают адаптер opencode",
+          "status": "pass",
+          "evidence": "npx oc3 adapters check -> \"adapters check: ok\" (context/ai-core.yml: adapters: [opencode])"
+        },
+        {
+          "key": "в активных конфигах и производных контракта (.agents/, context/) упоминаний claude-code не осталось; упоминания codex в генерате навыков — легитимное зеркало поддерживаемого адаптера источника ai-prompts",
+          "status": "pass",
+          "evidence": "grep -rn \"claude-code\" context/ .agents/ -> 0 совпадений (exit 1)"
+        },
+        {
+          "key": "npm run check зелёный целиком",
+          "status": "pass",
+          "evidence": "npm run check: typecheck ok, tests 186/186 pass, check-secrets 0 ошибок, check-docs 0 ошибок, validate 4 мода ок"
+        }
+      ]
+    }
+  ]
+}
