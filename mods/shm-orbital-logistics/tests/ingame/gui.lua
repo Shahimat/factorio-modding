@@ -31,6 +31,22 @@ local function find(root, name)
   return nil
 end
 
+--- Все элементы с точным именем: имена в панели повторяются (сетка
+--- исключений у каждой строки типа).
+local function collect(root, name, acc)
+  acc = acc or {}
+  if not root then
+    return acc
+  end
+  if root.name == name then
+    acc[#acc + 1] = root
+  end
+  for _, child in pairs(root.children) do
+    collect(child, name, acc)
+  end
+  return acc
+end
+
 local function click(element)
   local event = { element = element, player_index = player().index }
   if picker.on_click(event) then
@@ -333,7 +349,8 @@ describe('интерфейс', function()
     assert(now_scroll.style.maximal_height <= cap, 'прокрутка «Отдачи» выше потолка')
     local keys = now_keys(frame)
     assert((keys['now-depot-here'] or 0) == 12, 'не все склады отдают: ' .. serpent.line(keys))
-    assert((keys['now-depot-no-give'] or 0) == 12, 'нет исключений по «Платформам»: ' .. serpent.line(keys))
+    -- 12 исключений одного типа сведены в одну строку с сеткой иконок.
+    assert((keys['now-depot-no-give'] or 0) == 1, 'исключения «Платформ» не сведены в строку: ' .. serpent.line(keys))
   end)
 
   it('блоки сворачиваются по отдельности: итог по реальному содержимому, клик по итогу разворачивает, состояние на игрока', function()
@@ -713,6 +730,147 @@ describe('интерфейс', function()
     keys = now_keys(frame)
     assert(keys['now-depot-here'] == 1, 'склад с «Планетой» должен отдавать платформам: ' .. serpent.line(keys))
     assert(keys['now-depot-no-drop'] == 1, 'нет исключения «не сбросит на эту планету»: ' .. serpent.line(keys))
+  end)
+
+  it('«Отдача»: исключения агрегированы по типу состояния — строка на тип, сетка до 10 иконок и «+N ещё», полный список в тултипе', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { item = 'iron-plate', group = 'Test agg [reserve]', from = 'planet', import_from = f.PLANET })
+    -- Схема «запас + склад»: у склада 12 предметов с источником «Платформы»
+    -- («не сможет отдавать платформам») и 3 с импортом с текущей планеты
+    -- («не сбросит»). Источник смешанный: иначе строка группы сама сказала
+    -- бы «не отдаст» и исключения по предметам были бы скрыты.
+    local depot = f.request(hub, 100, { item = 'copper-plate', group = 'Test agg [depot:nauvis]', from = 'platforms' })
+    for i, item in ipairs({ 'steel-plate', 'stone', 'coal', 'iron-gear-wheel', 'copper-cable', 'electronic-circuit', 'plastic-bar', 'sulfur', 'concrete', 'battery', 'engine-unit' }) do
+      depot.set_slot(i + 1, {
+        value = { type = 'item', name = item, quality = 'normal', comparator = '=' },
+        min = 100,
+        request_from = 'platforms',
+      })
+    end
+    for i, item in ipairs({ 'low-density-structure', 'rocket-fuel', 'processing-unit' }) do
+      depot.set_slot(13 + i, {
+        value = { type = 'item', name = item, quality = 'normal', comparator = '=' },
+        min = 100,
+        request_from = 'planet',
+        import_from = f.PLANET,
+      })
+    end
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    local keys = now_keys(frame)
+    assert(keys['now-reserve'] == 1 and keys['now-depot-here'] == 1, 'строк групп: ' .. serpent.line(keys))
+    -- Стена из 15 строк исключений сжалась в две — по одной на тип.
+    assert(keys['now-depot-no-give'] == 1, '«Платформы» не сведены в строку: ' .. serpent.line(keys))
+    assert(keys['now-depot-no-drop'] == 1, 'сброс не сведён в строку: ' .. serpent.line(keys))
+    -- Сетка иконок: 12 предметов склада — 10 иконок и «+2 ещё».
+    local grids = collect(frame, 'shm_ol_exception_grid')
+    assert(#grids == 2, 'строк исключений: ' .. #grids)
+    local buttons = 0
+    for _, grid in ipairs(grids) do
+      assert(#grid.children <= 10, 'иконок больше 10: ' .. #grid.children)
+      buttons = buttons + #grid.children
+    end
+    assert(buttons == 13, 'иконок в сетках: ' .. buttons)
+    local mores = collect(frame, 'shm_ol_exception_more')
+    assert(#mores == 1 and tonumber(mores[1].caption[2]) == 2, 'нет «+N ещё»: ' .. serpent.line(#mores > 0 and mores[1].caption or nil))
+    -- Полный список — в тултипе строки: все 12 предметов «Платформ».
+    local tooltip = serpent.line(mores[1].tooltip)
+    local _, listed = tooltip:gsub('%[item=', '')
+    assert(listed == 12, 'в тултипе предметов: ' .. listed)
+  end)
+
+  it('секции с одинаковым именем группы — одна строка «Групп» со счётчиком ×N, статусы по активным', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { item = 'iron-plate', group = 'Test twin [depot:nauvis]', from = 'planet', import_from = f.OTHER_PLANET })
+    hub.get_logistic_sections().add_section('Test twin [depot:nauvis]')
+    -- Обе секции группы на месте; одна из них выключена игроком: строка
+    -- всё равно одна, статус — по активной секции.
+    local hub_sections = hub.get_logistic_sections()
+    local twins = {}
+    for i = 1, hub_sections.sections_count do
+      if hub_sections.get_section(i).group == 'Test twin [depot:nauvis]' then
+        twins[#twins + 1] = i
+      end
+    end
+    assert(#twins == 2, 'секций группы: ' .. #twins)
+    hub_sections.get_section(twins[2]).active = false
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    -- Строка одна на имя группы: у платформы ещё пустая безымянная секция,
+    -- у пары «Test twin» — ровно одна строка с «Применить».
+    local twin_rows = 0
+    local function scan(element)
+      if element.type == 'label' and type(element.caption) == 'table'
+        and element.caption[2] == 'Test twin [depot:nauvis]' then
+        twin_rows = twin_rows + 1
+        assert(element.caption[3] == ' ×2', 'нет счётчика ×2: ' .. serpent.line(element.caption))
+      end
+      for _, child in pairs(element.children) do
+        scan(child)
+      end
+    end
+    scan(frame)
+    assert(twin_rows == 1, 'строк у одинаковой группы: ' .. twin_rows)
+    -- Статус строки — по активной секции: «раздаёт», а не «выключена».
+    local details = find(frame, 'shm_ol_details_' .. twins[1])
+    assert(details, 'нет деталей строки группы')
+    assert(find_caption(details, 'now-depot-here'), 'статус не по активной секции')
+    -- В «Отдаче» секции не сливаются: активная раздаёт, выключенная — нет.
+    local keys = now_keys(frame)
+    assert(keys['now-depot-here'] == 1 and keys['now-inactive'] == 1, 'строки «Отдачи»: ' .. serpent.line(keys))
+  end)
+
+  it('выключенная игроком секция не «раздаёт»: значок и подпись «выключена»; выключенная модом группа груза — своя подпись', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { item = 'iron-plate', group = 'Test off [depot:nauvis]', from = 'planet', import_from = f.OTHER_PLANET })
+    local index = first_filtered_index(hub, 'Test off')
+    hub.get_logistic_sections().get_section(index).active = false
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    local keys = now_keys(frame)
+    assert(keys['now-inactive'] == 1, 'нет строки «выключена»: ' .. serpent.line(keys))
+    assert((keys['now-depot-here'] or 0) == 0, 'выключенная секция «раздаёт»: ' .. serpent.line(keys))
+
+    -- Секция груза, выключенная модом до отлёта, — не «выключена».
+    local shuttle = select(2, f.platform('s', 'fulgora'))
+    f.request(shuttle, 5000, { item = 'holmium-plate', group = 'Test off cargo [cargo→fulgora]', from = 'all' })
+    remote.call('shm-orbital-logistics', 'pass')
+    frame = open(shuttle)
+    keys = now_keys(frame)
+    assert(keys['now-released'] == 1 and (keys['now-inactive'] or 0) == 0, 'выключенная модом: ' .. serpent.line(keys))
+  end)
+
+  it('группа без фильтров предметов — «пустая группа», а не «раздаёт»', function()
+    local _, hub = f.platform('a')
+    hub.get_logistic_sections().add_section('Test void [depot:nauvis]')
+    hub.get_logistic_sections().add_section('Test void cargo [cargo]')
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    local keys = now_keys(frame)
+    assert(keys['now-empty-group'] == 2, 'пустые группы: ' .. serpent.line(keys))
+    assert((keys['now-depot-here'] or 0) == 0 and (keys['now-cargo-any'] or 0) == 0,
+      'пустая группа показана как раздающая: ' .. serpent.line(keys))
+  end)
+
+  it('счётчик строк «Отдачи» — по числу фильтров секции', function()
+    local _, hub = f.platform('a')
+    local reserve = f.request(hub, 100, { item = 'iron-plate', group = 'Test cnt [reserve]', from = 'planet', import_from = f.PLANET })
+    for i, item in ipairs({ 'copper-plate', 'steel-plate', 'stone' }) do
+      reserve.set_slot(i + 1, {
+        value = { type = 'item', name = item, quality = 'normal', comparator = '=' },
+        min = 100,
+        request_from = 'planet',
+        import_from = f.PLANET,
+      })
+    end
+    remote.call('shm-orbital-logistics', 'pass')
+    local frame = open(hub)
+    local caption = find_caption(frame, 'now-reserve')
+    assert(caption and tonumber(caption[2]) == 4, 'счётчик не по фильтрам: ' .. serpent.line(caption))
+    -- У запаса нет мест: пикер мест в строке не показывается.
+    local index = first_filtered_index(hub, 'Test cnt')
+    assert(find(frame, 'shm_ol_purpose_' .. index), 'нет поля назначения у запаса')
+    assert(find(frame, 'shm_ol_places_' .. index) == nil, 'у запаса показан пикер мест')
   end)
 
   it('окно линий: роль «Склад» с ловушкой источника получает предупреждение', function()

@@ -82,6 +82,10 @@ local STATUS_ICONS = {
   -- Ловушка источника запроса склада: платформам не отдаст или на планету
   -- под хабом не сбросит. Красных точек статуса в игре нет — треугольник «!».
   warn = 'utility/warning_icon',
+  -- Выключенная игроком секция — тот же серый значок «не работает», что у
+  -- транзита: различает подпись. Пустая группа ничего не обещает — вопрос.
+  inactive = 'utility/status_inactive',
+  empty = 'utility/questionmark',
 }
 
 local function icon(kind)
@@ -176,6 +180,10 @@ end
 --- отдавать платформам» и предметам повторять это не нужно.
 local function group_state(tag, location, released, items)
   local count = #items
+  if count == 0 then
+    -- Группа без фильтров предметов ничего не делает: не «раздаёт».
+    return 'empty', { L .. 'now-empty-group' }
+  end
   if tag.kind == 'reserve' then
     return 'held', { L .. 'now-reserve', count }
   end
@@ -236,30 +244,44 @@ local function now_data(hub)
     local tag = section.is_manual and not controller.is_service(section.group) and tags.parse(section.group)
     if tag then
       local items = item_filters(section)
-      local kind, caption, covered = group_state(tag, location, released[section.group], items)
+      -- Ванильная галочка: секция, выключенная игроком (не модом), ничего
+      -- не делает — своя строка «выключена», её предметы ничего не обещают.
+      local released_by_mod = released[section.group] ~= nil
+      local disabled = not section.active and not released_by_mod
+      local kind, caption, covered
+      if disabled then
+        kind, caption = 'inactive', { L .. 'now-inactive' }
+      else
+        kind, caption, covered = group_state(tag, location, released[section.group], items)
+      end
       rows[#rows + 1] = { group = section.group, kind = kind, caption = caption, anchor = items[1] }
-      local on_duty = tag.kind == 'depot' and tags.depot_active_at(tag, location)
-      for _, item in ipairs(items) do
-        local key = own_section.key(item.name, item.quality)
-        first_item[key] = first_item[key] or item
-        if tag.kind == 'reserve' then
-          reserved[key] = true
-        end
-        if covered then
-          row_covered[key] = true
-        end
-        if on_duty then
-          local give, drop = tags.source_problems(item, location)
-          blocked_give[key] = blocked_give[key] or give
-          blocked_drop[key] = blocked_drop[key] or drop
-        end
-        if expected[key] ~= 'held' then
-          expected[key] = (kind == 'held') and 'held' or 'open'
+      if not disabled then
+        local on_duty = tag.kind == 'depot' and tags.depot_active_at(tag, location)
+        for _, item in ipairs(items) do
+          local key = own_section.key(item.name, item.quality)
+          first_item[key] = first_item[key] or item
+          if tag.kind == 'reserve' then
+            reserved[key] = true
+          end
+          if covered then
+            row_covered[key] = true
+          end
+          if on_duty then
+            local give, drop = tags.source_problems(item, location)
+            blocked_give[key] = blocked_give[key] or give
+            blocked_drop[key] = blocked_drop[key] or drop
+          end
+          if expected[key] ~= 'held' then
+            expected[key] = (kind == 'held') and 'held' or 'open'
+          end
         end
       end
     end
   end
+  -- Исключения сводятся по типу состояния: одна строка на тип с сеткой
+  -- иконок предметов — стена одинаковых объяснений сжимается до нескольких.
   local exceptions = {}
+  local by_type = {}
   for key, item in pairs(first_item) do
     local text = nil
     local kind = nil
@@ -283,11 +305,68 @@ local function now_data(hub)
       end
     end
     if text then
-      exceptions[#exceptions + 1] = { item = item, kind = kind, text = text, key = key }
+      local type_key = tostring(text[1])
+      local bucket = by_type[type_key]
+      if not bucket then
+        bucket = { kind = kind, text = text, items = {} }
+        by_type[type_key] = bucket
+        exceptions[#exceptions + 1] = bucket
+      end
+      bucket.items[#bucket.items + 1] = { key = key, item = item }
     end
   end
-  table.sort(exceptions, function(a, b) return a.key < b.key end)
+  for _, bucket in ipairs(exceptions) do
+    table.sort(bucket.items, function(a, b) return a.key < b.key end)
+  end
+  table.sort(exceptions, function(a, b) return tostring(a.text[1]) < tostring(b.text[1]) end)
   return rows, exceptions
+end
+
+--- Полный список предметов исключения rich text'ом — тултип строки типа.
+--- У локализованной строки лимит в 20 параметров: список режется на куски
+--- по 10 предметов, куски вкладываются друг в друга группами по 10.
+local function items_tooltip(entries)
+  local leaves = {}
+  local leaf = { '' }
+  for _, one in ipairs(entries) do
+    if #leaf > 1 then
+      leaf[#leaf + 1] = ', '
+    end
+    local item = one.item
+    leaf[#leaf + 1] = '[item=' .. item.name .. (item.quality and (',quality=' .. item.quality) or '') .. ']'
+    if #leaf > 17 then
+      leaves[#leaves + 1] = leaf
+      leaf = { '' }
+    end
+  end
+  if #leaf > 1 then
+    leaves[#leaves + 1] = leaf
+  end
+  if #leaves == 0 then
+    return { '' }
+  end
+  local function join(list)
+    if #list == 1 then
+      return list[1]
+    end
+    local grouped = {}
+    for start = 1, #list, 10 do
+      local node = { '' }
+      for offset = 0, 9 do
+        local part = list[start + offset]
+        if part == nil then
+          break
+        end
+        if #node > 1 then
+          node[#node + 1] = ', '
+        end
+        node[#node + 1] = part
+      end
+      grouped[#grouped + 1] = node
+    end
+    return join(grouped)
+  end
+  return { '', join(leaves) }
 end
 
 --- Отрисовка «Отдачи» из данных `now_data`. Обновляется раз в секунду,
@@ -321,15 +400,35 @@ local function fill_now(flow, hub)
     for column = 1, 2 do
       list.style.column_alignments[column] = 'middle-left'
     end
+    local inventory = hub.get_inventory(defines.inventory.hub_main)
+    -- Одна строка на тип состояния: сетка иконок до 10 и «+N ещё», полный
+    -- список предметов — в тултипе строки.
     for _, entry in ipairs(exceptions) do
-      list.add({
-        type = 'sprite-button',
-        sprite = 'item/' .. entry.item.name,
-        style = 'slot_button',
-        number = hub.get_inventory(defines.inventory.hub_main).get_item_count({ name = entry.item.name, quality = entry.item.quality }),
-        tooltip = '[item=' .. entry.item.name .. (entry.item.quality and (',quality=' .. entry.item.quality) or '') .. ']',
-      }).style.size = 32
-      list.add({ type = 'label', caption = { '', icon(entry.kind), entry.text } })
+      local cell = list.add({ type = 'flow', direction = 'horizontal' })
+      local grid = cell.add({ type = 'table', name = 'shm_ol_exception_grid', column_count = 10 })
+      local tooltip = items_tooltip(entry.items)
+      for i, one in ipairs(entry.items) do
+        if i > 10 then
+          break
+        end
+        grid.add({
+          type = 'sprite-button',
+          sprite = 'item/' .. one.item.name,
+          style = 'slot_button',
+          number = inventory.get_item_count({ name = one.item.name, quality = one.item.quality }),
+          tooltip = '[item=' .. one.item.name .. (one.item.quality and (',quality=' .. one.item.quality) or '') .. ']',
+        }).style.size = 32
+      end
+      if #entry.items > 10 then
+        local more = cell.add({ type = 'label', name = 'shm_ol_exception_more', caption = { L .. 'now-more', #entry.items - 10 } })
+        more.style.font_color = { 0.7, 0.7, 0.7 }
+        more.style.left_padding = 4
+        more.tooltip = tooltip
+      end
+      local status = list.add({ type = 'label', caption = { '', icon(entry.kind), entry.text } })
+      status.style.single_line = false
+      status.style.maximal_width = 220
+      status.tooltip = tooltip
     end
   end
 end
@@ -801,6 +900,11 @@ local function fill_details(container, snap, result, cargo_here)
   if section.tag then
     if not expanded then
       local kind, caption = group_state(section.tag, location, released[section.group], snap_items(section))
+      -- Секция выключена игроком (не модом): что бы ни обещала метка,
+      -- секция ничего не делает — «выключена».
+      if section.active ~= true then
+        kind, caption = 'inactive', { L .. 'now-inactive' }
+      end
       detail_label(container, { '', icon(kind), caption })
     else
       for _, filter in ipairs(section.filters) do
@@ -903,20 +1007,42 @@ local function fill_details(container, snap, result, cargo_here)
   end
 end
 
---- «Группы»: по строке на секцию — треугольник деталей, имя, назначение,
+--- «Группы»: по строке на группу — треугольник деталей, имя, назначение,
 --- места и «Применить»; под строкой — контейнер деталей, перечитываемый раз
---- в секунду. Снимок хаба и решение решателя общие для всех строк.
+--- в секунду. Секции с одинаковым именем группы — одна строка со счётчиком
+--- ×N: представитель — активная секция, статусы и детали считаются по ней.
 local function add_sections(scroll, hub)
   local snap = controller.snapshot(hub)
   local cargo_here = orbit_cargo(hub.surface.platform)
   local result = resolver.resolve(snap, cargo_here)
   local saved = storage.platforms and storage.platforms[hub.surface.platform.index]
+  local buckets = {}
+  local order = {}
   for _, section in ipairs(snap.sections) do
+    -- Безымянные секции не сливаются: у каждой свой номер в имени строки.
+    local key = section.group ~= '' and section.group or '#' .. section.index
+    local bucket = buckets[key]
+    if not bucket then
+      bucket = { sections = {}, representative = section }
+      buckets[key] = bucket
+      order[#order + 1] = key
+    end
+    bucket.sections[#bucket.sections + 1] = section
+    if bucket.representative.active ~= true and section.active then
+      bucket.representative = section
+    end
+  end
+  for _, key in ipairs(order) do
+    local bucket = buckets[key]
+    local section = bucket.representative
     local index = section.index
     local tag = section.tag
     local owner = line_of(hub.force, section.group)
     local locked = owner and { L .. 'section-of-line', owner.name } or nil
     local caption = section.group ~= '' and section.group or { L .. 'section-unnamed', index }
+    if #bucket.sections > 1 then
+      caption = { '', caption, ' ×' .. #bucket.sections }
+    end
     local row = scroll.add({ type = 'flow', direction = 'vertical', name = 'shm_ol_row_' .. index })
     local table = row.add({ type = 'table', column_count = 5 })
     -- Треугольник у каждой строки: колонки строк выровнены, у группы с
@@ -944,10 +1070,13 @@ local function add_sections(scroll, hub)
       enabled = locked == nil,
       tooltip = locked,
     })
-    picker.add(table, 'shm_ol_places_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
-      tooltip = locked or { L .. 'places-tooltip' },
-      enabled = locked == nil,
-    })
+    -- У запаса нет мест: пикер не показывается строкам с меткой запаса.
+    if tag == nil or tag.kind ~= 'reserve' then
+      picker.add(table, 'shm_ol_places_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
+        tooltip = locked or { L .. 'places-tooltip' },
+        enabled = locked == nil,
+      })
+    end
     table.add({
       type = 'button',
       name = 'shm_ol_apply_' .. index,
