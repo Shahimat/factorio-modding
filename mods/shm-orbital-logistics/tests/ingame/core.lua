@@ -677,6 +677,45 @@ describe('выключенная секция груза после правки
     game.forces.player.delete_logistic_group('Test shift [cargo→fulgora]')
     assert(found and found.active, 'секция груза осталась выключенной после сдвига номеров')
   end)
+
+  it('ручная галочка секции переживает отлёт и прилёт платформы', function()
+    local platform, a = f.platform('a', 'fulgora')
+    -- Две секции одной группы: галочку первой игрок снял сам до мода.
+    local manual = f.request(a, 5000, { group = 'Test manual [cargo→fulgora]', from = 'all' })
+    a.get_logistic_sections().add_section('Test manual [cargo→fulgora]')
+    manual.active = false
+    controller.pass()
+    assert(manual.active == false, 'выключенная игроком секция включилась модом')
+    local auto
+    local sections = a.get_logistic_sections()
+    for index = 1, sections.sections_count do
+      if sections.get_section(index).group == 'Test manual [cargo→fulgora]' and sections.get_section(index) ~= manual then
+        auto = sections.get_section(index)
+      end
+    end
+    assert(auto and not auto.active, 'мод не выключил вторую секцию группы')
+
+    -- Отлёт: мод включает только своё выключение, галочка игрока на месте.
+    platform.space_location = 'vulcanus'
+    controller.pass()
+    assert(auto.active == true, 'выключенная модом секция не включена после отлёта')
+    assert(manual.active == false, 'ручная галочка стёрта отлётом')
+
+    -- Прилёт обратно: мод снова выключает своё, галочка игрока всё ещё на месте.
+    platform.space_location = 'fulgora'
+    controller.pass()
+    assert(auto.active == false, 'на прилёте секция сбора не выключена')
+    assert(manual.active == false, 'ручная галочка стёрта прилётом')
+
+    -- Вернувший галочку игрок: мод не пере-выключает и на отлёте не трогает.
+    manual.active = true
+    controller.pass()
+    assert(manual.active == true, 'мод пере-выключил секцию, включённую игроком')
+    platform.space_location = 'vulcanus'
+    controller.pass()
+    assert(manual.active == true, 'отлёт затёр галочку, вернутую игроком')
+    game.forces.player.delete_logistic_group('Test manual [cargo→fulgora]')
+  end)
 end)
 
 describe('служебная группа', function()
