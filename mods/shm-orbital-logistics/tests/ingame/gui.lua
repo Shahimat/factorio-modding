@@ -833,11 +833,37 @@ describe('интерфейс', function()
 
     -- Секция груза, выключенная модом до отлёта, — не «выключена».
     local shuttle = select(2, f.platform('s', 'fulgora'))
-    f.request(shuttle, 5000, { item = 'holmium-plate', group = 'Test off cargo [cargo→fulgora]', from = 'all' })
+    local held = f.request(shuttle, 5000, { item = 'holmium-plate', group = 'Test off cargo [cargo→fulgora]', from = 'all' })
     remote.call('shm-orbital-logistics', 'pass')
     frame = open(shuttle)
     keys = now_keys(frame)
     assert(keys['now-released'] == 1 and (keys['now-inactive'] or 0) == 0, 'выключенная модом: ' .. serpent.line(keys))
+    -- В свёрнутых деталях «Групп» — та же подпись «выключена до отлёта».
+    local details = find(frame, 'shm_ol_details_' .. held.index)
+    assert(details and find_caption(details, 'now-released'), 'в деталях нет «выключена до отлёта»')
+
+    -- Игрок вернул галочку: «выключена до отлёта» про включённую секцию
+    -- больше не пишется — ни в «Отдаче», ни в метке строки, ни в деталях.
+    held.active = true
+    remote.call('shm-orbital-logistics', 'pass')
+    player().opened = nil
+    frame = open(shuttle)
+    keys = now_keys(frame)
+    assert((keys['now-released'] or 0) == 0, 'включённая игроком секция «выключена до отлёта»: ' .. serpent.line(keys))
+    assert(keys['now-cargo-here'] == 1, 'включённая секция не «раздаёт»: ' .. serpent.line(keys))
+    assert(find(frame, 'shm_ol_details_' .. held.index) and
+      not find_caption(frame, 'now-released'), 'в панели осталась подпись «выключена до отлёта»')
+    local marked = false
+    local function scan_marked(element)
+      if element.type == 'label' and type(element.tooltip) == 'table' and element.tooltip[1] == 'shm-orbital-logistics.section-released' then
+        marked = true
+      end
+      for _, child in pairs(element.children) do
+        scan_marked(child)
+      end
+    end
+    scan_marked(frame)
+    assert(not marked, 'строка включённой секции помечена «выключена до отлёта»')
   end)
 
   it('группа без фильтров предметов — «пустая группа», а не «раздаёт»', function()

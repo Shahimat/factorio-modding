@@ -18,6 +18,9 @@ end
 ---   own = индекс служебной секции, written = её фильтры, как мод их записал,
 ---   service = true — служебная секция уже в своей группе (для миграции),
 ---   released = { [группа] = true } — секции груза, выключенные модом,
+---   owned_off = { [группа] = { флаги } } — чьё каждое выключение в группе:
+---   true — выключил мод, false — секция была выключена игроком до мода или
+---   игрок вернул галочку; флаги по позициям среди секций группы на хабе,
 --- }
 local function state_of(platform)
   storage.platforms = storage.platforms or {}
@@ -286,6 +289,9 @@ function controller.snapshot(hub)
         tag = tag_of(group),
         -- Выключенная модом секция груза для решателя по-прежнему действует.
         active = section.active or (group ~= '' and released[group] == true),
+        -- Ванильная галочка как есть: панели надо различать выключенную
+        -- модом (held до отлёта) и выключенную игроком (inactive).
+        vanilla_active = section.active,
         multiplier = section.multiplier,
         filters = cached_filters(section, hub, index, group),
       }
@@ -363,9 +369,36 @@ end
 --- Выключенные модом секции груза помнятся по имени группы, а не по номеру:
 --- игрок может удалить или переставить секцию выше, и номер уедет. По номеру
 --- мод тогда не находил свою выключенную секцию и не включал её обратно.
+--- ЧЬЁ выключение — по позиции среди секций группы на хабе: удаление секции
+--- выше состав группы не меняет, позиция переживает такие правки; добавление
+--- или удаление члена группы счёт ломает — владение сбрасывается, и мод на
+--- отлёте ведёт себя по-старому (включает все выключенные секции группы).
 local function write_release(snap, release)
   local sections = snap.hub.get_logistic_sections()
   local released = snap.state.released
+  local owned_off = snap.state.owned_off or {}
+  snap.state.owned_off = owned_off
+  -- Пока группа держится выключенной, включённая игроком секция перестаёт
+  -- быть выключением мода: даже если игрок до отлёта снимет её галочку
+  -- обратно, после отлёта мод её не тронет.
+  for group in pairs(released) do
+    local flags = owned_off[group]
+    if flags then
+      local members = 0
+      for index = 1, sections.sections_count do
+        local section = sections.get_section(index)
+        if section.is_manual and section.group == group then
+          members = members + 1
+          if section.active and flags[members] ~= nil then
+            flags[members] = false
+          end
+        end
+      end
+      if members ~= #flags then
+        owned_off[group] = nil
+      end
+    end
+  end
   local wanted = {}
   for index in pairs(release) do
     local section = sections.get_section(index)
@@ -375,24 +408,39 @@ local function write_release(snap, release)
   end
   for group in pairs(released) do
     if not wanted[group] then
+      local flags = owned_off[group]
+      local members = 0
       for index = 1, sections.sections_count do
         local section = sections.get_section(index)
-        if section.is_manual and section.group == group and not section.active then
-          section.active = true
+        if section.is_manual and section.group == group then
+          members = members + 1
+          -- Галочка игрока (false в flags) не трогается: мод включает
+          -- только то, что выключил сам.
+          if not section.active and not (flags and flags[members] == false) then
+            section.active = true
+          end
         end
       end
       released[group] = nil
+      owned_off[group] = nil
     end
   end
   for group in pairs(wanted) do
     if not released[group] then
       released[group] = true
+      local flags = {}
+      local members = 0
       for index = 1, sections.sections_count do
         local section = sections.get_section(index)
         if section.is_manual and section.group == group then
+          members = members + 1
+          -- Секция, уже выключенная до нас, — выключение игрока: после отлёта
+          -- её галочка вернётся игроку такой же, как была.
+          flags[members] = section.active
           section.active = false
         end
       end
+      owned_off[group] = flags
     end
   end
 end

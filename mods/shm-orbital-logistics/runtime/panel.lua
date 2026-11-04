@@ -246,13 +246,15 @@ local function now_data(hub)
       local items = item_filters(section)
       -- Ванильная галочка: секция, выключенная игроком (не модом), ничего
       -- не делает — своя строка «выключена», её предметы ничего не обещают.
+      -- Вернувший галочку игрок включает секцию: «выключена до отлёта»
+      -- пишется только про секцию, выключенную модом и до сих пор снятую.
       local released_by_mod = released[section.group] ~= nil
       local disabled = not section.active and not released_by_mod
       local kind, caption, covered
       if disabled then
         kind, caption = 'inactive', { L .. 'now-inactive' }
       else
-        kind, caption, covered = group_state(tag, location, released[section.group], items)
+        kind, caption, covered = group_state(tag, location, released_by_mod and not section.active, items)
       end
       rows[#rows + 1] = { group = section.group, kind = kind, caption = caption, anchor = items[1] }
       if not disabled then
@@ -899,10 +901,13 @@ local function fill_details(container, snap, result, cargo_here)
 
   if section.tag then
     if not expanded then
-      local kind, caption = group_state(section.tag, location, released[section.group], snap_items(section))
+      -- «Выключена до отлёта» — про секцию, которую держит мод и игрок не
+      -- вернул; включённая обратно секция живёт по своей метке дальше.
+      local held = released[section.group] ~= nil and section.vanilla_active ~= true
+      local kind, caption = group_state(section.tag, location, held, snap_items(section))
       -- Секция выключена игроком (не модом): что бы ни обещала метка,
       -- секция ничего не делает — «выключена».
-      if section.active ~= true then
+      if section.vanilla_active ~= true and not held then
         kind, caption = 'inactive', { L .. 'now-inactive' }
       end
       detail_label(container, { '', icon(kind), caption })
@@ -1028,7 +1033,9 @@ local function add_sections(scroll, hub)
       order[#order + 1] = key
     end
     bucket.sections[#bucket.sections + 1] = section
-    if bucket.representative.active ~= true and section.active then
+    -- Представитель — секция с живой галочкой: у группы, чью секцию игрок
+    -- включил обратно, статусы и детали считаются по ней.
+    if bucket.representative.vanilla_active ~= true and section.vanilla_active then
       bucket.representative = section
     end
   end
@@ -1051,8 +1058,10 @@ local function add_sections(scroll, hub)
     local label = table.add({ type = 'label', caption = caption, style = 'label' })
     label.style.maximal_width = 220
     label.style.minimal_width = 220
-    if saved and saved.released and saved.released[section.group] then
-      -- Снятая галочка у группы груза — дело мода, а не поломка: подсказать.
+    -- Снятая галочка у группы груза — дело мода, а не поломка: подсказать.
+    -- Вернувший галочку игрок включает секцию — метки «до отлёта» на ней быть
+    -- не должно.
+    if saved and saved.released and saved.released[section.group] and section.vanilla_active ~= true then
       label.caption = { '', caption, ' ', { L .. 'section-released-mark' } }
       label.tooltip = { L .. 'section-released' }
       label.style.font_color = { 1, 0.75, 0.3 }
