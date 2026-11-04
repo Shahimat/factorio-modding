@@ -1274,11 +1274,18 @@ local function apply_purpose(player, entity, index)
     end
   end
   find(frame)
-  if not (purpose_element and places_element) then
+  if not purpose_element then
     return
   end
   local kind = PURPOSES[purpose_element.selected_index] or 'none'
-  local tag = tags.from_choice(kind, picker.text(picker.read(places_element)))
+  -- У строки с меткой запаса пикера мест нет: пустой список мест.
+  local places_text = places_element and picker.text(picker.read(places_element)) or ''
+  local tag = tags.from_choice(kind, places_text)
+  -- «Груз» без мест — поведение ванили, метка ничего не меняет: имя группы
+  -- не трогаем вовсе, даже если [cargo] там уже стоит.
+  if tag ~= nil and tag.kind == 'cargo' and tag.dests == nil then
+    return
+  end
   local fallback = (entity.surface.platform and entity.surface.platform.name or 'Hub') .. ' #' .. index
   local name = groups.name_for(section, tag, fallback)
   if section.group == '' and tag == nil then

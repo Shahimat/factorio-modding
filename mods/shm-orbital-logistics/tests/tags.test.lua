@@ -100,5 +100,8 @@ describe('метки в имени группы', function()
     assert_eq(tags.retag('[item=iron-plate] Plates [reserve]', nil), '[item=iron-plate] Plates')
     assert_eq(tags.retag('', tags.parse('[reserve]')), '[reserve]')
     assert_eq(tags.retag('Fuel', tags.parse('[reserve]')), 'Fuel [reserve]')
+    -- Имя из одной метки при снятии становится пустым: вызывающий
+    -- подставляет fallback-имя.
+    assert_eq(tags.retag('[reserve]', nil), '')
   end)
 end)

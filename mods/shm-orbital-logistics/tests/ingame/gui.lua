@@ -168,6 +168,45 @@ describe('интерфейс', function()
     assert(sections.get_section(grouped_index).group == 'Test plates', 'метка не снята')
   end)
 
+  it('снятие метки с имени-«только метка» даёт fallback, а «Груз» без мест имя не меняет', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 300, { group = '[reserve]', from = 'planet', import_from = f.PLANET })
+    f.request(hub, 100, { group = 'Test cargo', from = 'planet', import_from = f.PLANET })
+    f.request(hub, 50, { group = 'Test cargo [cargo]', from = 'planet', import_from = f.PLANET })
+    local frame = open(hub)
+    local sections = hub.get_logistic_sections()
+    local tag_only, plain, pretagged
+    for index = 1, sections.sections_count do
+      local section = sections.get_section(index)
+      if section.filters_count > 0 then
+        if section.group == '[reserve]' then
+          tag_only = index
+        elseif section.group == 'Test cargo' then
+          plain = index
+        elseif section.group == 'Test cargo [cargo]' then
+          pretagged = index
+        end
+      end
+    end
+    assert(tag_only and plain and pretagged, 'секции не найдены')
+
+    find(frame, 'shm_ol_purpose_' .. tag_only).selected_index = 1
+    click(find(frame, 'shm_ol_apply_' .. tag_only))
+    local renamed = sections.get_section(tag_only).group
+    -- Fallback: имя платформы и номер секции, метки не осталось.
+    assert(string.find(renamed, '^shm%-test%-a%-%d+ #%d+$') ~= nil, 'нет fallback-имени: ' .. renamed)
+
+    frame = player().gui.relative[panel.NAME]
+    find(frame, 'shm_ol_purpose_' .. plain).selected_index = 3
+    click(find(frame, 'shm_ol_apply_' .. plain))
+    assert(sections.get_section(plain).group == 'Test cargo', '[cargo] дописан: ' .. sections.get_section(plain).group)
+
+    find(frame, 'shm_ol_purpose_' .. pretagged).selected_index = 3
+    click(find(frame, 'shm_ol_apply_' .. pretagged))
+    assert(sections.get_section(pretagged).group == 'Test cargo [cargo]',
+      'имя с [cargo] изменилось: ' .. sections.get_section(pretagged).group)
+  end)
+
   it('панель по умолчанию под окном и в ряд, настройка игрока переносит её вправо столбиком', function()
     local _, hub = f.platform('a')
     f.request(hub, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })

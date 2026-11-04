@@ -7,11 +7,16 @@ local tags = require('logic.tags')
 
 local groups = {}
 
---- Новое имя для секции с меткой `tag`. Секция без группы получает имя по
---- платформе и номеру секции.
+--- Новое имя для секции с меткой `tag`. Секция без группы — и группа, чьё
+--- имя состояло только из снятой метки, — получают имя по платформе и
+--- номеру секции.
 function groups.name_for(section, tag, fallback)
   local base = section.group ~= '' and section.group or fallback
-  return tags.retag(base, tag)
+  local name = tags.retag(base, tag)
+  if name == '' then
+    return fallback
+  end
+  return name
 end
 
 --- Переводит секцию (и всех участников её группы) на имя `name`.
