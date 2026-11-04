@@ -67,22 +67,23 @@ external:
 
 roles:
   exceptions: []
+  models: {}
 
 sync:
   index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
-  index_sha: 4f4484c6808c81f3d2492e956ba8ea7d40fd6c7bdad1b1bbd6699fa5c0e6ae0a
+  index_sha: 17eb2b206c40167b9268d5579fe0a4d257504d75caf5ce07eb2d6120ec0105f9
   contract:
     key: agent-operational-contract-v3
     edition: operator-centric
-    synced_sha: 2c1a219c6ac11a31f32e1a09eacf6ce8d1df1a74f33891e5a4048fbc5c7d4e0f
-    synced_at: 2026-11-02
+    synced_sha: 0b15270ca4364461c80222c6332171f6f6edc2d2182d0ad10601107844be43cb
+    synced_at: 2026-11-04
     parts:
       skills:
-        contract-setup: 4afe17218d9044d8cc1ee0f873f3df239fa53e94eb8c836dac257906edf7a109
-        workflow: c514178263ee7b29ba268a17d345e7a064a92c6e2028ea9e749295c06d1a5ae8
-        librarian: fa448751b970ab024f28a911a47610e3721c4235ffd01c414f88878816b8b98d
+        contract-setup: 26d80808fa4bc284d23e6ca48208643edf1a9e74c6e5af78732acd401d07dc84
+        workflow: 557b8923f7fe7fc0b9a1ce162af36b0e0945fa20810b4c2970cd6573e85e8b9c
+        librarian: 8a82af5779f68e066097cc0965719b4adcbb789f73071c78a0a19340b561a879
       agents:
-        researcher: c533ca25f6c9913f9d8c6a5a6e7281be397c467a5408389cc5163c079c7364ae
-        executor: 4b221fefa38ee205456744bc113592171aea04b62a2656a46c5bea324b8f7f78
-        judge: 686b2400a0038e422e1788c8d8ad10271dcbcd9c59fffe236b551b58710db7ad
-        librarian: e641bd9b9916ea3828b0aeebddeb3e999814b1be55fb6c8c8b11f654a45b61dc
+        researcher: d693e85f1c0aa9f757a491e94a933743abc1fe4d3208e9a9b7067966287bdbb1
+        executor: 44a8ca297ec8578d6453faf1d6d58987554b339f05285564c805502686bbef99
+        judge: 8b763fde0f28ba02593cfd6976b1753671e256977c4fb0920e999978dd7d27ff
+        librarian: 9e50614b7c9735cec85853c39542bfbb4cd8cdf70de39650ec3a03628b0d66d2

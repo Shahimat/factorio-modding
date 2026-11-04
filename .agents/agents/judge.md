@@ -6,7 +6,7 @@ permissions: [read, goals-expect-write, verdicts-write, results-write, browser]
 lifecycle: fresh
 concurrency: unlimited
 tools: [Read, Glob, Grep, Edit, Bash]
-model: zai-coding-plan/glm-5.3-flash
+model: zai-coding-plan/glm-5.3-flash#low
 output: verdict
 artifacts: [.ops/<ticket>/verdicts/]
 ---

@@ -3,6 +3,9 @@
 Формат: «когда» и «почему». Текущее состояние — в `docs/entities/*.yml`,
 `docs/behavior/*.yml` и коде.
 
+- 2026-11-04 · [dep] Синк v3 без Claude Code: адаптер opencode, guards в плагине @shahimat/oc3 · source-sync
+- 2026-11-04 · [arch] Модели flash#max / judge flash#low — override в roles.models · переживает sync, заполняет oc3
+- 2026-11-03 · [dep] Контракт: брифинг ролей, приёмка у judge, модели glm-5.3#max/flash#low · source-sync ai-prompts
 - 2026-11-03 · [arch] Публикация релиза — одна команда npm run publish:mod · вместо одноразовых скриптов
 - 2026-11-03 · [arch] Публикация — только средствами репозитория, /tmp-скрипты запрещены · одноразовый скрипт вёл 0.1.1
 - 2026-11-02 · [arch] Панель orbital сворачивается в кнопку · фидбек игрока с портала, как у logistic-request-helper

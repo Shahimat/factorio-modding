@@ -14,7 +14,7 @@ skills:
     kind: core
     source: ai-prompts
     path: .agents/skills/executor
-    sha: afda091c062bef1fdd3f43de837d0caeca3e963f096251d2fd02ba084f4f45ac
+    sha: 99c43ff319abebaab8eff9dd43d39d6933c49e21461169b63e6380246db992d9
     roles: [executor]
   - key: judge
     kind: core
@@ -26,7 +26,7 @@ skills:
     kind: core
     source: ai-prompts
     path: .agents/skills/librarian
-    sha: fa448751b970ab024f28a911a47610e3721c4235ffd01c414f88878816b8b98d
+    sha: 8a82af5779f68e066097cc0965719b4adcbb789f73071c78a0a19340b561a879
     roles: [librarian]
   - key: domain
     kind: core
@@ -52,25 +52,25 @@ skills:
     kind: core
     source: ai-prompts
     path: .agents/skills/contract-setup
-    sha: 4afe17218d9044d8cc1ee0f873f3df239fa53e94eb8c836dac257906edf7a109
+    sha: 26d80808fa4bc284d23e6ca48208643edf1a9e74c6e5af78732acd401d07dc84
     roles: []
   - key: workflow
     kind: core
     source: ai-prompts
     path: .agents/skills/workflow
-    sha: c514178263ee7b29ba268a17d345e7a064a92c6e2028ea9e749295c06d1a5ae8
+    sha: 557b8923f7fe7fc0b9a1ce162af36b0e0945fa20810b4c2970cd6573e85e8b9c
     roles: []
   - key: source-sync
     kind: core
     source: ai-prompts
     path: .agents/skills/source-sync
-    sha: 0f23df915aae0a269ebc6fe17ee235b8c26580f6247ceb66b8451981f64b442d
+    sha: bcdeea56da67d5caf01a7cb28a66d470862df12ae46527340f9f9fa9e9a56d68
     roles: []
   - key: cli
     kind: core
     source: ai-prompts
     path: .agents/skills/cli
-    sha: d2e72714c8628c9541339f7413c438a9ed530533accd94991d20a387eaf9d6ef
+    sha: fb2fb3e5af26944110ca0751f38ed8e864ef8f8c51077ada6d1feb808cd5ba0a
     roles: []
 
   # --- project-skills: процедуры сессии и спек-программ, без ролевой
