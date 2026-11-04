@@ -757,6 +757,44 @@ describe('служебная группа', function()
   end)
 end)
 
+describe('зачистка storage', function()
+  before_all(f.prepare_force)
+  before_each(f.clear)
+  after_each(f.clear)
+
+  it('удаление платформы подчищает её записи в storage и кешах групп', function()
+    local force = game.forces.player
+    local platform, hub = f.platform('a')
+    f.request(hub, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })
+    -- Секция без группы и метки: её фильтры кешируются по unit_number хаба,
+    -- когда орбита работает складом.
+    hub.get_logistic_sections().add_section()
+    local depot, depot_hub = f.platform('depot')
+    f.request(depot_hub, 5, { group = 'Test depot [depot]' })
+    local index = platform.index
+    local unit = hub.unit_number
+    local service = controller.service_name(platform)
+    controller.pass()
+    assert(storage.platforms[index], 'нет записи платформы до удаления')
+    assert(storage.orbit[index], 'нет орбитальной записи до удаления')
+    assert(storage.cache.hubs[unit] and next(storage.cache.hubs[unit]), 'нет кеша фильтров хаба до удаления')
+    assert(storage.cache.groups['Test fuel [reserve]'], 'нет кеша фильтров группы до удаления')
+
+    platform.destroy()
+    controller.pass()
+    assert(storage.platforms[index] == nil, 'запись платформы пережила удаление')
+    assert(storage.orbit[index] == nil, 'орбитальная запись пережила удаление')
+    assert(storage.cache.hubs[unit] == nil, 'кеш фильтров хаба пережил удаление')
+    assert(storage.cache.groups['Test fuel [reserve]'] == nil, 'кеш исчезнувшей группы пережил удаление')
+    assert(storage.cache.groups['Test depot [depot]'], 'зачистка задела живую группу')
+    if force.get_logistic_group(service) then
+      force.delete_logistic_group(service)
+    end
+    force.delete_logistic_group('Test fuel [reserve]')
+    force.delete_logistic_group('Test depot [depot]')
+  end)
+end)
+
 describe('демо-команда отладочной сборки', function()
   before_all(f.prepare_force)
 

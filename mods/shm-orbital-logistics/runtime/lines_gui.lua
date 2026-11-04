@@ -217,6 +217,9 @@ end
 
 --- Собирает поля окна в линию. Пустой выбор предмета убирает строку.
 local function read_fields(frame, line)
+  if not frame then
+    return
+  end
   local items = {}
   for index in ipairs(line.items) do
     local chosen = find(frame, 'shm_ol_item_' .. index)

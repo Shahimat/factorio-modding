@@ -42,6 +42,16 @@ local function name_of(value)
   return value.name
 end
 
+--- Чистая зачистка map: остаются только ключи из alive. Записи удалённых
+--- платформ, хабов и групп убираются по этому правилу — без обходов игры.
+local function prune(map, alive)
+  for key in pairs(map) do
+    if not alive[key] then
+      map[key] = nil
+    end
+  end
+end
+
 --- Фильтры секции одним вызовом: `section.filters` дешевле, чем `get_slot`
 --- по каждому слоту.
 local function read_filters(section)
@@ -75,6 +85,13 @@ end
 
 local function spread(seed)
   return seed % CACHE_PASSES
+end
+
+--- Последнее известное по хабу, нужное соседям по орбите:
+--- storage.orbit[индекс платформы] = { where, offered = { [key] = true }, depot = bool }.
+local function orbit_state()
+  storage.orbit = storage.orbit or {}
+  return storage.orbit
 end
 
 local function cached_filters(section, hub, index, group)
@@ -199,6 +216,28 @@ local function tag_of(group)
   return tag or nil
 end
 
+--- Имена групп, замеченные с последней зачистки. Кеши по имени группы —
+--- `parsed` выше и `storage.cache.groups` — держат записи только этих групп:
+--- записи групп, которых не видно целый круг, принадлежат исчезнувшим
+--- группам. Игрок удаляет секции и группы без события, которое мод слышит.
+local seen_groups = {}
+
+--- Раз в круг убирает записи исчезнувших групп из обоих кешей.
+local function prune_groups()
+  local c = cache()
+  for group in pairs(c.groups) do
+    if not seen_groups[group] then
+      c.groups[group] = nil
+    end
+  end
+  for group in pairs(parsed) do
+    if not seen_groups[group] then
+      parsed[group] = nil
+    end
+  end
+  seen_groups = {}
+end
+
 --- Первая фаза снимка: только то, что дёшево, — орбита и группы секций.
 local function survey(platform)
   local hub = platform.hub
@@ -211,6 +250,7 @@ local function survey(platform)
     local section = sections.get_section(index)
     if section.is_manual and not controller.is_service(section.group) then
       local group = section.group
+      seen_groups[group] = true
       local tag = tag_of(group)
       meta[#meta + 1] = { index = index, group = group, tag = tag, section = section }
       if tag then
@@ -452,11 +492,20 @@ end
 ---   снимается, на следующем проходе мод заведёт её в служебной группе.
 function controller.migrate()
   local by_index = {}
+  local hubs = {}
   for _, force in pairs(game.forces) do
     for _, platform in pairs(force.platforms) do
       by_index[platform.index] = platform
+      if platform.hub and platform.hub.valid then
+        hubs[platform.hub.unit_number] = true
+      end
     end
   end
+  -- После смены конфигурации модов записи удалённых платформ и хабов
+  -- подчищаются сразу, не дожидаясь прохода.
+  prune(orbit_state(), by_index)
+  prune(storage.platforms or {}, by_index)
+  prune(cache().hubs, hubs)
   for index, state in pairs(storage.platforms or {}) do
     local platform = by_index[index]
     if state.own and state.written and not state.service and platform and platform.valid and platform.hub and platform.hub.valid then
@@ -505,11 +554,21 @@ local function where_of(platform, location)
   return platform.force.name .. '/' .. location
 end
 
---- Последнее известное по хабу, нужное соседям по орбите:
---- storage.orbit[индекс платформы] = { where, offered = { [key] = true }, depot = bool }.
-local function orbit_state()
-  storage.orbit = storage.orbit or {}
-  return storage.orbit
+--- Зачистка storage от записей удалённых платформ и хабов: орбитальный
+--- след, состояние платформы и кеш фильтров по unit_number хаба. Возвращает
+--- список живых платформ — полный проход всё равно начинается с него.
+local function sweep()
+  local list = platforms()
+  local alive = {}
+  local hubs = {}
+  for _, platform in ipairs(list) do
+    alive[platform.index] = true
+    hubs[platform.hub.unit_number] = true
+  end
+  prune(orbit_state(), alive)
+  prune(storage.platforms or {}, alive)
+  prune(cache().hubs, hubs)
+  return list
 end
 
 local function depot_here(snap)
@@ -595,37 +654,24 @@ end
 --- Полный проход по всем хабам всех сил: для тестов, `remote` и смены
 --- настройки.
 function controller.pass()
-  local list = platforms()
-  local alive = {}
-  for _, platform in ipairs(list) do
-    alive[platform.index] = true
-  end
-  for index in pairs(orbit_state()) do
-    if not alive[index] then
-      storage.orbit[index] = nil
-    end
-  end
+  local list = sweep()
   process(list)
+  prune_groups()
 end
 
 --- Очередная порция: платформы с индексом, дающим нужный остаток.
 function controller.slice(event)
   local slice = math.floor(event.tick / controller.SLICE_TICKS) % controller.SLICES
+  if slice == 0 then
+    -- Граница круга: зачистка записей удалённых платформ и исчезнувших
+    -- групп — окно `seen_groups` к этому моменту покрывает полный круг.
+    sweep()
+    prune_groups()
+  end
   local list = {}
   for _, platform in ipairs(platforms()) do
     if platform.index % controller.SLICES == slice then
       list[#list + 1] = platform
-    end
-  end
-  if slice == 0 then
-    local alive = {}
-    for _, platform in ipairs(platforms()) do
-      alive[platform.index] = true
-    end
-    for index in pairs(orbit_state()) do
-      if not alive[index] then
-        storage.orbit[index] = nil
-      end
     end
   end
   if #list > 0 then
