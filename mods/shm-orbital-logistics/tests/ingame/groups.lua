@@ -46,6 +46,18 @@ describe('группы', function()
     force.delete_logistic_group(name)
   end)
 
+  it('имя из одной метки при снятии метки получает fallback-имя', function()
+    local force = game.forces.player
+    local _, a = f.platform('a')
+    local section = f.request(a, 200, { group = '[reserve]', from = 'planet', import_from = f.PLANET })
+    local name = groups.name_for(section, nil, 'Test fallback')
+    assert(name == 'Test fallback', name)
+    assert(groups.rename(force, section, name))
+    assert(section.group == 'Test fallback', 'группа не переименована: ' .. section.group)
+    assert(force.get_logistic_group('[reserve]') == nil, 'старая группа осталась')
+    force.delete_logistic_group('Test fallback')
+  end)
+
   it('занятое имя не затирается', function()
     local force = game.forces.player
     local _, a = f.platform('a')
