@@ -10,11 +10,13 @@ local picker = require('runtime.places_picker')
 script.on_init(function()
   storage.platforms = {}
   storage.panel_collapsed = {}
+  storage.panel_block_collapsed = {}
 end)
 
 script.on_configuration_changed(function()
   storage.platforms = storage.platforms or {}
   storage.panel_collapsed = storage.panel_collapsed or {}
+  storage.panel_block_collapsed = storage.panel_block_collapsed or {}
   controller.migrate()
 end)
 

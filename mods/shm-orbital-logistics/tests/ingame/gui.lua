@@ -69,6 +69,29 @@ local function open(entity)
   return player().gui.relative[panel.NAME]
 end
 
+--- Треугольник сворачивания блока: по тегу `block` — имена у них одинаковые.
+local function block_toggle(root, key)
+  if not root then
+    return nil
+  end
+  if root.name == 'shm_ol_block_toggle' and root.tags.block == key then
+    return root
+  end
+  for _, child in pairs(root.children) do
+    local found = block_toggle(child, key)
+    if found then
+      return found
+    end
+  end
+  return nil
+end
+
+--- Потолок высоты панели: та же доля, что и в panel.lua.
+local function height_cap()
+  local p = player()
+  return math.floor(p.display_resolution.height / p.display_scale * panel.HEIGHT_SHARE)
+end
+
 tags('gui')
 describe('интерфейс', function()
   before_all(f.prepare_force)
@@ -81,6 +104,7 @@ describe('интерфейс', function()
     -- Свёрнутость — состояние игрока: сбросить, чтобы падение одного
     -- наблюдения не свернуло панели в следующих.
     storage.panel_collapsed = {}
+    storage.panel_block_collapsed = {}
     if player().controller_type == defines.controllers.remote then
       player().exit_remote_view()
     end
@@ -140,6 +164,194 @@ describe('интерфейс', function()
     local ok = frame.anchor.position == defines.relative_gui_position.right and frame.direction == 'vertical'
     player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
     assert(ok, 'настройка положения не действует')
+  end)
+
+  --- Ключи локали строк «Отдача на этой орбите»: { [ключ] = число строк }.
+  local function now_keys(frame)
+    local found = {}
+    local function scan(element)
+      if element.type == 'label' and type(element.caption) == 'table' then
+        local inner = element.caption[3]
+        if type(inner) == 'table' and type(inner[1]) == 'string' then
+          local key = string.match(inner[1], '^shm%-orbital%-logistics%.(now%-.+)$')
+          if key then
+            found[key] = (found[key] or 0) + 1
+          end
+        end
+      end
+      for _, child in pairs(element.children) do
+        scan(child)
+      end
+    end
+    scan(find(frame, 'shm_ol_now'))
+    return found
+  end
+
+  it('каркас при 12+ группах: панель не выше потолка рабочей области, у блоков прокрутка, потолок и при нижнем и верхнем положении', function()
+    local _, hub = f.platform('a')
+    local items = { 'iron-plate', 'copper-plate', 'steel-plate', 'stone', 'coal', 'iron-gear-wheel', 'copper-cable', 'electronic-circuit', 'plastic-bar', 'sulfur', 'concrete', 'battery' }
+    for i, item in ipairs(items) do
+      f.request(hub, 100, { item = item, group = 'Test scroll ' .. i, from = 'planet', import_from = f.OTHER_PLANET })
+    end
+    local cap = height_cap()
+    local frame = open(hub)
+    assert(frame.style.maximal_height == cap, 'потолок высоты не выставлен: ' .. tostring(frame.style.maximal_height))
+    local sections_scroll = find(frame, 'shm_ol_scroll_sections')
+    assert(sections_scroll and sections_scroll.type == 'scroll-pane', 'нет прокрутки «Групп»')
+    local now_scroll = find(frame, 'shm_ol_scroll_now')
+    assert(now_scroll and now_scroll.type == 'scroll-pane', 'нет прокрутки «Отдачи»')
+    assert(sections_scroll.style.maximal_height <= cap and now_scroll.style.maximal_height <= cap, 'прокрутка выше потолка')
+    -- Нижнее по умолчанию проверено; верхнее и боковое ограничены так же.
+    for _, position in ipairs({ 'top', 'right' }) do
+      player().mod_settings[panel.POSITION_SETTING] = { value = position }
+      panel.build(player(), hub)
+      frame = player().gui.relative[panel.NAME]
+      assert(frame.style.maximal_height == cap, 'потолок не действует при положении ' .. position)
+    end
+    player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
+  end)
+
+  it('«Отдача» при 12 складах с исключениями по источникам: блок не выталкивает панель за потолок', function()
+    local _, hub = f.platform('a')
+    local items = { 'copper-plate', 'steel-plate', 'stone', 'coal', 'iron-gear-wheel', 'copper-cable', 'electronic-circuit', 'plastic-bar', 'sulfur', 'concrete', 'battery', 'engine-unit' }
+    for i, item in ipairs(items) do
+      -- Секция с ловушкой и без: «Платформы» у первого предмета, «Планета»
+      -- у второго — секция отдаёт, но предмет с «Платформами» в исключениях.
+      local section = f.request(hub, 100, { item = item, group = 'Test traps ' .. i .. ' [depot:nauvis]', from = 'platforms' })
+      section.set_slot(2, {
+        value = { type = 'item', name = f.ITEM, quality = 'normal', comparator = '=' },
+        min = 100,
+        request_from = 'planet',
+        import_from = f.OTHER_PLANET,
+      })
+    end
+    remote.call('shm-orbital-logistics', 'pass')
+    local cap = height_cap()
+    local frame = open(hub)
+    assert(frame.style.maximal_height == cap, 'потолок высоты не выставлен')
+    local now_scroll = find(frame, 'shm_ol_scroll_now')
+    assert(now_scroll and now_scroll.type == 'scroll-pane', 'нет прокрутки «Отдачи»')
+    assert(now_scroll.style.maximal_height <= cap, 'прокрутка «Отдачи» выше потолка')
+    local keys = now_keys(frame)
+    assert((keys['now-depot-here'] or 0) == 12, 'не все склады отдают: ' .. serpent.line(keys))
+    assert((keys['now-depot-no-give'] or 0) == 12, 'нет исключений по «Платформам»: ' .. serpent.line(keys))
+  end)
+
+  it('блоки сворачиваются по отдельности: итог по реальному содержимому, клик по итогу разворачивает, состояние на игрока', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })
+    local depot = f.request(hub, 100, { item = 'iron-plate', group = 'Test depot [depot:nauvis]', from = 'platforms' })
+    depot.set_slot(2, {
+      value = { type = 'item', name = 'copper-plate', quality = 'normal', comparator = '=' },
+      min = 100,
+      request_from = 'planet',
+      import_from = f.OTHER_PLANET,
+    })
+    local frame = open(hub)
+    -- Снимок секций при открытии: пустые секции в «Группах» — контент блока,
+    -- итог обязан считать их тоже.
+    local function groups_list()
+      local list = {}
+      local sections = hub.get_logistic_sections()
+      for index = 1, sections.sections_count do
+        local section = sections.get_section(index)
+        list[#list + 1] = index .. ':' .. tostring(section.is_manual) .. ':«' .. section.group .. '»:' .. section.filters_count
+      end
+      return list
+    end
+    local at_open = groups_list()
+    -- Реальный контент «Групп»: строк в таблице секций — по кнопке «Применить»
+    -- на каждую. Пустая безымянная секция новой платформы — тоже строка.
+    local rendered_rows = 0
+    local function count_apply(element)
+      if element.name and string.sub(element.name, 1, 13) == 'shm_ol_apply_' then
+        rendered_rows = rendered_rows + 1
+      end
+      for _, child in pairs(element.children) do
+        count_apply(child)
+      end
+    end
+    count_apply(frame)
+    assert(find(frame, 'shm_ol_now'), '«Отдача» не развёрнута')
+    assert(find(frame, 'shm_ol_scroll_sections'), '«Группы» не развёрнуты')
+
+    -- Треугольник в заголовке «Отдачи» сворачивает только её.
+    click(block_toggle(frame, 'now'))
+    frame = player().gui.relative[panel.NAME]
+    assert(find(frame, 'shm_ol_now') == nil, '«Отдача» не свернулась')
+    local summary = find(frame, 'shm_ol_block_summary')
+    assert(summary and summary.tags.block == 'now', 'нет строки-итога')
+    -- Итог — по реальному содержимому: 2 группы, 1 исключение («Платформы»).
+    -- Аргументы локализованной строки читаются обратно строками.
+    assert(type(summary.caption) == 'table'
+      and summary.caption[1] == 'shm-orbital-logistics.collapsed-now'
+      and tonumber(summary.caption[2]) == 2 and tonumber(summary.caption[3]) == 1,
+      'итог «Отдачи» не по содержимому: ' .. serpent.line(summary.caption))
+    assert(find(frame, 'shm_ol_scroll_sections'), 'сворачивание «Отдачи» задело «Группы»')
+
+    -- Клик по строке-итогу разворачивает обратно.
+    click(find(frame, 'shm_ol_block_summary'))
+    frame = player().gui.relative[panel.NAME]
+    assert(find(frame, 'shm_ol_now'), 'клик по итогу не развернул «Отдачу»')
+
+    -- Свернуть и «Группы»: блоки независимы.
+    click(block_toggle(frame, 'sections'))
+    frame = player().gui.relative[panel.NAME]
+    assert(find(frame, 'shm_ol_scroll_sections') == nil, '«Группы» не свернулись')
+    assert(find(frame, 'shm_ol_now'), 'сворачивание «Групп» задело «Отдачу»')
+    -- Итог «Групп» — реальный контент блока: сколько строк рендерилось
+    -- до сворачивания, столько в итоге.
+    local sections_summary = find(frame, 'shm_ol_block_summary')
+    assert(sections_summary and sections_summary.tags.block == 'sections'
+      and type(sections_summary.caption) == 'table'
+      and sections_summary.caption[1] == 'shm-orbital-logistics.collapsed-sections'
+      and tonumber(sections_summary.caption[2]) == rendered_rows,
+      'итог «Групп»: ' .. serpent.line(sections_summary and sections_summary.caption)
+        .. ', строк при разворачивании: ' .. rendered_rows
+        .. ', при открытии: ' .. serpent.line(at_open)
+        .. ', при проверке: ' .. serpent.line(groups_list()))
+
+    -- Переоткрытие окна: состояния блоков — на игрока.
+    player().opened = nil
+    frame = open(hub)
+    assert(find(frame, 'shm_ol_scroll_sections') == nil, '«Группы» развернулись при переоткрытии')
+    assert(find(frame, 'shm_ol_now'), '«Отдача» изменилась при переоткрытии')
+
+    -- И развернуть обратно.
+    click(block_toggle(frame, 'sections'))
+    assert(find(player().gui.relative[panel.NAME], 'shm_ol_scroll_sections'), '«Группы» не развернулись')
+  end)
+
+  it('пустой блок линий — одна кнопка «Линии снабжения…» без заголовка и «пока нет»; с линией — полный блок', function()
+    local _, hub = f.platform('a')
+    local frame = open(hub)
+    assert(find(frame, 'shm_ol_open_lines'), 'нет кнопки линий')
+    assert(find(frame, 'shm_ol_header_lines') == nil, 'пустой блок линий получил заголовок')
+    assert(find(frame, 'shm_ol_scroll_lines') == nil, 'пустой блок линий получил прокрутку')
+    local none = nil
+    local function scan(element)
+      if element.type == 'label' and type(element.caption) == 'table' and element.caption[1] == 'shm-orbital-logistics.lines-none' then
+        none = element
+      end
+      for _, child in pairs(element.children) do
+        scan(child)
+      end
+    end
+    scan(frame)
+    assert(none == nil, 'подпись «пока нет» осталась')
+    frame = open(f.pad())
+    assert(find(frame, 'shm_ol_open_lines'), 'нет кнопки линий у площадки')
+    assert(find(frame, 'shm_ol_header_lines') == nil, 'заголовок линий у пустой площадки')
+
+    -- Появилась линия — блок полный: заголовок, прокрутка и подключение.
+    lines_gui.open(player())
+    local window = player().gui.screen[lines_gui.NAME]
+    find(window, 'shm_ol_line_name').text = 'Test empty block line'
+    click(find(window, 'shm_ol_line_create'))
+    frame = open(hub)
+    assert(find(frame, 'shm_ol_header_lines'), 'нет заголовка блока линий')
+    assert(find(frame, 'shm_ol_scroll_lines'), 'нет прокрутки блока линий')
+    assert(find(frame, 'shm_ol_attach_line'), 'нет подключения линии')
   end)
 
   it('панель сворачивается в мини-окошко с названием мода на том же краю и разворачивается, состояние переживает переоткрытие окна', function()
@@ -211,27 +423,6 @@ describe('интерфейс', function()
       assert(platform.valid)
     end)
   end)
-
-  --- Ключи локали строк «Отдача на этой орбите»: { [ключ] = число строк }.
-  local function now_keys(frame)
-    local found = {}
-    local function scan(element)
-      if element.type == 'label' and type(element.caption) == 'table' then
-        local inner = element.caption[3]
-        if type(inner) == 'table' and type(inner[1]) == 'string' then
-          local key = string.match(inner[1], '^shm%-orbital%-logistics%.(now%-.+)$')
-          if key then
-            found[key] = (found[key] or 0) + 1
-          end
-        end
-      end
-      for _, child in pairs(element.children) do
-        scan(child)
-      end
-    end
-    scan(find(frame, 'shm_ol_now'))
-    return found
-  end
 
   it('«Отдача на этой орбите»: строка на группу с меткой, без строк для групп без метки, предупреждение про флаг', function()
     local _, hub = f.platform('a')

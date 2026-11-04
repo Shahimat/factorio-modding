@@ -1,0 +1,11 @@
+{
+  "run": 1,
+  "items": [
+    { "key": "crit-1", "status": "pass" },
+    { "key": "crit-2", "status": "pass" },
+    { "key": "crit-3", "status": "pass" },
+    { "key": "crit-4", "status": "pass" },
+    { "key": "crit-5", "status": "pass" },
+    { "key": "crit-6", "status": "pass" }
+  ]
+}
