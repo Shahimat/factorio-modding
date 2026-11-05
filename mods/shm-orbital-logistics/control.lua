@@ -30,20 +30,30 @@ script.on_event(defines.events.on_entity_logistic_slot_changed, controller.on_sl
 script.on_event(defines.events.on_gui_opened, panel.on_opened)
 
 script.on_event(defines.events.on_gui_click, function(event)
+  if panel.on_click(event, lines_gui.open) then
+    return
+  end
   if picker.on_click(event) then
     return
   end
-  if not panel.on_click(event, lines_gui.open) then
-    lines_gui.on_click(event)
-  end
+  lines_gui.on_click(event)
 end)
 
-script.on_event(defines.events.on_gui_selection_state_changed, lines_gui.on_selection)
+script.on_event(defines.events.on_gui_selection_state_changed, function(event)
+  if panel.on_selection(event) then
+    return
+  end
+  lines_gui.on_selection(event)
+end)
 
 script.on_event(defines.events.on_gui_elem_changed, function(event)
-  if not picker.on_elem_changed(event) then
-    lines_gui.on_elem_changed(event)
+  if panel.on_elem_changed(event) then
+    return
   end
+  if picker.on_elem_changed(event) then
+    return
+  end
+  lines_gui.on_elem_changed(event)
 end)
 
 -- Отладочная сборка: настройка «Режим отладки» есть, только если в моде

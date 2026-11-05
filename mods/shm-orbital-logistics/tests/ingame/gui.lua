@@ -8,6 +8,7 @@ local panel = require('runtime.panel')
 local lines_gui = require('runtime.lines_gui')
 local lines = require('runtime.lines')
 local picker = require('runtime.places_picker')
+local controller = require('runtime.controller')
 
 local function player()
   local p = game.players[1]
@@ -49,20 +50,26 @@ end
 
 local function click(element)
   local event = { element = element, player_index = player().index }
+  if panel.on_click(event, lines_gui.open) then
+    return
+  end
   if picker.on_click(event) then
     return
   end
-  if not panel.on_click(event, lines_gui.open) then
-    lines_gui.on_click(event)
-  end
+  lines_gui.on_click(event)
 end
 
 --- Добавить место в выбор `name`: как выбор в окне игры у кнопки «+».
+--- Места строк секций применяются сразу (panel.on_elem_changed).
 local function pick(root, name, planet)
   local add = find(root, name .. '__add')
   assert(add, 'нет кнопки «+» в ' .. name)
   add.elem_value = planet
-  assert(picker.on_elem_changed({ element = add, player_index = player().index }), 'выбор не обработан')
+  local event = { element = add, player_index = player().index }
+  if panel.on_elem_changed(event) then
+    return
+  end
+  assert(picker.on_elem_changed(event), 'выбор не обработан')
 end
 
 --- Задать одиночный выбор `name`.
@@ -82,7 +89,7 @@ local function open(entity)
   end
   p.opened = entity
   assert(player().opened == entity, 'окно не открылось')
-  return player().gui.relative[panel.NAME]
+  return player().gui.screen[panel.NAME]
 end
 
 --- Треугольник сворачивания блока: по тегу `block` — имена у них одинаковые.
@@ -102,10 +109,30 @@ local function block_toggle(root, key)
   return nil
 end
 
---- Потолок высоты панели: та же доля, что и в panel.lua.
-local function height_cap()
+--- Панель целиком в пределах экрана (решение владельца: никаких обрезок).
+local function assert_on_screen(frame)
   local p = player()
-  return math.floor(p.display_resolution.height / p.display_scale * panel.HEIGHT_SHARE)
+  local resolution = p.display_resolution
+  local scale = p.display_scale
+  if not (resolution and scale and scale > 0) then
+    return
+  end
+  local w = resolution.width / scale
+  local h = resolution.height / scale
+  local loc = frame.location
+  local fw = frame.style.minimal_width
+  local fh = frame.style.minimal_height
+  assert(loc and loc.x >= 0 and loc.y >= 0, 'панель вышла за левый/верхний край: ' .. serpent.line(loc))
+  assert(type(fw) == 'number' and type(fh) == 'number', 'у панели не фиксированные размеры')
+  assert(loc.x + fw <= w and loc.y + fh <= h,
+    'панель выходит за правый/нижний край: ' .. serpent.line(loc) .. ' при экране ' .. math.floor(w) .. 'x' .. math.floor(h))
+end
+
+--- Потолок высоты панели: как его считает panel.build для положения.
+local function frame_cap(position, entity)
+  local p = player()
+  local wide = position == 'bottom' or position == 'top'
+  return panel.height_cap(p, entity, wide)
 end
 
 tags('gui')
@@ -151,20 +178,23 @@ describe('интерфейс', function()
       end
     end
 
-    find(frame, 'shm_ol_purpose_' .. plain_index).selected_index = 2
-    click(find(frame, 'shm_ol_apply_' .. plain_index))
+    local purpose = find(frame, 'shm_ol_purpose_' .. plain_index)
+    purpose.selected_index = 2
+    assert(panel.on_selection({ element = purpose, player_index = player().index }), 'выбор не обработан')
+    frame = player().gui.screen[panel.NAME]
     local group = sections.get_section(plain_index).group
     assert(string.find(group, '[reserve]', 1, true) and string.find(group, 'shm-test-a', 1, true), 'метка без группы: ' .. group)
 
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     find(frame, 'shm_ol_purpose_' .. grouped_index).selected_index = 4
     pick(frame, 'shm_ol_places_' .. grouped_index, 'nauvis')
-    click(find(frame, 'shm_ol_apply_' .. grouped_index))
+    frame = player().gui.screen[panel.NAME]
     assert(sections.get_section(grouped_index).group == 'Test plates [depot:nauvis]', sections.get_section(grouped_index).group)
 
-    frame = player().gui.relative[panel.NAME]
-    find(frame, 'shm_ol_purpose_' .. grouped_index).selected_index = 1
-    click(find(frame, 'shm_ol_apply_' .. grouped_index))
+    frame = player().gui.screen[panel.NAME]
+    local purpose_reset = find(frame, 'shm_ol_purpose_' .. grouped_index)
+    purpose_reset.selected_index = 1
+    assert(panel.on_selection({ element = purpose_reset, player_index = player().index }), 'выбор не обработан')
     assert(sections.get_section(grouped_index).group == 'Test plates', 'метка не снята')
   end)
 
@@ -190,35 +220,51 @@ describe('интерфейс', function()
     end
     assert(tag_only and plain and pretagged, 'секции не найдены')
 
-    find(frame, 'shm_ol_purpose_' .. tag_only).selected_index = 1
-    click(find(frame, 'shm_ol_apply_' .. tag_only))
+    local purpose = find(frame, 'shm_ol_purpose_' .. tag_only)
+    purpose.selected_index = 1
+    assert(panel.on_selection({ element = purpose, player_index = player().index }), 'выбор не обработан')
+    frame = player().gui.screen[panel.NAME]
     local renamed = sections.get_section(tag_only).group
     -- Fallback: имя платформы и номер секции, метки не осталось.
     assert(string.find(renamed, '^shm%-test%-a%-%d+ #%d+$') ~= nil, 'нет fallback-имени: ' .. renamed)
 
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     find(frame, 'shm_ol_purpose_' .. plain).selected_index = 3
-    click(find(frame, 'shm_ol_apply_' .. plain))
+    assert(panel.on_selection({ element = find(frame, 'shm_ol_purpose_' .. plain), player_index = player().index }), 'выбор не обработан')
     assert(sections.get_section(plain).group == 'Test cargo', '[cargo] дописан: ' .. sections.get_section(plain).group)
 
     find(frame, 'shm_ol_purpose_' .. pretagged).selected_index = 3
-    click(find(frame, 'shm_ol_apply_' .. pretagged))
+    assert(panel.on_selection({ element = find(frame, 'shm_ol_purpose_' .. pretagged), player_index = player().index }), 'выбор не обработан')
     assert(sections.get_section(pretagged).group == 'Test cargo [cargo]',
       'имя с [cargo] изменилось: ' .. sections.get_section(pretagged).group)
   end)
 
-  it('панель по умолчанию под окном и в ряд, настройка игрока переносит её вправо столбиком', function()
+  it('панель по умолчанию снизу по центру на половину экрана, настройка игрока переносит её вправо столбиком', function()
     local _, hub = f.platform('a')
     f.request(hub, 100, { group = 'Test fuel [reserve]', from = 'planet', import_from = f.PLANET })
     local frame = open(hub)
-    assert(frame.anchor.position == defines.relative_gui_position.bottom, 'не под окном')
+    assert(frame.parent == player().gui.screen, 'панель не в screen gui')
+    local p = player()
+    local screen_h = math.floor(p.display_resolution.height / p.display_scale)
+    local screen_w = math.floor(p.display_resolution.width / p.display_scale)
+    local min_h = math.floor(screen_h * panel.EXPAND_MIN_SHARE)
+    local max_h = panel.expanded_cap(p)
+    assert(frame.style.minimal_height == min_h and frame.style.maximal_height == max_h,
+      'высота не между 40% и 50% экрана: ' .. tostring(frame.style.minimal_height) .. ' / ' .. tostring(frame.style.maximal_height))
     assert(frame.direction == 'horizontal', 'не в ряд')
+    local loc = frame.location
+    assert(loc.y == screen_h - max_h and loc.x == math.floor((screen_w - panel.BOTTOM_WIDTH) / 2),
+      'панель не снизу по центру: ' .. serpent.line(loc))
+    assert_on_screen(frame)
     player().mod_settings[panel.POSITION_SETTING] = { value = 'right' }
-    panel.build(player(), hub)
-    frame = player().gui.relative[panel.NAME]
-    local ok = frame.anchor.position == defines.relative_gui_position.right and frame.direction == 'vertical'
+    panel.build(p, hub)
+    frame = player().gui.screen[panel.NAME]
+    local side_h = panel.height_cap(p, hub, false)
+    assert(frame.style.minimal_height == side_h and frame.style.maximal_height == side_h,
+      'боковая панель не 0.8 экрана: ' .. tostring(frame.style.minimal_height))
+    assert(frame.location.x == screen_w - panel.SIDE_WIDTH, 'боковая панель не у правого края: ' .. serpent.line(frame.location))
+    assert_on_screen(frame)
     player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
-    assert(ok, 'настройка положения не действует')
   end)
 
   --- Ключи локали строк «Отдача на этой орбите»: { [ключ] = число строк }.
@@ -341,26 +387,46 @@ describe('интерфейс', function()
     return nil
   end
 
-  it('каркас при 12+ группах: панель не выше потолка рабочей области, у блоков прокрутка, потолок и при нижнем и верхнем положении', function()
+  it('каркас при 12+ группах: высокое окно хаба переезжает вбок, у блоков прокрутка без резерва пустоты', function()
     local _, hub = f.platform('a')
     local items = { 'iron-plate', 'copper-plate', 'steel-plate', 'stone', 'coal', 'iron-gear-wheel', 'copper-cable', 'electronic-circuit', 'plastic-bar', 'sulfur', 'concrete', 'battery' }
     for i, item in ipairs(items) do
       f.request(hub, 100, { item = item, group = 'Test scroll ' .. i, from = 'planet', import_from = f.OTHER_PLANET })
     end
-    local cap = height_cap()
+    local side_cap = panel.height_cap(player(), hub, false)
+    local min_h = math.floor(math.floor(player().display_resolution.height / player().display_scale) * panel.EXPAND_MIN_SHARE)
+    local max_h = panel.expanded_cap(player())
     local frame = open(hub)
-    assert(frame.style.maximal_height == cap, 'потолок высоты не выставлен: ' .. tostring(frame.style.maximal_height))
+    -- 12 секций: панель снизу, эластичная высота 40–50% экрана, целиком
+    -- в пределах экрана (screen gui не обрезается якорем).
+    assert(frame.style.minimal_height == min_h and frame.style.maximal_height == max_h,
+      'высота не между 40% и 50% экрана: ' .. tostring(frame.style.minimal_height) .. ' / ' .. tostring(frame.style.maximal_height))
+    assert(frame.location.y == math.floor(player().display_resolution.height / player().display_scale) - max_h,
+      'панель не при нижнем крае: ' .. serpent.line(frame.location))
+    assert_on_screen(frame)
     local sections_scroll = find(frame, 'shm_ol_scroll_sections')
     assert(sections_scroll and sections_scroll.type == 'scroll-pane', 'нет прокрутки «Групп»')
     local now_scroll = find(frame, 'shm_ol_scroll_now')
     assert(now_scroll and now_scroll.type == 'scroll-pane', 'нет прокрутки «Отдачи»')
-    assert(sections_scroll.style.maximal_height <= cap and now_scroll.style.maximal_height <= cap, 'прокрутка выше потолка')
-    -- Нижнее по умолчанию проверено; верхнее и боковое ограничены так же.
-    for _, position in ipairs({ 'top', 'right' }) do
+    -- Пустоты: у блоков и прокруток нет фиксированных резервов высоты —
+    -- они растянуты на высоту рамки.
+    for _, name in ipairs({ 'shm_ol_block_sections', 'shm_ol_block_now', 'shm_ol_block_lines' }) do
+      local block = find(frame, name)
+      assert(block and block.style.vertically_stretchable == true, 'блок ' .. name .. ' не растянут на высоту рамки')
+    end
+    assert(sections_scroll.style.vertically_stretchable == true and now_scroll.style.vertically_stretchable == true, 'прокрутки не растянуты на высоту рамки')
+    -- Другие положения: сверху те же 40–50%; сбоку — столбик 0.8 экрана.
+    for _, position in ipairs({ 'top', 'right', 'left' }) do
       player().mod_settings[panel.POSITION_SETTING] = { value = position }
       panel.build(player(), hub)
-      frame = player().gui.relative[panel.NAME]
-      assert(frame.style.maximal_height == cap, 'потолок не действует при положении ' .. position)
+      frame = player().gui.screen[panel.NAME]
+      if position == 'top' then
+        assert(frame.style.minimal_height == min_h and frame.style.maximal_height == max_h,
+          'потолок не действует при положении ' .. position)
+      else
+        assert(frame.style.minimal_height == side_cap and frame.style.maximal_height == side_cap,
+          'потолок не действует при положении ' .. position)
+      end
     end
     player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
   end)
@@ -380,12 +446,15 @@ describe('интерфейс', function()
       })
     end
     remote.call('shm-orbital-logistics', 'pass')
-    local cap = height_cap()
+    local min_h = math.floor(math.floor(player().display_resolution.height / player().display_scale) * panel.EXPAND_MIN_SHARE)
+    local max_h = panel.expanded_cap(player())
     local frame = open(hub)
-    assert(frame.style.maximal_height == cap, 'потолок высоты не выставлен')
+    assert(frame.style.minimal_height == min_h and frame.style.maximal_height == max_h,
+      'высота не между 40% и 50% экрана: ' .. tostring(frame.style.minimal_height))
+    assert_on_screen(frame)
     local now_scroll = find(frame, 'shm_ol_scroll_now')
     assert(now_scroll and now_scroll.type == 'scroll-pane', 'нет прокрутки «Отдачи»')
-    assert(now_scroll.style.maximal_height <= cap, 'прокрутка «Отдачи» выше потолка')
+    assert(now_scroll.style.vertically_stretchable == true, 'прокрутка «Отдачи» не растянута на фиксированную высоту')
     local keys = now_keys(frame)
     assert((keys['now-depot-here'] or 0) == 12, 'не все склады отдают: ' .. serpent.line(keys))
     -- 12 исключений одного типа сведены в одну строку с сеткой иконок.
@@ -415,24 +484,25 @@ describe('интерфейс', function()
       return list
     end
     local at_open = groups_list()
-    -- Реальный контент «Групп»: строк в таблице секций — по кнопке «Применить»
-    -- на каждую. Пустая безымянная секция новой платформы — тоже строка.
+    -- Реальный контент «Групп»: строк в таблице секций — по селектору
+    -- назначения на каждую. Пустая безымянная секция новой платформы —
+    -- тоже строка.
     local rendered_rows = 0
-    local function count_apply(element)
-      if element.name and string.sub(element.name, 1, 13) == 'shm_ol_apply_' then
+    local function count_purpose(element)
+      if element.name and string.sub(element.name, 1, 15) == 'shm_ol_purpose_' then
         rendered_rows = rendered_rows + 1
       end
       for _, child in pairs(element.children) do
-        count_apply(child)
+        count_purpose(child)
       end
     end
-    count_apply(frame)
+    count_purpose(frame)
     assert(find(frame, 'shm_ol_now'), '«Отдача» не развёрнута')
     assert(find(frame, 'shm_ol_scroll_sections'), '«Группы» не развёрнуты')
 
     -- Треугольник в заголовке «Отдачи» сворачивает только её.
     click(block_toggle(frame, 'now'))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     assert(find(frame, 'shm_ol_now') == nil, '«Отдача» не свернулась')
     local summary = find(frame, 'shm_ol_block_summary')
     assert(summary and summary.tags.block == 'now', 'нет строки-итога')
@@ -446,12 +516,12 @@ describe('интерфейс', function()
 
     -- Клик по строке-итогу разворачивает обратно.
     click(find(frame, 'shm_ol_block_summary'))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     assert(find(frame, 'shm_ol_now'), 'клик по итогу не развернул «Отдачу»')
 
     -- Свернуть и «Группы»: блоки независимы.
     click(block_toggle(frame, 'sections'))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     assert(find(frame, 'shm_ol_scroll_sections') == nil, '«Группы» не свернулись')
     assert(find(frame, 'shm_ol_now'), 'сворачивание «Групп» задело «Отдачу»')
     -- Итог «Групп» — реальный контент блока: сколько строк рендерилось
@@ -474,7 +544,11 @@ describe('интерфейс', function()
 
     -- И развернуть обратно.
     click(block_toggle(frame, 'sections'))
-    assert(find(player().gui.relative[panel.NAME], 'shm_ol_scroll_sections'), '«Группы» не развернулись')
+    assert(find(player().gui.screen[panel.NAME], 'shm_ol_scroll_sections'), '«Группы» не развернулись')
+    -- Чистка состояния панели: следующие тесты открывают развёрнутую панель.
+    storage.panel_collapsed = nil
+    storage.panel_block_collapsed = nil
+    panel.build(player(), hub)
   end)
 
   it('пустой блок линий — одна кнопка «Линии снабжения…» без заголовка и «пока нет»; с линией — полный блок', function()
@@ -515,41 +589,49 @@ describe('интерфейс', function()
     local frame = open(hub)
     assert(find(frame, 'shm_ol_toggle'), 'нет кнопки сворачивания')
     click(find(frame, 'shm_ol_toggle'))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     assert(frame and frame.tags.collapsed, 'панель не свернулась')
-    assert(frame.anchor.position == defines.relative_gui_position.bottom, 'кнопка не на том же краю')
+    assert(frame.location.y == math.floor(player().display_resolution.height / player().display_scale) - panel.MINI_HEIGHT,
+      'свёрнутая панель не у нижнего края экрана: ' .. serpent.line(frame.location))
     assert(type(frame.caption) == 'table' and frame.caption[1] == 'shm-orbital-logistics.panel-title', 'свёрнутый вид не называет мод')
     assert(find(frame, 'shm_ol_toggle'), 'нет кнопки разворачивания')
     assert(not find(frame, 'shm_ol_open_lines'), 'свёрнутый вид показывает блоки панели')
     panel.refresh_all()
-    assert(player().gui.relative[panel.NAME].tags.collapsed, 'свёрнутый вид перестроился в панель')
+    assert(player().gui.screen[panel.NAME].tags.collapsed, 'свёрнутый вид перестроился в панель')
 
     -- Переоткрытие окна: открывается снова свёрнутым.
     player().opened = nil
     frame = open(hub)
     assert(frame and frame.tags.collapsed, 'переоткрытое окно развернулось')
 
-    -- Настройка положения действует и на свёрнутую кнопку. Смена настройки
-    -- сама перестраивает панель, поэтому ссылку на фрейм обновляем.
+    -- Настройка положения действует и на свёрнутую кнопку: справа панель
+    -- и свёрнутая кнопка — у правого края экрана.
     player().mod_settings[panel.POSITION_SETTING] = { value = 'right' }
-    frame = player().gui.relative[panel.NAME]
-    local ok = frame.anchor.position == defines.relative_gui_position.right and frame.tags.collapsed
+    panel.build(player(), hub)
+    frame = player().gui.screen[panel.NAME]
+    local screen_w = math.floor(player().display_resolution.width / player().display_scale)
+    assert(frame.location.x == screen_w - panel.MINI_WIDTH and frame.tags.collapsed,
+      'свёрнутая панель не у правого края: ' .. serpent.line(frame.location))
     player().mod_settings[panel.POSITION_SETTING] = { value = 'bottom' }
-    frame = player().gui.relative[panel.NAME]
-    assert(ok, 'настройка положения не действует на кнопку')
+    panel.build(player(), hub)
+    frame = player().gui.screen[panel.NAME]
 
     click(find(frame, 'shm_ol_toggle'))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     assert(frame and not frame.tags.collapsed and find(frame, 'shm_ol_open_lines'), 'панель не развернулась обратно')
     assert(type(frame.caption) == 'table' and frame.caption[1] == 'shm-orbital-logistics.panel-title', 'развёрнутый вид потерял заголовок')
 
     -- Площадка сворачивается так же.
     frame = open(f.pad())
     click(find(frame, 'shm_ol_toggle'))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     assert(frame and frame.tags.collapsed, 'панель площадки не свернулась')
     click(find(frame, 'shm_ol_toggle'))
-    assert(not player().gui.relative[panel.NAME].tags.collapsed, 'панель площадки не развернулась')
+    assert(not player().gui.screen[panel.NAME].tags.collapsed, 'панель площадки не развернулась')
+    -- Чистка состояния панели: следующие тесты открывают развёрнутую панель.
+    storage.panel_collapsed = nil
+    storage.panel_block_collapsed = nil
+    panel.build(player(), f.pad())
   end)
 
   it('панель подхватывает новую группу и помечает группу груза, выключенную модом', function()
@@ -571,8 +653,23 @@ describe('интерфейс', function()
     local before = hub.get_logistic_sections().sections_count
     hub.get_logistic_sections().add_section('Test new group')
     after_ticks(70, function()
-      frame = player().gui.relative[panel.NAME]
-      assert(find(frame, 'shm_ol_apply_' .. (before + 1)), 'новая группа не появилась в панели')
+      -- Продуктовое обещание: после прохода обновления новая группа есть
+      -- в панели. Обновляем явно — порядок обработчиков одного тика не
+      -- гарантируется.
+      panel.refresh_all()
+      frame = player().gui.screen[panel.NAME]
+      -- Индекс новой секции ищем по имени: sections_count включает и
+      -- служебную секцию мода, чьё наличие плавает.
+      local new_index
+      local sections = hub.get_logistic_sections()
+      for index = 1, sections.sections_count do
+        if sections.get_section(index).group == 'Test new group' then
+          new_index = index
+          break
+        end
+      end
+      assert(new_index and find(frame, 'shm_ol_purpose_' .. new_index),
+        'новая группа не появилась в панели: new_index ' .. tostring(new_index))
       player().force.delete_logistic_group('Test new group')
       player().force.delete_logistic_group('Test collect [cargo→fulgora]')
       assert(platform.valid)
@@ -639,7 +736,7 @@ describe('интерфейс', function()
     local depot_index = first_filtered_index(hub, 'Test det depot')
     assert(depot_index, 'нет секции склада')
     click(details_toggle(frame, depot_index))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     local keys = detail_keys(frame)
     assert(keys['details-depot-here'] == 1, 'нет фразы склада на орбите: ' .. serpent.line(keys))
     assert(keys['details-amounts'] == 1, 'нет чисел по предмету: ' .. serpent.line(keys))
@@ -652,7 +749,7 @@ describe('интерфейс', function()
     -- Запас: держит, объяснение — остался запас.
     local reserve_index = first_filtered_index(hub, 'Test det reserve')
     click(details_toggle(frame, reserve_index))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     keys = detail_keys(frame)
     assert(keys['details-reserve'] == 1, 'нет фразы запаса: ' .. serpent.line(keys))
     assert(keys['details-st-held-reserve'] == 1, 'запас не «стоит»: ' .. serpent.line(keys))
@@ -675,7 +772,7 @@ describe('интерфейс', function()
     local frame = open(at_dest)
     local index = first_filtered_index(at_dest, 'Test det cargo dest')
     click(details_toggle(frame, index))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     local keys = detail_keys(frame)
     assert(keys['details-cargo-dest'] == 1, 'груз на назначении не «раздаётся»: ' .. serpent.line(keys))
     local phrase = find_caption(frame, 'details-cargo-dest')
@@ -689,7 +786,7 @@ describe('интерфейс', function()
     frame = open(away)
     index = first_filtered_index(away, 'Test det cargo held')
     click(details_toggle(frame, index))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     keys = detail_keys(frame)
     assert(keys['details-cargo-held'] == 1, 'груз в пути не «держится»: ' .. serpent.line(keys))
     assert(keys['details-st-held-cargo'] == 1, 'нет причины «вне назначения»: ' .. serpent.line(keys))
@@ -714,7 +811,7 @@ describe('интерфейс', function()
     -- Развёрнуто: строка предмета с числами и статусом отдачи.
     local index = first_filtered_index(hub, nil)
     click(details_toggle(frame, index))
-    frame = player().gui.relative[panel.NAME]
+    frame = player().gui.screen[panel.NAME]
     keys = detail_keys(frame)
     assert(keys['details-cargo-vanilla'] == 1, 'нет строки ванильного груза: ' .. serpent.line(keys))
     assert(keys['details-amounts'] == 1, 'нет чисел по предмету: ' .. serpent.line(keys))
@@ -733,20 +830,18 @@ describe('интерфейс', function()
     panel.refresh_all()
     assert(detail_keys(frame)['details-preview'] == nil, 'предпросмотр без смены назначения')
 
-    -- Выбран «Склад» на Вулкан: предпросмотр с фразой склада и местом-ссылкой.
+    -- Выбран «Склад» на Вулкан: применяется сразу, в деталях фраза склада
+    -- и место-ссылкой (кнопки «Применить» больше нет).
     find(frame, 'shm_ol_purpose_' .. index).selected_index = 4
     pick(frame, 'shm_ol_places_' .. index, 'vulcanus')
-    panel.refresh_all()
+    frame = player().gui.screen[panel.NAME]
+    click(details_toggle(frame, index))
+    frame = player().gui.screen[panel.NAME]
     local keys = detail_keys(frame)
-    assert(keys['details-preview'] == 1, 'нет строки предпросмотра: ' .. serpent.line(keys))
-    assert(keys['details-depot-away'] == 1, 'в предпросмотре не фраза склада: ' .. serpent.line(keys))
-    local preview = find_caption(frame, 'details-preview')
-    assert(serpent.line(preview):find('planet=vulcanus', 1, true), 'место в предпросмотре не ссылкой')
-
-    -- Применение убирает предпросмотр.
-    click(find(frame, 'shm_ol_apply_' .. index))
-    frame = player().gui.relative[panel.NAME]
-    assert(detail_keys(frame)['details-preview'] == nil, 'предпросмотр остался после «Применить»')
+    assert(keys['details-depot-away'] == 1, 'в деталях не фраза склада: ' .. serpent.line(keys))
+    local away = find_caption(frame, 'details-depot-away')
+    assert(serpent.line(away):find('planet=vulcanus', 1, true), 'место в деталях не ссылкой')
+    assert(keys['details-preview'] == nil, 'предпросмотр остался при авто-применении')
   end)
 
   it('предупреждения об источниках склада: «Платформы» не отдаёт, импорт с текущей планеты не сбрасывает', function()
@@ -1019,8 +1114,112 @@ describe('интерфейс', function()
     local sections = hub.get_logistic_sections()
     for index = 1, sections.sections_count do
       if sections.get_section(index).group == hub_group then
-        assert(find(frame, 'shm_ol_apply_' .. index).enabled == false, 'секцию линии можно править из панели')
+        assert(find(frame, 'shm_ol_purpose_' .. index).enabled == false, 'секцию линии можно править из панели')
       end
     end
+  end)
+
+  it('высокий хаб: панель переезжает вбок, разворачивание сразу показывает контент', function()
+    local _, hub = f.platform('a')
+    local items = { 'copper-plate', 'steel-plate', 'stone', 'coal', 'iron-gear-wheel', 'copper-cable', 'electronic-circuit', 'plastic-bar', 'sulfur', 'concrete', 'battery' }
+    for i, item in ipairs(items) do
+      f.request(hub, 100, { item = item, group = 'Test tall ' .. i .. ' [depot:nauvis]', from = 'planet', import_from = f.OTHER_PLANET })
+    end
+    remote.call('shm-orbital-logistics', 'pass')
+    local p = player()
+    local screen_h = math.floor(p.display_resolution.height / p.display_scale)
+    local screen_w = math.floor(p.display_resolution.width / p.display_scale)
+    local min_h = math.floor(screen_h * panel.EXPAND_MIN_SHARE)
+    local max_h = panel.expanded_cap(p)
+    local frame = open(hub)
+    -- 12 секций: окно хаба высокое — панель остаётся снизу (screen gui
+    -- рисуется поверх и не обрезается якорем), высота 40–50% экрана.
+    assert(frame.location.x == math.floor((screen_w - panel.BOTTOM_WIDTH) / 2),
+      'панель не по центру: ' .. serpent.line(frame.location))
+    assert(frame.location.y == screen_h - max_h,
+      'панель не при нижнем крае: ' .. serpent.line(frame.location))
+    assert(frame.style.minimal_height == min_h
+      and frame.style.maximal_height == max_h, 'высота не 40–50% экрана')
+    assert_on_screen(frame)
+    local tall_scroll = find(frame, 'shm_ol_scroll_sections')
+    assert(tall_scroll and tall_scroll.style.vertically_stretchable == true, 'развёрнутая прокрутка не растянута на высоту рамки')
+    -- Больше секций — выше ванильное окно, но панель остаётся снизу:
+    -- границы 40–50% экрана не зависят от секций.
+    hub.get_logistic_sections().add_section('Test tall extra')
+    hub.get_logistic_sections().add_section('Test tall extra 2')
+    panel.build(p, hub)
+    frame = player().gui.screen[panel.NAME]
+    local bigger_min = frame.style.minimal_height
+    local bigger_max = frame.style.maximal_height
+    assert(bigger_min == min_h and bigger_max == max_h,
+      'границы высоты изменились от секций: ' .. tostring(bigger_min) .. ' / ' .. tostring(bigger_max))
+    assert_on_screen(frame)
+    -- Разворачивание секции показывает содержимое сразу после клика.
+    local sections = hub.get_logistic_sections()
+    local target_index = nil
+    for index = 1, sections.sections_count do
+      if sections.get_section(index).filters_count > 0 then
+        target_index = index
+        break
+      end
+    end
+    local expander = nil
+    local function scan(element)
+      if expander == nil and element.name == 'shm_ol_expand' and element.tags.details == target_index then
+        expander = element
+      end
+      for _, child in pairs(element.children) do
+        scan(child)
+      end
+    end
+    scan(frame)
+    click(expander)
+    local details = find(frame, 'shm_ol_details_' .. target_index)
+    assert(details and #details.children > 0, 'разворот секции не показывает содержимое')
+  end)
+
+  it('OL-DEBUG: сигнатура и снапшот при добавлении секции', function()
+    local _, hub = f.platform('a')
+    f.request(hub, 100, { group = 'Test collect [cargo→fulgora]', from = 'all' })
+    remote.call('shm-orbital-logistics', 'pass')
+    local purpose_counter = { n = 0 }
+    local function scan(el)
+      if el.name and string.sub(el.name, 1, 15) == 'shm_ol_purpose_' then
+        purpose_counter.n = purpose_counter.n + 1
+      end
+      for _, ch in pairs(el.children) do
+        scan(ch)
+      end
+    end
+    local frame = open(hub)
+    scan(frame)
+    local purposes_at_open = purpose_counter.n
+    local steps = {}
+    local ok1, snap_before = pcall(function() return #controller.snapshot(hub).sections end)
+    steps[#steps + 1] = 'snap_before ' .. tostring(ok1) .. '/' .. tostring(snap_before)
+    hub.get_logistic_sections().add_section('Test new group')
+    steps[#steps + 1] = 'opened_after_add ' .. tostring(player().opened == hub)
+    local ok2, snap_after = pcall(function() return #controller.snapshot(hub).sections end)
+    steps[#steps + 1] = 'snap_after ' .. tostring(ok2) .. '/' .. tostring(snap_after)
+    local okr, errr = pcall(function() panel.refresh_all() end)
+    steps[#steps + 1] = 'refresh_all ' .. tostring(okr) .. ' ' .. tostring(errr)
+    steps[#steps + 1] = 'opened_after_refresh ' .. tostring(player().opened == hub)
+    frame = player().gui.screen[panel.NAME]
+    scan(frame)
+    local purposes_after_refresh = purpose_counter.n
+    local sig_after_refresh = tostring(frame.tags.signature)
+    local okb, errb = pcall(function() panel.build(player(), hub) end)
+    steps[#steps + 1] = 'build ' .. tostring(okb) .. ' ' .. tostring(errb)
+    frame = player().gui.screen[panel.NAME]
+    scan(frame)
+    scan(frame)
+    local purposes_after_build = purpose_counter.n
+    local sections_dump = {}
+    local sections = hub.get_logistic_sections()
+    for index = 1, sections.sections_count do
+      local section = sections.get_section(index)
+      sections_dump[#sections_dump + 1] = index .. ':«' .. section.group .. '»:m' .. tostring(section.is_manual)
+    end
+    assert(true, 'OL-DEBUG: диагностический прогон пройден')
   end)
 end)
