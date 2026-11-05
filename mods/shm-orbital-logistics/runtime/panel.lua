@@ -394,7 +394,9 @@ local function fill_now(flow, hub)
     local name = groups.add({ type = 'label', caption = row.group })
     name.style.maximal_width = 240
     name.style.font = 'default-semibold'
-    groups.add({ type = 'label', caption = { '', icon(row.kind), row.caption } })
+    local status = groups.add({ type = 'label', caption = { '', icon(row.kind), row.caption } })
+    status.style.single_line = false
+    status.style.maximal_width = 260
   end
   if #exceptions > 0 then
     flow.add({ type = 'label', caption = { L .. 'now-exceptions' }, style = 'caption_label' })
@@ -407,7 +409,7 @@ local function fill_now(flow, hub)
     -- список предметов — в тултипе строки.
     for _, entry in ipairs(exceptions) do
       local cell = list.add({ type = 'flow', direction = 'horizontal' })
-      local grid = cell.add({ type = 'table', name = 'shm_ol_exception_grid', column_count = 10 })
+      local grid = cell.add({ type = 'table', name = 'shm_ol_exception_grid', column_count = 8 })
       local tooltip = items_tooltip(entry.items)
       for i, one in ipairs(entry.items) do
         if i > 10 then
@@ -498,9 +500,14 @@ local function add_lines(frame, player, entity)
 end
 
 function panel.destroy(player)
-  local existing = player.gui.relative[panel.NAME]
-  if existing then
-    existing.destroy()
+  -- Старые сборки клали панель в относительный якорь: почистить и её.
+  local legacy = player.gui.relative[panel.NAME]
+  if legacy then
+    legacy.destroy()
+  end
+  local screen = player.gui.screen[panel.NAME]
+  if screen then
+    screen.destroy()
   end
 end
 
@@ -585,19 +592,101 @@ local function section_rows(hub)
   return rows
 end
 
---- Потолок высоты панели: доля рабочей области. display_resolution —
---- экранные пиксели, display_scale переводит их в единицы GUI.
+--- Потолок высоты панели. display_resolution — экранные пиксели,
+--- display_scale переводит их в единицы GUI. Боковым положениям (панель
+--- столбиком у узкого края) хватает доли рабочей области. Низу и верху
+--- панель якорится под/над окном хаба, а окно само растёт с числом секций
+--- и размером грузового склада, и Factorio просто режет содержимое по краю
+--- экрана — поэтому потолок считается от ОСТАТКА экрана после
+--- консервативной оценки окна: шапка и кнопки, строка на каждую секцию,
+--- ряды грузовых слотов. Оценка с запасом: модернизированная платформа
+--- или больше секций сделают окно выше, а не ниже.
 local HEIGHT_SHARE = 0.8
 panel.HEIGHT_SHARE = HEIGHT_SHARE
+local WINDOW_CHROME = 340
+local WINDOW_PER_SECTION = 38
+local WINDOW_PER_SLOT_ROW = 38
+local CAP_MARGIN = 40
+local MIN_CAP = 150
+panel.MIN_CAP = MIN_CAP
+local EXPAND_SHARE = 0.5    --- максимум высоты развёрнутой панели, доля экрана
+panel.EXPAND_SHARE = EXPAND_SHARE
+local EXPAND_MIN_SHARE = 0.4 --- минимум высоты развёрнутой панели, доля экрана
+panel.EXPAND_MIN_SHARE = EXPAND_MIN_SHARE
+local BOTTOM_WIDTH = 1100 --- ширина нижней/верхней панели
+local SIDE_WIDTH = 560    --- ширина боковой панели
+local MINI_HEIGHT = 64    --- высота свёрнутой панели
+local MINI_WIDTH = 380    --- ширина свёрнутой панели
+panel.BOTTOM_WIDTH = BOTTOM_WIDTH
+panel.SIDE_WIDTH = SIDE_WIDTH
+panel.MINI_HEIGHT = MINI_HEIGHT
+panel.MINI_WIDTH = MINI_WIDTH
+panel.MINI_HEIGHT = MINI_HEIGHT
 
-local function height_cap(player)
+--- Оценка высоты ванильного окна хаба/площадки в единицах GUI (см. потолок).
+local function window_estimate(entity)
+  local cargo = defines.inventory.hub_main
+  if entity.type == 'cargo-landing-pad' then
+    cargo = defines.inventory.cargo_landing_pad_main
+  end
+  local slots = 40
+  local inventory = entity.get_inventory(cargo)
+  if inventory then
+    local ok, size = pcall(function() return #inventory end)
+    if ok and size and size > 0 then
+      slots = size
+    end
+  end
+  return WINDOW_CHROME
+    + WINDOW_PER_SECTION * entity.get_logistic_sections().sections_count
+    + WINDOW_PER_SLOT_ROW * math.ceil(slots / 8)
+end
+
+--- Ширина экрана в GUI-единицах; nil, если данных дисплея нет.
+local function gui_width_of(player)
   local resolution = player.display_resolution
   local scale = player.display_scale
   if not resolution or not scale or scale <= 0 then
     return nil
   end
-  return math.floor(resolution.height / scale * HEIGHT_SHARE)
+  return resolution.width / scale
 end
+
+--- Высота экрана в GUI-единицах; nil, если данных дисплея нет.
+local function gui_height_of(player)
+  local resolution = player.display_resolution
+  local scale = player.display_scale
+  if not resolution or not scale or scale <= 0 then
+    return nil
+  end
+  return resolution.height / scale
+end
+
+local function height_cap(player, entity, wide)
+  local gui_height = gui_height_of(player)
+  if not gui_height then
+    return nil
+  end
+  if not wide then
+    return math.floor(gui_height * HEIGHT_SHARE)
+  end
+  local remaining = gui_height - window_estimate(entity) - CAP_MARGIN
+  return math.floor(math.max(math.min(gui_height * HEIGHT_SHARE, remaining), MIN_CAP))
+end
+panel.height_cap = height_cap
+
+--- Потолок РАЗВЁРНУТОГО блока: половина высоты экрана в GUI-единицах.
+--- Решение владельца 2026-11-04: остаток под окном хаба на реальных
+--- складах зажимал развёрнутый блок в MIN_CAP — разворот всегда
+--- поднимает прокрутку до половины экрана.
+local function expanded_cap(player)
+  local gui_height = gui_height_of(player)
+  if not gui_height then
+    return nil
+  end
+  return math.floor(gui_height * EXPAND_SHARE)
+end
+panel.expanded_cap = expanded_cap
 
 --- Заголовок блока: треугольник сворачивания и название.
 local function block_header(parent, key, title_key)
@@ -617,15 +706,16 @@ local function collapsed_block(parent, key, summary)
   })
 end
 
---- Прокрутка блока: вертикальная, тянется вместе с рамкой, но не выше
---- потолка; сжимаемая, чтобы потолок рамки доходил до неё.
-local function scroll_pane(parent, name, cap)
+--- Прокрутка блока: вертикальная, растягивается на высоту и ширину рамки.
+--- Горизонтальной полосы быть не должно (решение владельца 2026-11-04):
+--- внутренние потоки сжимаемы по горизонтали, длинные подписи переносятся —
+--- игре незачем показывать горизонтальный скролл.
+local function scroll_pane(parent, name)
   local scroll = parent.add({ type = 'scroll-pane', name = name, direction = 'vertical' })
   scroll.style.vertically_stretchable = true
+  scroll.style.horizontally_stretchable = true
   scroll.style.vertically_squashable = true
-  if cap then
-    scroll.style.maximal_height = cap
-  end
+  scroll.style.horizontally_squashable = true
   return scroll
 end
 
@@ -1086,14 +1176,6 @@ local function add_sections(scroll, hub)
         enabled = locked == nil,
       })
     end
-    table.add({
-      type = 'button',
-      name = 'shm_ol_apply_' .. index,
-      caption = { L .. 'apply' },
-      tooltip = locked or { L .. 'apply-tooltip' },
-      tags = { section = index },
-      enabled = locked == nil,
-    }).style.minimal_width = 100
     local container = row.add({
       type = 'flow',
       direction = 'vertical',
@@ -1107,47 +1189,71 @@ end
 function panel.build(player, entity)
   panel.destroy(player)
   local position = position_of(player)
-  local wide = position == 'bottom' or position == 'top'
   local collapsed = is_collapsed(player.index)
-  local cap = height_cap(player)
-  local frame = player.gui.relative.add({
+  --- Панель — экранное окно внизу экрана (решение владельца 2026-11-04):
+  --- относительный якорь под окном хаба физически не даёт развёрнутому
+  --- блоку половину экрана — игра обрезает не вмещающееся в остаток.
+  --- Нижняя/верхняя панель: эластичная высота — минимум 40%, максимум 50%
+  --- экрана (решение владельца 2026-11-04), лежит поверх нижней части окна
+  --- хаба; боковые — столбик фиксированно на 0.8 экрана у края.
+  local screen_w = gui_width_of(player)
+  local screen_h = gui_height_of(player)
+  local expand = expanded_cap(player)
+  local side = position == 'left' or position == 'right'
+  local frame_h_min = screen_h and (side and math.floor(screen_h * HEIGHT_SHARE)
+    or math.floor(screen_h * EXPAND_MIN_SHARE)) or nil
+  local frame_h_max = screen_h and (side and math.floor(screen_h * HEIGHT_SHARE)
+    or (expand or math.floor(screen_h * EXPAND_SHARE))) or nil
+  local frame_w = side and SIDE_WIDTH or BOTTOM_WIDTH
+  local frame = player.gui.screen.add({
     type = 'frame',
     name = panel.NAME,
     caption = { L .. 'panel-title' },
-    direction = (wide or collapsed) and 'horizontal' or 'vertical',
-    anchor = { gui = anchor(entity), position = defines.relative_gui_position[position] },
+    direction = (side or collapsed) and 'vertical' or 'horizontal',
     tags = {
       unit_number = entity.unit_number,
       collapsed = collapsed or nil,
       signature = (not collapsed and entity.type == 'space-platform-hub') and signature(entity) or nil,
     },
   })
+  local width = collapsed and MINI_WIDTH or frame_w
+  -- У frame-стилей нет plain height/width: границы задаёт пара
+  -- minimal/maximal — между ними фрейм тянется по содержимому.
+  frame.style.minimal_width = width
+  frame.style.maximal_width = width
+  if collapsed then
+    frame.style.minimal_height = MINI_HEIGHT
+    frame.style.maximal_height = MINI_HEIGHT
+  elseif frame_h_min then
+    frame.style.minimal_height = frame_h_min
+    frame.style.maximal_height = frame_h_max
+  end
+  if screen_w and screen_h then
+    local x = side and (position == 'right' and screen_w - width or 0) or math.floor((screen_w - width) / 2)
+    local y = collapsed and (screen_h - MINI_HEIGHT) or (position == 'top' and 0 or screen_h - frame_h_max)
+    frame.location = { x = math.max(0, math.floor(x)), y = math.max(0, math.floor(y)) }
+  end
   -- Кнопка сворачивания — первый элемент панели: слева в ряду, сверху в столбике.
   toggle_button(frame, 'shm_ol_toggle', not collapsed, { toggle = not collapsed })
   if collapsed then
     -- Свёрнутый вид: мини-окошко «Orbital Logistics» с кнопкой разворачивания.
     return frame
   end
-  if not wide then
-    frame.style.maximal_width = 560
-  end
-  if cap then
-    frame.style.maximal_height = cap
-    -- Потолок сжимает содержимое: без сжимаемости прокрутки блоки
-    -- выталкивались бы за рамку.
-    frame.style.vertically_squashable = true
+  if side then
+    frame.style.maximal_width = SIDE_WIDTH
   end
   local first = 0
   --- Блок панели: в ряду — свой столбец с разделителем, в столбике — свой
-  --- поток. Тянется и сжимается по высоте, чтобы потолок рамки доходил
-  --- до прокрутки внутри.
+  --- поток. Высота рамки фиксирована (половина экрана), поэтому блоки и
+  --- прокрутки растягиваются до неё: пустых резервов нет, короткое
+  --- содержимое просто скроллится в отведённой высоте.
   local function block(name)
-    if wide and first > 0 then
+    if not side and first > 0 then
       frame.add({ type = 'line', direction = 'vertical' })
     end
     first = first + 1
     local container = frame.add({ type = 'flow', direction = 'vertical', name = name })
-    if wide then
+    if not side then
       container.style.right_padding = 8
       container.style.left_padding = 8
     end
@@ -1162,7 +1268,7 @@ function panel.build(player, entity)
       collapsed_block(sections_block, 'sections', { L .. 'collapsed-sections', section_rows(entity) })
     else
       block_header(sections_block, 'sections', 'sections')
-      local scroll = scroll_pane(sections_block, 'shm_ol_scroll_sections', cap)
+      local scroll = scroll_pane(sections_block, 'shm_ol_scroll_sections')
       fill_warnings(scroll.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), entity)
       add_sections(scroll, entity)
     end
@@ -1173,7 +1279,7 @@ function panel.build(player, entity)
       collapsed_block(now_block, 'now', { L .. 'collapsed-now', #rows, #exceptions })
     else
       block_header(now_block, 'now', 'now')
-      local scroll = scroll_pane(now_block, 'shm_ol_scroll_now', cap)
+      local scroll = scroll_pane(now_block, 'shm_ol_scroll_now')
       fill_now(scroll.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), entity)
     end
   end
@@ -1186,7 +1292,7 @@ function panel.build(player, entity)
     collapsed_block(lines_block, 'lines', { L .. 'collapsed-lines', #member })
   else
     block_header(lines_block, 'lines', 'lines')
-    add_lines(scroll_pane(lines_block, 'shm_ol_scroll_lines', cap), player, entity)
+    add_lines(scroll_pane(lines_block, 'shm_ol_scroll_lines'), player, entity)
   end
   return frame
 end
@@ -1226,7 +1332,7 @@ end
 --- контейнера, и его обновление пропускается.
 function panel.refresh_all()
   for _, player in pairs(game.connected_players) do
-    local frame = player.gui.relative[panel.NAME]
+    local frame = player.gui.screen[panel.NAME]
     local entity = frame and opened_entity(player)
     if entity and entity.type == 'space-platform-hub' and not frame.tags.collapsed then
       if frame.tags.signature ~= signature(entity) then
@@ -1257,7 +1363,7 @@ function panel.refresh_all()
 end
 
 local function apply_purpose(player, entity, index)
-  local frame = player.gui.relative[panel.NAME]
+  local frame = player.gui.screen[panel.NAME] or player.gui.relative[panel.NAME]
   local section = entity.get_logistic_sections().get_section(index)
   if not (frame and section and section.is_manual) then
     return
@@ -1298,12 +1404,94 @@ local function apply_purpose(player, entity, index)
   controller.pass()
   panel.build(player, entity)
 end
+panel.apply_purpose = apply_purpose
 
---- Нажатие в панели. Возвращает true, если событие её.
+--- Селектор назначения строки: применяется сразу, кнопки «Применить»
+--- больше нет (решение владельца 2026-11-04).
+function panel.on_selection(event)
+  local element = event.element
+  if not (element and element.valid) or string.sub(element.name, 1, 15) ~= 'shm_ol_purpose_' then
+    return false
+  end
+  local player = game.get_player(event.player_index)
+  local entity = player and opened_entity(player)
+  if not (player and entity) then
+    return false
+  end
+  apply_purpose(player, entity, tonumber(string.match(element.name, 'shm_ol_purpose_(%d+)')))
+  return true
+end
+
+--- Места строки секции: событие внутри потока «shm_ol_places_N».
+local function places_row(event)
+  local element = event.element
+  if not (element and element.valid) then
+    return nil
+  end
+  local parent = element.parent
+  if not (parent and parent.valid) then
+    return nil
+  end
+  return tonumber(string.match(parent.name, '^shm_ol_places_(%d+)$')), parent
+end
+
+--- Место добавлено из окна выбора: дополнить выбор и применить. Внимание:
+--- elem_value у space-location — строка, не таблица.
+function panel.on_elem_changed(event)
+  local index, flow = places_row(event)
+  local element = event.element
+  if not index or not (element and element.valid) or not (element.tags and element.tags.picker_add) then
+    return false
+  end
+  local value = element.elem_value
+  local name = type(value) == 'table' and value.name or value
+  if not name then
+    return true
+  end
+  local selected = {}
+  for _, place in ipairs(flow.tags.selected or {}) do
+    selected[place] = true
+  end
+  selected[name] = true
+  local names = {}
+  for place in pairs(selected) do
+    names[#names + 1] = place
+  end
+  table.sort(names)
+  picker.set_selected(flow, names)
+  local player = game.get_player(event.player_index)
+  local entity = player and opened_entity(player)
+  if player and entity then
+    apply_purpose(player, entity, index)
+  end
+  return true
+end
+
+--- Нажатия в панели. Возвращает true, если событие её.
 function panel.on_click(event, open_lines)
   local element = event.element
   if not (element and element.valid) then
     return false
+  end
+  -- Убрать место из выбора строки секции: иконки мест, применить сразу.
+  if element.tags and element.tags.picker_remove then
+    local parent = element.parent
+    local index = parent and tonumber(string.match(parent.name, '^shm_ol_places_(%d+)$'))
+    if index then
+      local player = game.get_player(event.player_index)
+      local entity = player and opened_entity(player)
+      local selected = {}
+      for _, place in ipairs(parent.tags.selected or {}) do
+        if place ~= element.tags.picker_remove then
+          selected[#selected + 1] = place
+        end
+      end
+      picker.set_selected(parent, selected)
+      if player and entity then
+        apply_purpose(player, entity, index)
+      end
+      return true
+    end
   end
   local player = game.get_player(event.player_index)
   local entity = player and opened_entity(player)
@@ -1361,12 +1549,6 @@ function panel.on_click(event, open_lines)
         local result = resolver.resolve(snap, cargo_here)
         fill_details(container, snap, result, cargo_here)
       end
-    end
-    return true
-  end
-  if string.sub(element.name, 1, 13) == 'shm_ol_apply_' then
-    if entity then
-      apply_purpose(player, entity, element.tags.section)
     end
     return true
   end

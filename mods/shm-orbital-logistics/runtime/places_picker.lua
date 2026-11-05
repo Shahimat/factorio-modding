@@ -115,6 +115,12 @@ local function update(flow, selected)
   render(flow)
 end
 
+--- Обновить выбранные места извне панели мест (авто-применение строк
+--- секций): перезаписывает tags и перерисовывает.
+function picker.set_selected(flow, selected)
+  update(flow, selected)
+end
+
 --- Нажатие на выбранное место — убрать его. Возвращает true, если нажатие его.
 function picker.on_click(event)
   local element = event.element
