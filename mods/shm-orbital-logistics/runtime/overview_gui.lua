@@ -1,7 +1,12 @@
--- Панель у окна хаба и площадки: назначение секций меткой в имени группы,
--- состояние предметов по своей секции мода, детали поведения предметов в
--- группах, предупреждение про флаг раздачи и подключение к линиям снабжения.
--- ТЗ, раздел 8.
+-- Окно обзора платформ: кнопка в левом верхнем углу экрана открывает
+-- большое плавающее окно. Платформа — карточка: в заголовке имя (клик
+-- открывает окно хаба) и маршрут иконками мест по ванильному расписанию —
+-- планета, где платформа стоит, в рамке, перегоном полёта — активная
+-- стрелка. Разворот карточки показывает настройки мода целиком: секции,
+-- «Отдача на этой орбите» и линии снабжения. Панели у окна хаба больше
+-- нет: это окно — единственное место настроек платформ. Решение владельца
+-- 2026-11-05: контент карточки — на всю ширину окна, карточки по умолчанию
+-- свёрнуты, окно скроллится целиком.
 
 local tags = require('logic.tags')
 local groups = require('runtime.groups')
@@ -9,14 +14,26 @@ local lines = require('runtime.lines')
 local own_section = require('logic.own_section')
 local resolver = require('logic.resolver')
 local controller = require('runtime.controller')
+local lines_gui = require('runtime.lines_gui')
 local lines_logic = require('logic.lines')
 local picker = require('runtime.places_picker')
 
-local panel = {}
+local overview = {}
 
-panel.NAME = 'shm_ol_panel'
-local PURPOSES = { 'none', 'reserve', 'cargo', 'depot' }
+overview.NAME = 'shm_ol_overview'
+overview.BUTTON = 'shm_ol_overview_button'
 local L = 'shm-orbital-logistics.'
+
+local PURPOSES = { 'none', 'reserve', 'cargo', 'depot' }
+local CARD_PREFIX = 'shm_ol_card_'
+local NAME_WIDTH = 220   --- ширина имени карточки: столбец имён выровнен
+local WINDOW_SHARE = 0.6 --- ширина окна, доля экрана
+local WINDOW_MIN = 760
+local WINDOW_MAX = 1200
+local WINDOW_HEIGHT_SHARE = 0.82
+local SHIFT_WIDTH = 560  --- ширина окна, сдвинутого при открытом окне хаба
+
+-- ---------------------------------------------------------------- детали ---
 
 local function purpose_index(tag)
   local kind = tag and tag.kind or 'none'
@@ -26,13 +43,6 @@ local function purpose_index(tag)
     end
   end
   return 1
-end
-
-local function anchor(entity)
-  if entity.type == 'cargo-landing-pad' then
-    return defines.relative_gui_type.cargo_landing_pad_gui
-  end
-  return defines.relative_gui_type.space_platform_hub_gui
 end
 
 --- Своя секция мода: какие предметы под замком, какие в транзите.
@@ -149,8 +159,7 @@ end
 --- Ссылка на место rich text'ом [planet=…]: игра рисует значок с названием
 --- и по клику открывает Факториопедию, convention `localization`. Категории
 --- `planet` в LuaPrototypes нет, поэтому планета здесь — любое место из
---- space-location: метки мода — орбиты и назначения, и `[planet=__1__]` в
---- `pad-name` подставляет место так же.
+--- space-location.
 local function place_link(name)
   if prototypes.space_location[name] then
     return { '', '[planet=' .. name .. ']' }
@@ -244,7 +253,7 @@ local function now_data(hub)
     local tag = section.is_manual and not controller.is_service(section.group) and tags.parse(section.group)
     if tag then
       local items = item_filters(section)
-      -- Ванильная галочка: секция, выключенная игроком (не модом), ничего
+      -- Ванильная галочка: секция, выключенная игроком, ничего
       -- не делает — своя строка «выключена», её предметы ничего не обещают.
       -- Вернувший галочку игрок включает секцию: «выключена до отлёта»
       -- пишется только про секцию, выключенную модом и до сих пор снятую.
@@ -380,23 +389,23 @@ local function fill_now(flow, hub)
     flow.add({ type = 'label', caption = { L .. 'now-nothing' } })
     return
   end
-  local groups = flow.add({ type = 'table', column_count = 3 })
+  local groups_grid = flow.add({ type = 'table', column_count = 3 })
   for column = 1, 3 do
-    groups.style.column_alignments[column] = 'middle-left'
+    groups_grid.style.column_alignments[column] = 'middle-left'
   end
   for _, row in ipairs(rows) do
-    groups.add({
+    groups_grid.add({
       type = 'sprite-button',
       sprite = row.anchor and ('item/' .. row.anchor.name) or 'utility/questionmark',
       style = 'slot_button',
       tooltip = row.group,
     }).style.size = 32
-    local name = groups.add({ type = 'label', caption = row.group })
-    name.style.maximal_width = 240
+    local name = groups_grid.add({ type = 'label', caption = row.group })
+    name.style.maximal_width = 170
     name.style.font = 'default-semibold'
-    local status = groups.add({ type = 'label', caption = { '', icon(row.kind), row.caption } })
+    local status = groups_grid.add({ type = 'label', caption = { '', icon(row.kind), row.caption } })
     status.style.single_line = false
-    status.style.maximal_width = 260
+    status.style.maximal_width = 170
   end
   if #exceptions > 0 then
     flow.add({ type = 'label', caption = { L .. 'now-exceptions' }, style = 'caption_label' })
@@ -484,41 +493,32 @@ end
 
 --- Подключение к линиям снабжения: участники, выбор линии и кнопка окна.
 --- Вызывается, только когда линии есть: пустой блок линий — одна кнопка.
-local function add_lines(frame, player, entity)
+--- Столбец узкий: выпадающий список и кнопки в ряд, с ограниченной шириной.
+local function add_lines(frame, player, entity, plat)
   local member = lines.of_entity(player.force, entity)
   for _, entry in ipairs(member) do
     frame.add({ type = 'label', caption = { L .. 'lines-member', entry.line.name } })
   end
-  local flow = frame.add({ type = 'flow', direction = 'horizontal' })
   local items = {}
   for i, line in ipairs(lines.list(player.force)) do
     items[i] = line.name
   end
-  flow.add({ type = 'drop-down', name = 'shm_ol_attach_line', items = items, selected_index = 1 })
-  flow.add({ type = 'button', name = 'shm_ol_attach', caption = { L .. 'lines-attach' } }).style.minimal_width = 100
+  local flow = frame.add({ type = 'flow', direction = 'horizontal' })
+  local dropdown = flow.add({ type = 'drop-down', name = 'shm_ol_attach_line', items = items, selected_index = 1 })
+  dropdown.style.minimal_width = 120
+  dropdown.style.maximal_width = 150
+  flow.add({ type = 'button', name = 'shm_ol_attach', caption = { L .. 'lines-attach' }, tags = { card = plat } })
   frame.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } })
 end
 
-function panel.destroy(player)
-  -- Старые сборки клали панель в относительный якорь: почистить и её.
-  local legacy = player.gui.relative[panel.NAME]
-  if legacy then
-    legacy.destroy()
-  end
-  local screen = player.gui.screen[panel.NAME]
-  if screen then
-    screen.destroy()
-  end
-end
-
 --- Отпечаток групп хаба: если игрок добавил, убрал, переименовал группу или
---- мод выключил её, панель перестраивается целиком.
+--- мод выключил её, контент карточки перестраивается целиком.
 local function signature(entity)
   local parts = {}
   local sections = entity.get_logistic_sections()
   for index = 1, sections.sections_count do
     local section = sections.get_section(index)
-    -- Служебная группа меняется с каждым замком — из-за неё панель не
+    -- Служебная группа меняется с каждым замком — из-за неё не
     -- перестраиваем.
     if not controller.is_service(section.group) then
       parts[#parts + 1] = index .. ':' .. section.group .. ':' .. tostring(section.active) .. ':' .. section.filters_count
@@ -527,17 +527,21 @@ local function signature(entity)
   return table.concat(parts, '|')
 end
 
-panel.POSITION_SETTING = 'shm-orbital-logistics-panel-position'
-
---- Положение панели — настройка игрока: снизу и сверху блоки идут в ряд,
---- чтобы панель была низкой, слева и справа — столбиком.
-local function position_of(player)
-  local setting = player.mod_settings[panel.POSITION_SETTING]
-  local value = setting and setting.value or 'bottom'
-  if defines.relative_gui_position[value] == nil then
-    value = 'bottom'
+--- Отпечаток линий снабжения хаба: линии силы с числом участников и
+--- участие хаба. Создание линии в окне линий перестраивает блок «Линии»
+--- развёрнутых карточек.
+local function lines_sig(force, hub)
+  local parts = {}
+  for _, line in ipairs(lines.list(force)) do
+    parts[#parts + 1] = line.name .. '=' .. #line.participants
   end
-  return value
+  parts[#parts + 1] = #lines.of_entity(force, hub)
+  return table.concat(parts, '|')
+end
+
+--- Отпечаток контента карточки: группы секций плюс линии снабжения.
+local function content_sig(platform)
+  return signature(platform.hub) .. '|' .. lines_sig(platform.force, platform.hub)
 end
 
 --- Кнопка свернуть/развернуть: значок есть в игре — значком, нет — текстом,
@@ -566,14 +570,8 @@ local function toggle_button(parent, name, to_collapsed, tags)
   })
 end
 
---- «Свёрнуто» — на игрока: состояние переживает сохранение и загрузку само,
---- storage сохраняется.
-local function is_collapsed(player_index)
-  return (storage.panel_collapsed or {})[player_index] == true
-end
-
---- Свёрнутость блока — рядом с `panel_collapsed`: состояние на игрока,
---- переживает переоткрытие окна, сохранение и загрузку.
+--- Свёрнутость блока внутри карточки — на игрока, переживает сохранение
+--- и загрузку само: storage сохраняется. Ключ — платформа и блок.
 local function block_collapsed(player_index, key)
   local state = storage.panel_block_collapsed
   return (state and state[player_index] and state[player_index][key]) == true
@@ -592,57 +590,7 @@ local function section_rows(hub)
   return rows
 end
 
---- Потолок высоты панели. display_resolution — экранные пиксели,
---- display_scale переводит их в единицы GUI. Боковым положениям (панель
---- столбиком у узкого края) хватает доли рабочей области. Низу и верху
---- панель якорится под/над окном хаба, а окно само растёт с числом секций
---- и размером грузового склада, и Factorio просто режет содержимое по краю
---- экрана — поэтому потолок считается от ОСТАТКА экрана после
---- консервативной оценки окна: шапка и кнопки, строка на каждую секцию,
---- ряды грузовых слотов. Оценка с запасом: модернизированная платформа
---- или больше секций сделают окно выше, а не ниже.
-local HEIGHT_SHARE = 0.8
-panel.HEIGHT_SHARE = HEIGHT_SHARE
-local WINDOW_CHROME = 340
-local WINDOW_PER_SECTION = 38
-local WINDOW_PER_SLOT_ROW = 38
-local CAP_MARGIN = 40
-local MIN_CAP = 150
-panel.MIN_CAP = MIN_CAP
-local EXPAND_SHARE = 0.5    --- максимум высоты развёрнутой панели, доля экрана
-panel.EXPAND_SHARE = EXPAND_SHARE
-local EXPAND_MIN_SHARE = 0.4 --- минимум высоты развёрнутой панели, доля экрана
-panel.EXPAND_MIN_SHARE = EXPAND_MIN_SHARE
-local BOTTOM_WIDTH = 1100 --- ширина нижней/верхней панели
-local SIDE_WIDTH = 560    --- ширина боковой панели
-local MINI_HEIGHT = 64    --- высота свёрнутой панели
-local MINI_WIDTH = 380    --- ширина свёрнутой панели
-panel.BOTTOM_WIDTH = BOTTOM_WIDTH
-panel.SIDE_WIDTH = SIDE_WIDTH
-panel.MINI_HEIGHT = MINI_HEIGHT
-panel.MINI_WIDTH = MINI_WIDTH
-panel.MINI_HEIGHT = MINI_HEIGHT
-
---- Оценка высоты ванильного окна хаба/площадки в единицах GUI (см. потолок).
-local function window_estimate(entity)
-  local cargo = defines.inventory.hub_main
-  if entity.type == 'cargo-landing-pad' then
-    cargo = defines.inventory.cargo_landing_pad_main
-  end
-  local slots = 40
-  local inventory = entity.get_inventory(cargo)
-  if inventory then
-    local ok, size = pcall(function() return #inventory end)
-    if ok and size and size > 0 then
-      slots = size
-    end
-  end
-  return WINDOW_CHROME
-    + WINDOW_PER_SECTION * entity.get_logistic_sections().sections_count
-    + WINDOW_PER_SLOT_ROW * math.ceil(slots / 8)
-end
-
---- Ширина экрана в GUI-единицах; nil, если данных дисплея нет.
+--- Ширина и высота экрана в GUI-единицах; nil, если данных дисплея нет.
 local function gui_width_of(player)
   local resolution = player.display_resolution
   local scale = player.display_scale
@@ -652,7 +600,6 @@ local function gui_width_of(player)
   return resolution.width / scale
 end
 
---- Высота экрана в GUI-единицах; nil, если данных дисплея нет.
 local function gui_height_of(player)
   local resolution = player.display_resolution
   local scale = player.display_scale
@@ -662,65 +609,27 @@ local function gui_height_of(player)
   return resolution.height / scale
 end
 
-local function height_cap(player, entity, wide)
-  local gui_height = gui_height_of(player)
-  if not gui_height then
-    return nil
-  end
-  if not wide then
-    return math.floor(gui_height * HEIGHT_SHARE)
-  end
-  local remaining = gui_height - window_estimate(entity) - CAP_MARGIN
-  return math.floor(math.max(math.min(gui_height * HEIGHT_SHARE, remaining), MIN_CAP))
-end
-panel.height_cap = height_cap
-
---- Потолок РАЗВЁРНУТОГО блока: половина высоты экрана в GUI-единицах.
---- Решение владельца 2026-11-04: остаток под окном хаба на реальных
---- складах зажимал развёрнутый блок в MIN_CAP — разворот всегда
---- поднимает прокрутку до половины экрана.
-local function expanded_cap(player)
-  local gui_height = gui_height_of(player)
-  if not gui_height then
-    return nil
-  end
-  return math.floor(gui_height * EXPAND_SHARE)
-end
-panel.expanded_cap = expanded_cap
-
 --- Заголовок блока: треугольник сворачивания и название.
-local function block_header(parent, key, title_key)
+local function block_header(parent, plat, key, title_key)
   local header = parent.add({ type = 'flow', direction = 'horizontal', name = 'shm_ol_header_' .. key })
-  toggle_button(header, 'shm_ol_block_toggle', true, { block = key })
+  toggle_button(header, 'shm_ol_block_toggle', true, { card = plat, block = key })
   header.add({ type = 'label', caption = { L .. title_key }, style = 'caption_label' })
 end
 
---- Свёрнутый блок: треугольник и строка-итог; клик по строке разворачивает.
-local function collapsed_block(parent, key, summary)
-  toggle_button(parent, 'shm_ol_block_toggle', false, { block = key })
+--- Свёрнутый блок: строка-итог; клик по ней разворачивает. Треугольника
+--- рядом нет — один итог (решение владельца 2026-11-05: пустой экспанд
+--- лишний).
+local function collapsed_block(parent, plat, key, summary)
   parent.add({
     type = 'button',
     name = 'shm_ol_block_summary',
     caption = summary,
-    tags = { block = key },
+    tags = { card = plat, block = key },
   })
 end
 
---- Прокрутка блока: вертикальная, растягивается на высоту и ширину рамки.
---- Горизонтальной полосы быть не должно (решение владельца 2026-11-04):
---- внутренние потоки сжимаемы по горизонтали, длинные подписи переносятся —
---- игре незачем показывать горизонтальный скролл.
-local function scroll_pane(parent, name)
-  local scroll = parent.add({ type = 'scroll-pane', name = name, direction = 'vertical' })
-  scroll.style.vertically_stretchable = true
-  scroll.style.horizontally_stretchable = true
-  scroll.style.vertically_squashable = true
-  scroll.style.horizontally_squashable = true
-  return scroll
-end
-
 --- Поиск по имени на любой глубине: контейнеры «Отдачи», предупреждений и
---- деталей живут в прокрутках своих блоков.
+--- деталей живут в потоках своих блоков.
 local function find_named(root, name)
   if root.name == name then
     return root
@@ -929,7 +838,8 @@ local function item_status(snap, result, key, giving, cargo_here)
 end
 
 --- Строка одного предмета в деталях: значок статуса, фраза поведения и числа
---- «есть / свой запас / груз / склад / в пути / можно отдать» — ТЗ, раздел 8.
+--- «есть / свой запас / груз / склад / в пути / можно отдать». Ширина текста
+--- под столбец «Групп» (~40% окна).
 local function detail_row(container, line)
   local item_flow = container.add({ type = 'flow', direction = 'horizontal' })
   item_flow.add({
@@ -942,7 +852,7 @@ local function detail_row(container, line)
   local text = item_flow.add({ type = 'flow', direction = 'vertical' })
   local phrase = text.add({ type = 'label', caption = { '', icon(line.kind), line.phrase } })
   phrase.style.single_line = false
-  phrase.style.maximal_width = 440
+  phrase.style.maximal_width = 380
   local second = { '' }
   if line.status then
     second[#second + 1] = line.status
@@ -951,22 +861,22 @@ local function detail_row(container, line)
   second[#second + 1] = line.amounts
   local numbers = text.add({ type = 'label', caption = second })
   numbers.style.single_line = false
-  numbers.style.maximal_width = 440
+  numbers.style.maximal_width = 380
   numbers.style.font_color = { 0.7, 0.7, 0.7 }
 end
 
 local function detail_label(container, caption)
   local label = container.add({ type = 'label', caption = caption })
   label.style.single_line = false
-  label.style.maximal_width = 440
+  label.style.maximal_width = 380
   return label
 end
 
 --- Детали группы в «Группах»: свёрнуто — короткая строка статуса, как в
 --- «Отдаче», развёрнуто — по строке на предмет с полным описанием поведения.
 --- Контейнер перечитывается раз в секунду и раскрытость не сбрасывает:
---- раскрытость живёт в кнопке-треугольнике, а перестройка панели по
---- сигнатуре её сбрасывает — это осознанно.
+--- раскрытость живёт в кнопке-треугольнике, а перестройка контента карточки
+--- по сигнатуре её сбрасывает — это осознанно.
 local function fill_details(container, snap, result, cargo_here)
   container.clear()
   local index = container.tags.details
@@ -1043,6 +953,11 @@ local function fill_details(container, snap, result, cargo_here)
           offered = offered and name ~= location
         end
         detail_label(container, { '', icon(offered and 'giving' or 'held'), { L .. 'details-cargo-vanilla', places_rich(sources) } })
+      else
+        -- Стабильная строка вместо пустоты: высота строк групп не пляшет,
+        -- когда склад прилетает и улетает с орбиты (замечание владельца
+        -- 2026-11-05 про «пляшущий» контент).
+        detail_label(container, { L .. 'details-none' })
       end
     else
       for _, filter in ipairs(section.filters) do
@@ -1089,8 +1004,9 @@ local function fill_details(container, snap, result, cargo_here)
   end
 
   -- Выбранное, но не применённое назначение: строки «будет: …» до «Применить».
-  local dropdown = find_named(row, 'shm_ol_purpose_' .. index)
-  local places = find_named(row, 'shm_ol_places_' .. index)
+  local plat = container.tags.card
+  local dropdown = find_named(row, 'shm_ol_purpose_' .. plat .. '_' .. index)
+  local places = find_named(row, 'shm_ol_places_' .. plat .. '_' .. index)
   if dropdown and places then
     local kind = PURPOSES[dropdown.selected_index] or 'none'
     local chosen = tags.from_choice(kind, picker.text(picker.read(places)))
@@ -1103,10 +1019,10 @@ local function fill_details(container, snap, result, cargo_here)
 end
 
 --- «Группы»: по строке на группу — треугольник деталей, имя, назначение,
---- места и «Применить»; под строкой — контейнер деталей, перечитываемый раз
---- в секунду. Секции с одинаковым именем группы — одна строка со счётчиком
---- ×N: представитель — активная секция, статусы и детали считаются по ней.
-local function add_sections(scroll, hub)
+--- места; под строкой — контейнер деталей, перечитываемый раз в секунду.
+--- Секции с одинаковым именем группы — одна строка со счётчиком ×N:
+--- представитель — активная секция, статусы и детали считаются по ней.
+local function add_sections(parent, hub, plat)
   local snap = controller.snapshot(hub)
   local cargo_here = orbit_cargo(hub.surface.platform)
   local result = resolver.resolve(snap, cargo_here)
@@ -1140,14 +1056,14 @@ local function add_sections(scroll, hub)
     if #bucket.sections > 1 then
       caption = { '', caption, ' ×' .. #bucket.sections }
     end
-    local row = scroll.add({ type = 'flow', direction = 'vertical', name = 'shm_ol_row_' .. index })
-    local table = row.add({ type = 'table', column_count = 5 })
+    local row = parent.add({ type = 'flow', direction = 'vertical', name = 'shm_ol_row_' .. plat .. '_' .. index })
+    local grid = row.add({ type = 'table', column_count = 5 })
     -- Треугольник у каждой строки: колонки строк выровнены, у группы с
     -- меткой развёрнутость показывает детали предметов.
-    toggle_button(table, 'shm_ol_expand', false, { details = index })
-    local label = table.add({ type = 'label', caption = caption, style = 'label' })
-    label.style.maximal_width = 220
-    label.style.minimal_width = 220
+    toggle_button(grid, 'shm_ol_expand', false, { card = plat, details = index })
+    local label = grid.add({ type = 'label', caption = caption, style = 'label' })
+    label.style.maximal_width = 180
+    label.style.minimal_width = 180
     -- Снятая галочка у группы груза — дело мода, а не поломка: подсказать.
     -- Вернувший галочку игрок включает секцию — метки «до отлёта» на ней быть
     -- не должно.
@@ -1160,18 +1076,18 @@ local function add_sections(scroll, hub)
     for i, purpose in ipairs(PURPOSES) do
       items[i] = { L .. 'purpose-' .. purpose }
     end
-    table.add({
+    grid.add({
       type = 'drop-down',
-      name = 'shm_ol_purpose_' .. index,
+      name = 'shm_ol_purpose_' .. plat .. '_' .. index,
       items = items,
       selected_index = purpose_index(tag),
-      tags = { section = index },
+      tags = { card = plat, section = index },
       enabled = locked == nil,
       tooltip = locked,
     })
     -- У запаса нет мест: пикер не показывается строкам с меткой запаса.
     if tag == nil or tag.kind ~= 'reserve' then
-      picker.add(table, 'shm_ol_places_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
+      picker.add(grid, 'shm_ol_places_' .. plat .. '_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
         tooltip = locked or { L .. 'places-tooltip' },
         enabled = locked == nil,
       })
@@ -1179,182 +1095,437 @@ local function add_sections(scroll, hub)
     local container = row.add({
       type = 'flow',
       direction = 'vertical',
-      name = 'shm_ol_details_' .. index,
-      tags = { details = index },
+      name = 'shm_ol_details_' .. plat .. '_' .. index,
+      tags = { card = plat, details = index },
     })
     fill_details(container, snap, result, cargo_here)
   end
 end
 
-function panel.build(player, entity)
-  panel.destroy(player)
-  local position = position_of(player)
-  local collapsed = is_collapsed(player.index)
-  --- Панель — экранное окно внизу экрана (решение владельца 2026-11-04):
-  --- относительный якорь под окном хаба физически не даёт развёрнутому
-  --- блоку половину экрана — игра обрезает не вмещающееся в остаток.
-  --- Нижняя/верхняя панель: эластичная высота — минимум 40%, максимум 50%
-  --- экрана (решение владельца 2026-11-04), лежит поверх нижней части окна
-  --- хаба; боковые — столбик фиксированно на 0.8 экрана у края.
-  local screen_w = gui_width_of(player)
-  local screen_h = gui_height_of(player)
-  local expand = expanded_cap(player)
-  local side = position == 'left' or position == 'right'
-  local frame_h_min = screen_h and (side and math.floor(screen_h * HEIGHT_SHARE)
-    or math.floor(screen_h * EXPAND_MIN_SHARE)) or nil
-  local frame_h_max = screen_h and (side and math.floor(screen_h * HEIGHT_SHARE)
-    or (expand or math.floor(screen_h * EXPAND_SHARE))) or nil
-  local frame_w = side and SIDE_WIDTH or BOTTOM_WIDTH
-  local frame = player.gui.screen.add({
-    type = 'frame',
-    name = panel.NAME,
-    caption = { L .. 'panel-title' },
-    direction = (side or collapsed) and 'vertical' or 'horizontal',
-    tags = {
-      unit_number = entity.unit_number,
-      collapsed = collapsed or nil,
-      signature = (not collapsed and entity.type == 'space-platform-hub') and signature(entity) or nil,
-    },
-  })
-  local width = collapsed and MINI_WIDTH or frame_w
-  -- У frame-стилей нет plain height/width: границы задаёт пара
-  -- minimal/maximal — между ними фрейм тянется по содержимому.
-  frame.style.minimal_width = width
-  frame.style.maximal_width = width
-  if collapsed then
-    frame.style.minimal_height = MINI_HEIGHT
-    frame.style.maximal_height = MINI_HEIGHT
-  elseif frame_h_min then
-    frame.style.minimal_height = frame_h_min
-    frame.style.maximal_height = frame_h_max
-  end
-  if screen_w and screen_h then
-    local x = side and (position == 'right' and screen_w - width or 0) or math.floor((screen_w - width) / 2)
-    local y = collapsed and (screen_h - MINI_HEIGHT) or (position == 'top' and 0 or screen_h - frame_h_max)
-    frame.location = { x = math.max(0, math.floor(x)), y = math.max(0, math.floor(y)) }
-  end
-  -- Кнопка сворачивания — первый элемент панели: слева в ряду, сверху в столбике.
-  toggle_button(frame, 'shm_ol_toggle', not collapsed, { toggle = not collapsed })
-  if collapsed then
-    -- Свёрнутый вид: мини-окошко «Orbital Logistics» с кнопкой разворачивания.
-    return frame
-  end
-  if side then
-    frame.style.maximal_width = SIDE_WIDTH
-  end
-  local first = 0
-  --- Блок панели: в ряду — свой столбец с разделителем, в столбике — свой
-  --- поток. Высота рамки фиксирована (половина экрана), поэтому блоки и
-  --- прокрутки растягиваются до неё: пустых резервов нет, короткое
-  --- содержимое просто скроллится в отведённой высоте.
-  local function block(name)
-    if not side and first > 0 then
-      frame.add({ type = 'line', direction = 'vertical' })
-    end
-    first = first + 1
-    local container = frame.add({ type = 'flow', direction = 'vertical', name = name })
-    if not side then
-      container.style.right_padding = 8
-      container.style.left_padding = 8
-    end
-    container.style.vertically_stretchable = true
-    container.style.vertically_squashable = true
-    return container
-  end
-  if entity.type == 'space-platform-hub' then
-    -- «Группы»: предупреждения и секции.
-    local sections_block = block('shm_ol_block_sections')
-    if block_collapsed(player.index, 'sections') then
-      collapsed_block(sections_block, 'sections', { L .. 'collapsed-sections', section_rows(entity) })
-    else
-      block_header(sections_block, 'sections', 'sections')
-      local scroll = scroll_pane(sections_block, 'shm_ol_scroll_sections')
-      fill_warnings(scroll.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), entity)
-      add_sections(scroll, entity)
-    end
-    -- «Отдача на этой орбите».
-    local now_block = block('shm_ol_block_now')
-    if block_collapsed(player.index, 'now') then
-      local rows, exceptions = now_data(entity)
-      collapsed_block(now_block, 'now', { L .. 'collapsed-now', #rows, #exceptions })
-    else
-      block_header(now_block, 'now', 'now')
-      local scroll = scroll_pane(now_block, 'shm_ol_scroll_now')
-      fill_now(scroll.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), entity)
+-- ------------------------------------------------------ платформы и окно ---
+
+--- Живые платформы силы: с хабом и без пометки на удаление.
+local function platforms_of(force)
+  local list = {}
+  for _, platform in pairs(force.platforms) do
+    if platform.valid and platform.hub and platform.hub.valid and platform.scheduled_for_deletion == 0 then
+      list[#list + 1] = platform
     end
   end
-  -- «Линии»: пустой блок — одна кнопка, без заголовка и подписи «пока нет».
-  local lines_block = block('shm_ol_block_lines')
-  local member = lines.of_entity(player.force, entity)
-  if #member == 0 and #lines.list(player.force) == 0 then
-    lines_block.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } }).style.minimal_width = 100
-  elseif block_collapsed(player.index, 'lines') then
-    collapsed_block(lines_block, 'lines', { L .. 'collapsed-lines', #member })
-  else
-    block_header(lines_block, 'lines', 'lines')
-    add_lines(scroll_pane(lines_block, 'shm_ol_scroll_lines'), player, entity)
-  end
-  return frame
+  table.sort(list, function(a, b) return a.index < b.index end)
+  return list
 end
 
---- Игрок сменил положение панели — перестроить, если хаб открыт.
-function panel.on_setting_changed(event)
-  if event.setting ~= panel.POSITION_SETTING or not event.player_index then
-    return
+local function platform_of(player, index)
+  if index == nil then
+    return nil
   end
-  local player = game.get_player(event.player_index)
-  local entity = player and player.opened
-  if player.gui.relative[panel.NAME] and entity and entity.valid then
-    panel.build(player, entity)
-  end
-end
-
-local function opened_entity(player)
-  local entity = player.opened
-  if player.opened_gui_type == defines.gui_type.entity and entity and entity.valid
-    and (entity.type == 'space-platform-hub' or entity.type == 'cargo-landing-pad') then
-    return entity
+  local platform = player.force.platforms[index]
+  if platform and platform.valid and platform.hub and platform.hub.valid and platform.scheduled_for_deletion == 0 then
+    return platform
   end
   return nil
 end
 
-function panel.on_opened(event)
-  local player = game.get_player(event.player_index)
-  local entity = player and opened_entity(player)
-  if entity then
-    panel.build(player, entity)
+--- Карточка платформы: подъём от любого элемента внутри неё.
+local function card_of(element)
+  local current = element
+  while current and current.valid do
+    local name = current.name
+    if type(name) == 'string' and string.sub(name, 1, #CARD_PREFIX) == CARD_PREFIX then
+      return current
+    end
+    current = current.parent
+  end
+  return nil
+end
+
+--- Окно хаба открывается только из удалённого вида: у персонажа на планете
+--- чужая поверхность молча не открывается (vanilla открывает платформы из
+--- вида карты). Из персонажа — войти в удалённый вид поверхности платформы,
+--- как по клику на платформу в карте.
+local function open_platform_gui(player, hub)
+  if player.controller_type == defines.controllers.character then
+    player.set_controller({ type = defines.controllers.remote, surface = hub.surface, position = hub.position })
+  end
+  player.opened = hub
+end
+
+--- Остановка расписания: имя места. В расписании строка, но нормализуем
+--- на случай прототипа.
+local function station_name(record)
+  local station = record.station
+  if type(station) == 'table' then
+    return station.name
+  end
+  return station
+end
+
+--- Отпечаток маршрута и положения платформы: расписание, где стоит,
+--- каким перегоном летит. Меняется — маршрут перерисовывается.
+local function route_sig(platform)
+  local parts = {}
+  local schedule = platform.schedule or {}
+  for i, record in ipairs(schedule) do
+    parts[#parts + 1] = tostring(station_name(record))
+  end
+  local location = platform.space_location
+  parts[#parts + 1] = location and location.name or '-'
+  local connection = platform.space_connection
+  if connection and connection.from and connection.to then
+    parts[#parts + 1] = connection.from.name .. '>' .. connection.to.name
+  end
+  parts[#parts + 1] = platform.paused and 'p' or 'r'
+  return table.concat(parts, '|')
+end
+
+--- Узлы цепочки маршрута: текущее положение всегда первое, остановки
+--- расписания — дальше по порядку (первое вхождение текущего положения
+--- среди остановок не дублируется). Платформа без расписания получает
+--- цепочку из своего положения: стоит — одна планета, летит — перегон
+--- «откуда → куда» из space_connection. Решение владельца 2026-11-05:
+--- цепочка видна всегда, не только с расписанием.
+local function route_nodes(platform)
+  local stops = {}
+  local schedule = platform.schedule or {}
+  for i, record in ipairs(schedule) do
+    stops[#stops + 1] = station_name(record)
+  end
+  local location = platform.space_location
+  local connection = platform.space_connection
+  local origin = (location and location.name)
+    or (connection and connection.from and connection.from.name)
+    or (platform.last_visited_space_location and platform.last_visited_space_location.name)
+  local nodes = {}
+  if origin then
+    nodes[#nodes + 1] = origin
+  end
+  local skipped = false
+  for _, stop in ipairs(stops) do
+    if origin ~= nil and stop == origin and not skipped then
+      -- Текущее положение уже первая нода цепочки.
+      skipped = true
+    else
+      nodes[#nodes + 1] = stop
+    end
+  end
+  return nodes, origin, connection
+end
+
+--- Маршрут: цепочка иконок мест со стрелками перегонов. Планета, где
+--- платформа сейчас (или откуда летит), — в оранжевой рамке; перегоном
+--- полёта — активная стрелка.
+local function fill_route(flow, platform)
+  flow.clear()
+  local nodes, origin, connection = route_nodes(platform)
+  if #nodes == 0 then
+    flow.add({
+      type = 'sprite',
+      sprite = 'utility/questionmark',
+      tooltip = { L .. 'route-none' },
+    })
+    return
+  end
+  local flying_to = connection and connection.to and connection.to.name or nil
+  for i, name in ipairs(nodes) do
+    if i > 1 then
+      local flying = flying_to ~= nil and name == flying_to
+      local arrow = flow.add({
+        type = 'sprite',
+        sprite = flying and 'shm-ol-route-arrow-active' or 'shm-ol-route-arrow',
+        tooltip = flying and { L .. 'route-flying', place_link(connection.from.name), place_link(name) } or nil,
+      })
+      arrow.style.width = 20
+      arrow.style.height = 10
+    end
+    local here = name == origin
+    local prototype = prototypes.space_location[name]
+    local tooltip = { '' }
+    tooltip[#tooltip + 1] = prototype and prototype.localised_name or name
+    if here then
+      tooltip[#tooltip + 1] = '\n'
+      tooltip[#tooltip + 1] = { L .. 'route-here' }
+    end
+    local button = flow.add({
+      type = 'sprite-button',
+      name = 'shm_ol_route_planet',
+      sprite = prototype and ('space-location/' .. name) or 'utility/questionmark',
+      style = here and 'shm_ol_route_planet_active' or 'slot_button',
+      tooltip = tooltip,
+    })
+    button.style.size = 32
   end
 end
 
---- Раз в секунду: группы изменились — перестроить панель, иначе обновить
---- только «Отдачу», предупреждения и детали групп, чтобы не сбивать выбор
---- в полях. Свёрнутая панель без обновлений; свёрнутый блок не имеет
---- контейнера, и его обновление пропускается.
-function panel.refresh_all()
+--- Контент карточки: три столбца — «Группы», «Отдача на этой орбите»,
+--- «Линии» (решение владельца 2026-11-05). Высота по содержимому: целиком
+--- скроллит окно, у блоков своих прокруток нет. Ширина окна делится между
+--- столбцами в фиксированных долях.
+local function fill_content(card, player, platform)
+  local hub = platform.hub
+  local plat = platform.index
+  local frame = card.parent
+  while frame and frame.valid and frame.name ~= overview.NAME do
+    frame = frame.parent
+  end
+  local width = (frame and frame.valid and frame.style.minimal_width) or 1100
+  local inner = math.max(560, width - 56)
+  local sections_w = math.floor(inner * 0.42)
+  local now_w = math.floor(inner * 0.33)
+  local lines_w = inner - sections_w - now_w
+  local content = card.add({ type = 'flow', name = 'shm_ol_content', direction = 'horizontal' })
+  local separated = false
+  local function block(name, block_width)
+    if separated then
+      content.add({ type = 'line', direction = 'vertical' })
+    end
+    separated = true
+    local container = content.add({ type = 'flow', direction = 'vertical', name = name })
+    container.style.minimal_width = block_width
+    container.style.maximal_width = block_width
+    container.style.left_padding = 8
+    container.style.right_padding = 8
+    return container
+  end
+  -- «Группы»: предупреждения и секции.
+  local sections_block = block('shm_ol_block_sections', sections_w)
+  if block_collapsed(player.index, plat .. ':sections') then
+    collapsed_block(sections_block, plat, 'sections', { L .. 'collapsed-sections', section_rows(hub) })
+  else
+    block_header(sections_block, plat, 'sections', 'sections')
+    fill_warnings(sections_block.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), hub)
+    add_sections(sections_block, hub, plat)
+  end
+  -- «Отдача на этой орбите».
+  local now_block = block('shm_ol_block_now', now_w)
+  if block_collapsed(player.index, plat .. ':now') then
+    local rows, exceptions = now_data(hub)
+    collapsed_block(now_block, plat, 'now', { L .. 'collapsed-now', #rows, #exceptions })
+  else
+    block_header(now_block, plat, 'now', 'now')
+    fill_now(now_block.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), hub)
+  end
+  -- «Линии»: пустой блок — одна кнопка, без заголовка и подписи «пока нет».
+  local lines_block = block('shm_ol_block_lines', lines_w)
+  local member = lines.of_entity(player.force, hub)
+  if #member == 0 and #lines.list(player.force) == 0 then
+    lines_block.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } }).style.minimal_width = 100
+  elseif block_collapsed(player.index, plat .. ':lines') then
+    collapsed_block(lines_block, plat, 'lines', { L .. 'collapsed-lines', #member })
+  else
+    block_header(lines_block, plat, 'lines', 'lines')
+    add_lines(lines_block, player, hub, plat)
+  end
+end
+
+--- Пересобрать контент карточки: разворот, смена групп, применение метки.
+local function rebuild_content(card, player, platform)
+  local old = find_named(card, 'shm_ol_content')
+  if old then
+    old.destroy()
+  end
+  fill_content(card, player, platform)
+  local t = card.tags
+  t.signature = content_sig(platform)
+  card.tags = t
+end
+
+--- Карточка платформы: рамка с заголовком — треугольник разворота, значок и
+--- имя (клик открывает окно хаба) и маршрут.
+local function add_card(cards, player, platform)
+  local plat = platform.index
+  local card = cards.add({
+    type = 'frame',
+    name = CARD_PREFIX .. plat,
+    style = 'inside_shallow_frame_with_padding',
+    direction = 'vertical',
+    tags = { card = plat, route_sig = route_sig(platform) },
+  })
+  card.style.horizontally_stretchable = true
+  local header = card.add({ type = 'flow', direction = 'horizontal' })
+  header.style.vertical_align = 'center'
+  toggle_button(header, 'shm_ol_card_toggle', false, { card = plat })
+  local tooltip = { L .. 'card-open', platform.name }
+  local open_icon = header.add({
+    type = 'sprite-button',
+    name = 'shm_ol_card_icon',
+    sprite = 'item/space-platform-hub',
+    style = 'slot_button',
+    tooltip = tooltip,
+    tags = { card = plat },
+  })
+  open_icon.style.size = 28
+  local open_button = header.add({
+    type = 'button',
+    name = 'shm_ol_card_open',
+    caption = platform.name,
+    tooltip = tooltip,
+    tags = { card = plat },
+  })
+  open_button.style.minimal_width = NAME_WIDTH
+  open_button.style.maximal_width = NAME_WIDTH
+  open_button.style.horizontal_align = 'left'
+  local route = header.add({ type = 'flow', name = 'shm_ol_route', direction = 'horizontal' })
+  route.style.horizontally_stretchable = true
+  route.style.vertical_align = 'center'
+  fill_route(route, platform)
+  return card
+end
+
+function overview.ensure_button(player)
+  if player.gui.top[overview.BUTTON] == nil then
+    local button = player.gui.top.add({
+      type = 'sprite-button',
+      name = overview.BUTTON,
+      sprite = 'shm-ol-gui-button',
+      style = 'slot_button',
+      tooltip = { L .. 'overview-open' },
+    })
+    button.style.width = 40
+    button.style.height = 40
+  end
+end
+
+--- Список карточек по живым платформам силы; окно с размером «как helmod» —
+--- большая доля экрана, целиком скроллится.
+function overview.open(player)
+  overview.close(player)
+  local frame = player.gui.screen.add({
+    type = 'frame',
+    name = overview.NAME,
+    direction = 'vertical',
+    tags = {},
+  })
+  local title = frame.add({ type = 'flow', direction = 'horizontal' })
+  title.add({ type = 'label', caption = { L .. 'panel-title' }, style = 'frame_title' })
+  local drag = title.add({ type = 'empty-widget', style = 'draggable_space_header' })
+  drag.style.horizontally_stretchable = true
+  drag.style.height = 24
+  drag.drag_target = frame
+  title.add({
+    type = 'sprite-button',
+    name = 'shm_ol_overview_close',
+    sprite = 'utility/close',
+    style = 'frame_action_button',
+    tooltip = { L .. 'overview-close' },
+  })
+  local scroll = frame.add({ type = 'scroll-pane', name = 'shm_ol_overview_scroll', direction = 'vertical' })
+  scroll.style.horizontally_stretchable = true
+  scroll.style.vertically_stretchable = true
+  scroll.style.horizontally_squashable = true
+  local cards = scroll.add({ type = 'flow', name = 'shm_ol_cards', direction = 'vertical' })
+  cards.style.horizontally_stretchable = true
+  cards.style.vertical_spacing = 6
+  local width = gui_width_of(player)
+  local height = gui_height_of(player)
+  if width and height then
+    local frame_width = math.floor(math.max(WINDOW_MIN, math.min(WINDOW_MAX, width * WINDOW_SHARE)))
+    local frame_height = math.floor(height * WINDOW_HEIGHT_SHARE)
+    frame.style.minimal_width = frame_width
+    frame.style.maximal_width = frame_width
+    frame.style.minimal_height = frame_height
+    frame.style.maximal_height = frame_height
+    frame.force_auto_center()
+  end
+  overview.fill_cards(player, frame)
+  return frame
+end
+
+--- Список карточек заново: по живым платформам. Пусто — одна подпись.
+function overview.fill_cards(player, frame)
+  local scroll = find_named(frame, 'shm_ol_overview_scroll')
+  if not scroll then
+    return
+  end
+  local cards = find_named(scroll, 'shm_ol_cards')
+  cards.clear()
+  local list = platforms_of(player.force)
+  local indices = {}
+  for _, platform in ipairs(list) do
+    indices[#indices + 1] = platform.index
+    add_card(cards, player, platform)
+  end
+  if #list == 0 then
+    cards.add({ type = 'label', caption = { L .. 'overview-empty' } })
+  end
+  -- Сдвиг окна при открытом хабе и его прежнее место не теряются.
+  local t = frame.tags or {}
+  t.setsig = table.concat(indices, ',')
+  frame.tags = t
+end
+
+function overview.close(player)
+  local existing = player.gui.screen[overview.NAME]
+  if existing then
+    existing.destroy()
+  end
+end
+
+function overview.toggle(player)
+  if player.gui.screen[overview.NAME] then
+    overview.close(player)
+  else
+    overview.open(player)
+  end
+end
+
+--- Раз в секунду: состав платформ изменился — пересобрать список карточек;
+--- маршрут по отпечатку, контент развёрнутой карточки по сигнатуре групп,
+--- иначе перечитать «Отдачу», предупреждения и детали групп.
+function overview.refresh_all()
   for _, player in pairs(game.connected_players) do
-    local frame = player.gui.screen[panel.NAME]
-    local entity = frame and opened_entity(player)
-    if entity and entity.type == 'space-platform-hub' and not frame.tags.collapsed then
-      if frame.tags.signature ~= signature(entity) then
-        panel.build(player, entity)
+    local frame = player.gui.screen[overview.NAME]
+    if frame then
+      local list = platforms_of(player.force)
+      local indices = {}
+      for _, platform in ipairs(list) do
+        indices[#indices + 1] = platform.index
+      end
+      local setsig = table.concat(indices, ',')
+      if frame.tags.setsig ~= setsig then
+        overview.fill_cards(player, frame)
       else
-        local now = find_named(frame, 'shm_ol_now')
-        if now then
-          fill_now(now, entity)
-        end
-        local warnings = find_named(frame, 'shm_ol_warnings')
-        if warnings then
-          fill_warnings(warnings, entity)
-        end
-        -- Детали групп: перечитать на свежем снимке; раскрытость остаётся,
-        -- потому что контейнеры не пересоздаются.
-        local details = collect_named(frame, 'shm_ol_details_')
-        if #details > 0 then
-          local snap = controller.snapshot(entity)
-          local cargo_here = orbit_cargo(entity.surface.platform)
-          local result = resolver.resolve(snap, cargo_here)
-          for _, container in ipairs(details) do
-            fill_details(container, snap, result, cargo_here)
+        local cards = find_named(frame, 'shm_ol_cards')
+        for _, card in ipairs(cards.children) do
+          local t = card.tags
+          if card.valid and t and t.card ~= nil then
+            local platform = platform_of(player, t.card)
+            if platform then
+              local hub = platform.hub
+              local rsig = route_sig(platform)
+              if t.route_sig ~= rsig then
+                local route = find_named(card, 'shm_ol_route')
+                if route then
+                  fill_route(route, platform)
+                end
+                t.route_sig = rsig
+                card.tags = t
+              end
+              if t.expanded then
+                local sig = content_sig(platform)
+                if t.signature ~= sig then
+                  rebuild_content(card, player, platform)
+                else
+                  local now = find_named(card, 'shm_ol_now')
+                  if now then
+                    fill_now(now, hub)
+                  end
+                  local warnings = find_named(card, 'shm_ol_warnings')
+                  if warnings then
+                    fill_warnings(warnings, hub)
+                  end
+                  local details = collect_named(card, 'shm_ol_details_')
+                  if #details > 0 then
+                    local snap = controller.snapshot(hub)
+                    local cargo_here = orbit_cargo(hub.surface.platform)
+                    local result = resolver.resolve(snap, cargo_here)
+                    for _, container in ipairs(details) do
+                      fill_details(container, snap, result, cargo_here)
+                    end
+                  end
+                end
+              end
+            end
           end
         end
       end
@@ -1362,24 +1533,84 @@ function panel.refresh_all()
   end
 end
 
-local function apply_purpose(player, entity, index)
-  local frame = player.gui.screen[panel.NAME] or player.gui.relative[panel.NAME]
-  local section = entity.get_logistic_sections().get_section(index)
-  if not (frame and section and section.is_manual) then
+-- --------------------------------------------------------------- события ---
+
+--- Окно хаба или площадки открылось: окно обзора — налево и поуже, чтобы не
+--- накрывать ванильное окно: экранные окна модов рисуются поверх игровых.
+--- Позиция запоминается — по закрытию окна хаба вернётся.
+function overview.on_opened(event)
+  local player = game.get_player(event.player_index)
+  local frame = player and player.gui.screen[overview.NAME]
+  if not frame then
     return
   end
-  local purpose_element, places_element
-  local function find(parent)
-    for _, child in pairs(parent.children) do
-      if child.name == 'shm_ol_purpose_' .. index then
-        purpose_element = child
-      elseif child.name == 'shm_ol_places_' .. index then
-        places_element = child
-      end
-      find(child)
+  local entity = player.opened
+  if player.opened_gui_type ~= defines.gui_type.entity or not (entity and entity.valid)
+    or (entity.type ~= 'space-platform-hub' and entity.type ~= 'cargo-landing-pad') then
+    return
+  end
+  local t = frame.tags
+  if not t.shifted then
+    local location = frame.location
+    t.shifted = true
+    t.restore_x = location.x
+    t.restore_y = location.y
+    t.restore_w = frame.style.minimal_width
+    frame.tags = t
+    local height = gui_height_of(player)
+    frame.style.minimal_width = SHIFT_WIDTH
+    frame.style.maximal_width = SHIFT_WIDTH
+    if height then
+      local shifted_height = math.floor(height * 0.8)
+      frame.style.minimal_height = shifted_height
+      frame.style.maximal_height = shifted_height
+      frame.location = { x = 0, y = math.max(0, math.floor((height - shifted_height) / 2)) }
+    else
+      frame.location = { x = 0, y = 0 }
     end
   end
-  find(frame)
+end
+
+--- Окно хаба закрылось — окну обзора его прежний размер и место.
+function overview.on_closed(event)
+  if event.gui_type ~= defines.gui_type.entity then
+    return
+  end
+  local player = game.get_player(event.player_index)
+  local frame = player and player.gui.screen[overview.NAME]
+  if not frame then
+    return
+  end
+  local t = frame.tags
+  if t.shifted then
+    if t.restore_w then
+      frame.style.minimal_width = t.restore_w
+      frame.style.maximal_width = t.restore_w
+    end
+    frame.location = { x = t.restore_x or 0, y = t.restore_y or 0 }
+    t.shifted = nil
+    t.restore_x = nil
+    t.restore_y = nil
+    t.restore_w = nil
+    frame.tags = t
+  end
+end
+
+--- Применить выбор назначения строки секции: метка уходит в имя группы,
+--- контент карточки пересобирается по новой сигнатуре.
+local function apply_purpose(player, platform, index)
+  local hub = platform.hub
+  local plat = platform.index
+  local card = find_named(player.gui.screen[overview.NAME], CARD_PREFIX .. plat)
+  if not card then
+    return
+  end
+  local section = hub.get_logistic_sections().get_section(index)
+  if not (section and section.is_manual) then
+    return
+  end
+  local purpose_element = find_named(card, 'shm_ol_purpose_' .. plat .. '_' .. index)
+  local places_element = find_named(card, 'shm_ol_places_' .. plat .. '_' .. index)
   if not purpose_element then
     return
   end
@@ -1392,7 +1623,7 @@ local function apply_purpose(player, entity, index)
   if tag ~= nil and tag.kind == 'cargo' and tag.dests == nil then
     return
   end
-  local fallback = (entity.surface.platform and entity.surface.platform.name or 'Hub') .. ' #' .. index
+  local fallback = (hub.surface.platform and hub.surface.platform.name or 'Hub') .. ' #' .. index
   local name = groups.name_for(section, tag, fallback)
   if section.group == '' and tag == nil then
     return
@@ -1402,45 +1633,50 @@ local function apply_purpose(player, entity, index)
     player.print({ L .. 'error-' .. reason })
   end
   controller.pass()
-  panel.build(player, entity)
-end
-panel.apply_purpose = apply_purpose
-
---- Селектор назначения строки: применяется сразу, кнопки «Применить»
---- больше нет (решение владельца 2026-11-04).
-function panel.on_selection(event)
-  local element = event.element
-  if not (element and element.valid) or string.sub(element.name, 1, 15) ~= 'shm_ol_purpose_' then
-    return false
-  end
-  local player = game.get_player(event.player_index)
-  local entity = player and opened_entity(player)
-  if not (player and entity) then
-    return false
-  end
-  apply_purpose(player, entity, tonumber(string.match(element.name, 'shm_ol_purpose_(%d+)')))
-  return true
+  rebuild_content(card, player, platform)
 end
 
---- Места строки секции: событие внутри потока «shm_ol_places_N».
+--- Места строки секции: событие внутри потока «shm_ol_places_<плат>_<N>».
 local function places_row(event)
   local element = event.element
   if not (element and element.valid) then
-    return nil
+    return nil, nil
   end
   local parent = element.parent
   if not (parent and parent.valid) then
-    return nil
+    return nil, nil
   end
-  return tonumber(string.match(parent.name, '^shm_ol_places_(%d+)$')), parent
+  local plat, index = string.match(parent.name, '^shm_ol_places_(%d+)_(%d+)$')
+  return tonumber(plat), tonumber(index), parent
+end
+
+--- Селектор назначения строки: применяется сразу. Возвращает true, если
+--- событие её.
+function overview.on_selection(event)
+  local element = event.element
+  if not (element and element.valid) or not (element.tags and element.tags.card) then
+    return false
+  end
+  if type(element.name) ~= 'string' or string.sub(element.name, 1, 15) ~= 'shm_ol_purpose_' then
+    return false
+  end
+  local player = game.get_player(event.player_index)
+  local platform = player and platform_of(player, element.tags.card)
+  if platform then
+    apply_purpose(player, platform, element.tags.section)
+  end
+  return true
 end
 
 --- Место добавлено из окна выбора: дополнить выбор и применить. Внимание:
 --- elem_value у space-location — строка, не таблица.
-function panel.on_elem_changed(event)
-  local index, flow = places_row(event)
+function overview.on_elem_changed(event)
   local element = event.element
-  if not index or not (element and element.valid) or not (element.tags and element.tags.picker_add) then
+  if not (element and element.valid) or not (element.tags and element.tags.picker_add) then
+    return false
+  end
+  local plat, index, flow = places_row(event)
+  if not plat then
     return false
   end
   local value = element.elem_value
@@ -1460,26 +1696,45 @@ function panel.on_elem_changed(event)
   table.sort(names)
   picker.set_selected(flow, names)
   local player = game.get_player(event.player_index)
-  local entity = player and opened_entity(player)
-  if player and entity then
-    apply_purpose(player, entity, index)
+  local platform = player and platform_of(player, plat)
+  if player and platform then
+    apply_purpose(player, platform, index)
   end
   return true
 end
 
---- Нажатия в панели. Возвращает true, если событие её.
-function panel.on_click(event, open_lines)
+--- Нажатия в окне обзора. Возвращает true, если событие его.
+function overview.on_click(event)
   local element = event.element
   if not (element and element.valid) then
     return false
   end
+  local name = element.name
+  if name == overview.BUTTON then
+    local player = game.get_player(event.player_index)
+    if player then
+      overview.toggle(player)
+    end
+    return true
+  end
+  if name == 'shm_ol_overview_close' then
+    local player = game.get_player(event.player_index)
+    if player then
+      overview.close(player)
+    end
+    return true
+  end
+  local player = game.get_player(event.player_index)
   -- Убрать место из выбора строки секции: иконки мест, применить сразу.
   if element.tags and element.tags.picker_remove then
     local parent = element.parent
-    local index = parent and tonumber(string.match(parent.name, '^shm_ol_places_(%d+)$'))
-    if index then
-      local player = game.get_player(event.player_index)
-      local entity = player and opened_entity(player)
+    local plat, index
+    if parent and parent.valid then
+      plat, index = string.match(parent.name, '^shm_ol_places_(%d+)_(%d+)$')
+    end
+    if plat then
+      plat = tonumber(plat)
+      index = tonumber(index)
       local selected = {}
       for _, place in ipairs(parent.tags.selected or {}) do
         if place ~= element.tags.picker_remove then
@@ -1487,51 +1742,85 @@ function panel.on_click(event, open_lines)
         end
       end
       picker.set_selected(parent, selected)
-      if player and entity then
-        apply_purpose(player, entity, index)
+      local platform = player and platform_of(player, plat)
+      if player and platform then
+        apply_purpose(player, platform, index)
       end
       return true
     end
   end
-  local player = game.get_player(event.player_index)
-  local entity = player and opened_entity(player)
-  if element.name == 'shm_ol_toggle' then
-    storage.panel_collapsed = storage.panel_collapsed or {}
-    if element.tags.toggle then
-      storage.panel_collapsed[event.player_index] = true
-    else
-      storage.panel_collapsed[event.player_index] = nil
-    end
-    if entity then
-      panel.build(player, entity)
+  if not player then
+    return false
+  end
+  -- Кнопка окна: значок и имя карточки открывают окно хаба платформы.
+  if name == 'shm_ol_card_open' or name == 'shm_ol_card_icon' then
+    local platform = platform_of(player, element.tags and element.tags.card)
+    if platform then
+      open_platform_gui(player, platform.hub)
     end
     return true
   end
-  -- Сворачивание блока: треугольник в заголовке или клик по строке-итогу.
-  if element.name == 'shm_ol_block_toggle' or element.name == 'shm_ol_block_summary' then
-    local key = element.tags.block
-    if key then
+  -- Разворот карточки: контент настроек появляется и убирается целиком.
+  if name == 'shm_ol_card_toggle' then
+    local card = element.parent and element.parent.parent
+    local platform = platform_of(player, element.tags and element.tags.card)
+    if card and card.valid and platform then
+      local t = card.tags
+      local expanded = t.expanded == true
+      if expanded then
+        local content = find_named(card, 'shm_ol_content')
+        if content then
+          content.destroy()
+        end
+        t.expanded = nil
+      else
+        t.expanded = true
+        card.tags = t
+        fill_content(card, player, platform)
+        t = card.tags
+      end
+      t.signature = expanded and nil or content_sig(platform)
+      card.tags = t
+      local to_collapsed = not expanded
+      local path = to_collapsed and 'utility/collapse' or 'utility/expand'
+      local key = to_collapsed and 'collapse' or 'expand'
+      if element.type == 'sprite-button' and helpers.is_valid_sprite_path(path) then
+        element.sprite = path
+      else
+        element.caption = { L .. key }
+      end
+      element.tooltip = { L .. key }
+    end
+    return true
+  end
+  -- Сворачивание блока внутри карточки: треугольник или строка-итог.
+  if name == 'shm_ol_block_toggle' or name == 'shm_ol_block_summary' then
+    local t = element.tags
+    if t and t.block and t.card then
       storage.panel_block_collapsed = storage.panel_block_collapsed or {}
       local state = storage.panel_block_collapsed[event.player_index] or {}
+      local key = t.card .. ':' .. t.block
       if state[key] then
         state[key] = nil
       else
         state[key] = true
       end
       storage.panel_block_collapsed[event.player_index] = state
-      if entity then
-        panel.build(player, entity)
+      local platform = platform_of(player, t.card)
+      local card = card_of(element)
+      if platform and card then
+        rebuild_content(card, player, platform)
       end
       return true
     end
   end
   -- Разворачиватель деталей группы: состояние в самой кнопке, поэтому
-  -- обновление раз в секунду его не сбрасывает, а перестройка панели — да.
-  if element.name == 'shm_ol_expand' then
-    local state = element.tags
-    state.expanded = not state.expanded and true or nil
-    element.tags = state
-    local to_collapsed = state.expanded == true
+  -- обновление раз в секунду его не сбрасывает, а перестройка контента — да.
+  if name == 'shm_ol_expand' then
+    local t = element.tags
+    t.expanded = not t.expanded and true or nil
+    element.tags = t
+    local to_collapsed = t.expanded == true
     local path = to_collapsed and 'utility/collapse' or 'utility/expand'
     local key = to_collapsed and 'collapse' or 'expand'
     if element.type == 'sprite-button' and helpers.is_valid_sprite_path(path) then
@@ -1540,34 +1829,40 @@ function panel.on_click(event, open_lines)
       element.caption = { L .. key }
     end
     element.tooltip = { L .. key }
-    if entity then
+    local platform = platform_of(player, t.card)
+    if platform then
       local row = element.parent.parent
-      local container = row and row['shm_ol_details_' .. state.details]
+      local container = row and row['shm_ol_details_' .. t.card .. '_' .. t.details]
       if container then
-        local snap = controller.snapshot(entity)
-        local cargo_here = orbit_cargo(entity.surface.platform)
+        local hub = platform.hub
+        local snap = controller.snapshot(hub)
+        local cargo_here = orbit_cargo(hub.surface.platform)
         local result = resolver.resolve(snap, cargo_here)
         fill_details(container, snap, result, cargo_here)
       end
     end
     return true
   end
-  if element.name == 'shm_ol_attach' then
-    local dropdown = element.parent.shm_ol_attach_line
+  if name == 'shm_ol_attach' then
+    local dropdown = element.parent and element.parent.shm_ol_attach_line
+    local platform = platform_of(player, element.tags and element.tags.card)
     local line = dropdown and lines.list(player.force)[dropdown.selected_index]
-    if entity and line then
-      lines.attach(player.force, line, entity)
+    if platform and line then
+      lines.attach(player.force, line, platform.hub)
       controller.pass()
-      panel.build(player, entity)
-      open_lines(player, line.id)
+      local card = card_of(element)
+      if card and card.valid then
+        rebuild_content(card, player, platform)
+      end
+      lines_gui.open(player, line.id)
     end
     return true
   end
-  if element.name == 'shm_ol_open_lines' then
-    open_lines(player)
+  if name == 'shm_ol_open_lines' then
+    lines_gui.open(player)
     return true
   end
   return false
 end
 
-return panel
+return overview

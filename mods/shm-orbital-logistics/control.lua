@@ -3,21 +3,35 @@
 -- отлёт, ожидание на орбите.
 
 local controller = require('runtime.controller')
-local panel = require('runtime.panel')
+local overview = require('runtime.overview_gui')
 local lines_gui = require('runtime.lines_gui')
 local picker = require('runtime.places_picker')
 
 script.on_init(function()
   storage.platforms = {}
-  storage.panel_collapsed = {}
   storage.panel_block_collapsed = {}
+  for _, player in pairs(game.players) do
+    overview.ensure_button(player)
+  end
 end)
 
 script.on_configuration_changed(function()
   storage.platforms = storage.platforms or {}
-  storage.panel_collapsed = storage.panel_collapsed or {}
   storage.panel_block_collapsed = storage.panel_block_collapsed or {}
+  -- Панель у окна хаба больше нет; её свёрнутость и старая настройка
+  -- положения — из хранилища убрать.
+  storage.panel_collapsed = nil
   controller.migrate()
+  for _, player in pairs(game.players) do
+    overview.ensure_button(player)
+  end
+end)
+
+script.on_event(defines.events.on_player_created, function(event)
+  local player = game.get_player(event.player_index)
+  if player then
+    overview.ensure_button(player)
+  end
 end)
 
 script.on_nth_tick(controller.SLICE_TICKS, controller.slice)
@@ -26,11 +40,13 @@ script.on_event(defines.events.on_space_platform_changed_state, controller.on_pl
 
 script.on_event(defines.events.on_entity_logistic_slot_changed, controller.on_slot_changed)
 
--- Интерфейс: панель у окна хаба и площадки, окно линий снабжения.
-script.on_event(defines.events.on_gui_opened, panel.on_opened)
+-- Интерфейс: окно обзора платформ, окно линий снабжения.
+script.on_event(defines.events.on_gui_opened, overview.on_opened)
+
+script.on_event(defines.events.on_gui_closed, overview.on_closed)
 
 script.on_event(defines.events.on_gui_click, function(event)
-  if panel.on_click(event, lines_gui.open) then
+  if overview.on_click(event) then
     return
   end
   if picker.on_click(event) then
@@ -40,14 +56,14 @@ script.on_event(defines.events.on_gui_click, function(event)
 end)
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-  if panel.on_selection(event) then
+  if overview.on_selection(event) then
     return
   end
   lines_gui.on_selection(event)
 end)
 
 script.on_event(defines.events.on_gui_elem_changed, function(event)
-  if panel.on_elem_changed(event) then
+  if overview.on_elem_changed(event) then
     return
   end
   if picker.on_elem_changed(event) then
@@ -66,7 +82,7 @@ if debug_build and settings.startup['shm-orbital-logistics-debug'].value then
 end
 
 script.on_nth_tick(60, function(event)
-  panel.refresh_all()
+  overview.refresh_all()
   if demo then
     demo.on_tick(event)
   end
@@ -87,7 +103,6 @@ remote.add_interface('shm-orbital-logistics', {
 })
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-  panel.on_setting_changed(event)
   if event.setting ~= controller.SETTING then
     return
   end

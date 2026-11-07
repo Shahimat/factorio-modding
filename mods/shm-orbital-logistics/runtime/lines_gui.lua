@@ -143,6 +143,66 @@ local function add_participants(frame, line, force)
   end
 end
 
+--- Кого можно подключить к линии: хабы платформ и площадки на планетах
+--- силы, ещё не участвующие в линии. Площадки в окне обзора платформ не
+--- живут — подключение к линиям у них здесь.
+local function attach_targets(player, line)
+  local taken = {}
+  for _, participant in ipairs(line.participants) do
+    if participant.entity and participant.entity.valid then
+      taken[participant.entity.unit_number] = true
+    end
+  end
+  local targets = {}
+  local platforms = {}
+  for _, platform in pairs(player.force.platforms) do
+    if platform.valid and platform.hub and platform.hub.valid and platform.scheduled_for_deletion == 0
+      and not taken[platform.hub.unit_number] then
+      platforms[#platforms + 1] = platform
+    end
+  end
+  table.sort(platforms, function(a, b) return a.name < b.name end)
+  for _, platform in ipairs(platforms) do
+    targets[#targets + 1] = { entity = platform.hub, caption = platform.name }
+  end
+  for _, surface in pairs(game.surfaces) do
+    -- Поверхности платформ не обходить: площадки живут на планетах.
+    if surface.platform == nil then
+      local pads = surface.find_entities_filtered({ type = 'cargo-landing-pad', force = player.force })
+      table.sort(pads, function(a, b) return a.unit_number < b.unit_number end)
+      for _, pad in ipairs(pads) do
+        if not taken[pad.unit_number] then
+          targets[#targets + 1] = { entity = pad, caption = { L .. 'pad-name', surface.name } }
+        end
+      end
+    end
+  end
+  return targets
+end
+
+--- Строка подключения участника: список кандидатов и кнопка. Кандидаты
+--- держатся рядом с выбором линии — их читает обработчик кнопки.
+local function add_attach(frame, player, line)
+  local targets = attach_targets(player, line)
+  selected(player).attach_targets = targets
+  if #targets == 0 then
+    return
+  end
+  local captions = {}
+  for i, target in ipairs(targets) do
+    captions[i] = target.caption
+  end
+  local flow = frame.add({ type = 'flow', direction = 'horizontal' })
+  flow.add({
+    type = 'drop-down',
+    name = 'shm_ol_attach_entity',
+    items = captions,
+    selected_index = 1,
+    tooltip = { L .. 'line-attach-tooltip' },
+  })
+  flow.add({ type = 'button', name = 'shm_ol_line_attach', caption = { L .. 'lines-attach' } })
+end
+
 local function depot_warning(frame, name, caption)
   local label = frame.add({ type = 'label', name = name, caption = caption })
   label.style.font_color = { 1, 0.3, 0.3 }
@@ -193,6 +253,7 @@ function window.open(player, line_id)
   if line then
     add_items(body, line)
     add_participants(body, line, player.force)
+    add_attach(body, player, line)
     add_depot_warnings(body, line)
     body.add({ type = 'button', name = 'shm_ol_line_apply', caption = { L .. 'apply' }, style = 'confirm_button' })
   else
@@ -308,6 +369,17 @@ function window.on_click(event)
   if name == 'shm_ol_line_apply' and line then
     apply(player, line)
     window.open(player)
+    return true
+  end
+  if name == 'shm_ol_line_attach' and line then
+    local targets = selected(player).attach_targets or {}
+    local dropdown = find(frame, 'shm_ol_attach_entity')
+    local target = dropdown and targets[dropdown.selected_index]
+    if target and target.entity and target.entity.valid then
+      lines.attach(player.force, line, target.entity)
+      controller.pass()
+      window.open(player)
+    end
     return true
   end
   if string.sub(name, 1, 19) == 'shm_ol_item_remove_' and line then

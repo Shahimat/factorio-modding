@@ -45,7 +45,10 @@ Under the Factorio Terms of Service (https://factorio.com/terms-of-service):
 `thumbnail.png` and `graphics/tips-route.png` are derived from Factorio
 icons (Space Age): the space platform hub icon and the starmap images of
 Nauvis and Vulcanus, scaled and composed by `tools/orbital-art.ts` of the
-source repository. They fall under the notice above.
+source repository. `graphics/gui-button.png` is derived from
+`thumbnail.png`; `graphics/route-arrow.png`,
+`graphics/route-arrow-active.png` and `graphics/route-slot-active.png`
+are original drawings of the author. They fall under the notice above.
 
 Factorio is a trademark of Wube Software Ltd. This repository is not
 affiliated with, endorsed by, or sanctioned by Wube Software Ltd.
