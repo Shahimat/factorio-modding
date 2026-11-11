@@ -1,9 +1,0 @@
-# Конфиг команд ai-core: адаптеры, hooks, проверки.
-# Схема — skill `cli` (.agents/skills/cli/SKILL.md); неизвестный ключ — ошибка.
-adapters: [opencode]
-checks:
-  changelog:
-    max_line: 120
-    tags: [arch, stack, dep, milestone]
-  context-index: {}
-  adapters: {}

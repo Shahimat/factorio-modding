@@ -17,12 +17,11 @@ import { error, type Problem } from './problems.ts';
 const PROJECT_FILE = 'context/project.yml';
 
 /**
- * context/index.yml генерируется (`oc3 context index`), его свежесть и полноту
- * проверяет `oc3 context check` — здесь она не дублируется.
+ * Метаданные синхронизации v2; ручной индекс проверяется отдельно.
  */
-export async function checkProject(): Promise<Problem[]> {
+export async function checkProject(root = REPO_ROOT): Promise<Problem[]> {
   const problems: Problem[] = [];
-  const path = join(REPO_ROOT, 'context', 'project.yml');
+  const path = join(root, PROJECT_FILE);
   let data: YamlRecord | null;
   try {
     data = asRecord(parse(await readFile(path, 'utf8')));
@@ -50,7 +49,7 @@ export async function checkProject(): Promise<Problem[]> {
   if (contract === null) {
     problems.push(error(PROJECT_FILE, 'нет блока "sync.contract"'));
   } else {
-    for (const field of ['key', 'edition', 'synced_sha'] as const) {
+    for (const field of ['key', 'synced_sha'] as const) {
       if (!asString(contract[field])) {
         problems.push(
           error(PROJECT_FILE, `sync.contract: нет поля "${field}"`),

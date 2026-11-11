@@ -1,7 +1,33 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": ["@shahimat/oc3"],
+  "model": "openai/gpt-6.1-sol-fast",
   "experimental": {
-    "subagent_depth": 2
-  }
+    "subagent_depth": 2,
+    "todo": true,
+  },
+  "policies": [
+    { "action": "tool.use", "resource": "edit:*MEMORY.md", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*Memory.md", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*memory.md", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:memory/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*/memory/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:memories/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*/memories/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:~/.codex/**/memory/**", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:~/.config/opencode/**/memory/**", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:~/.claude/projects/*/memory/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "*memory*:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "*Memory*:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "*MEMORY*:*", "effect": "deny" },
+    { "action": "mcp.use", "resource": "*memory*", "effect": "deny" },
+    { "action": "mcp.use", "resource": "*Memory*", "effect": "deny" },
+    { "action": "mcp.use", "resource": "*MEMORY*", "effect": "deny" },
+    { "action": "plugin.use", "resource": "*memory*", "effect": "deny" },
+    { "action": "plugin.use", "resource": "*Memory*", "effect": "deny" },
+    { "action": "plugin.use", "resource": "*MEMORY*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:opencode.json*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:.opencode/opencode.json*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*/opencode.json*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*/.opencode/opencode.json*", "effect": "deny" },
+  ],
 }

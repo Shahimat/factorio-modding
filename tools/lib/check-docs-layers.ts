@@ -31,7 +31,7 @@ function featureWords(feature: string): string[] {
   return feature.split(/[-_]/).filter((w) => w.length > 3);
 }
 
-/** summary/title одной строкой — поле слоя для индекса (`oc3 context index`). */
+/** summary/title одной строкой — поле слоя для генерируемого индекса. */
 function checkIndexLine(
   problems: Problem[],
   file: string,
@@ -54,19 +54,19 @@ export interface LayerCheck {
   readonly conventionKeys: string[];
 }
 
-export async function checkLayers(): Promise<LayerCheck> {
+export async function checkLayers(dirs = DIRS): Promise<LayerCheck> {
   const problems: Problem[] = [];
 
-  const entities = await loadYamlDir(DIRS.entities);
-  const behaviors = await loadYamlDir(DIRS.behaviors);
-  const conventions = await loadYamlDir(DIRS.conventions);
+  const entities = await loadYamlDir(dirs.entities);
+  const behaviors = await loadYamlDir(dirs.behaviors);
+  const conventions = await loadYamlDir(dirs.conventions);
   problems.push(
     ...entities.problems,
     ...behaviors.problems,
     ...conventions.problems,
   );
 
-  const manualNames = await listBaseNames(DIRS.manuals, '.md');
+  const manualNames = await listBaseNames(dirs.manuals, '.md');
 
   const entityById = new Map<string, LoadedYaml>();
   for (const item of entities.items) {

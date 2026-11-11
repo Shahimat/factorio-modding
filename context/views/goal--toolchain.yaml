@@ -1,0 +1,30 @@
+key: toolchain
+title: Инструментальный контур репозитория
+status: active
+why: |
+  Требования портала к zip, структуре архива и changelog требуют воспроизводимых
+  инструментов вместо ручной проверки каждого релиза.
+description: |
+  Тикет toolchain — проверить и довести текущий инструментальный контур.
+  Критерии по исходному порядку: crit — обязательный, warn — предупреждение.
+  1. crit: link-local: симлинк мода или прототипа в каталог модов игры — npm run link-local -- <путь>
+  2. crit: FMTK настроен вместо своего publish — manual setup-dev-environment, раздел «Редактор»
+  3. crit: check-docs-layers и check-docs-context параметризованы корнем вместо константы REPO_ROOT и покрыты тестами
+  4. warn: validate и pack прогнаны на первом реальном моде, verified у mod-zip-matches-portal-rules переподтверждён
+
+  Критерий 2 сохранён дословно, но не отменяет принятую команду publish:mod:
+  трактовка — настройка редактора/FMTK, без удаления publish:mod и без выполнения
+  FMTK Publish (он делает commit, тег и push). Публикация необратима; первый выпуск
+  руками по manual publish-new-mod. tool-publish-command — история, не новая задача.
+  Контекст: npm-workspaces, mods/ и poc/, tools/ на strict TypeScript; Lua напрямую.
+  Чеклист: chore — проверить/довести link-local, редактор и параметризацию с тестами,
+  затем validate/pack и документальное переподтверждение; фазы не отдельные тикеты.
+  Проверка validate/pack требует реального мода, но это не обратная depends_on
+  на logistic-buildings: такая связь создала бы цикл с программой.
+tasks:
+  blocker: []
+  high:
+    - 'toolchain: проверить и довести link-local, FMTK и параметризацию проверок → chore → блокеров цели нет'
+  medium: []
+  low: []
+depends_on: []

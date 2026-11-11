@@ -129,5 +129,5 @@ spec: none
 spec_note: |
   Эта entity описывает устройство пакета вообще и из ТЗ не выводится. ТЗ
   конкретного мода порождает свою entity: первое из них —
-  `logistic-buildings` по `specs/03102026_spec_logistic_buildings.md`, см.
-  convention `spec-intake`.
+  `logistic-buildings` по `specs/03102026_spec_logistic_buildings.md`;
+  раскладка регулируется convention `spec-intake`.

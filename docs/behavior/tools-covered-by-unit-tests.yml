@@ -89,6 +89,12 @@ verified_note: >-
   `goal--smoke-sub`. `npm run check-lua` проверен на временном
   `poc/shm-logistic-probe`: находки по имени без приставки, по пути и через
   `--all`, код возврата 1 без скоупа и на неизвестном имени, при этом
-  `npm run validate` прототип не видит — всё удалено после прогона. Пробел: `check-docs-layers` и `check-docs-context`
-  работают от константы `REPO_ROOT` и юнит-тестами не покрыты, см.
-  convention `testing`, раздел «Известный пробел».
+  `npm run validate` прототип не видит — всё удалено после прогона.
+  Пробел на 2026-10-04: `check-docs-layers` и `check-docs-context` работали
+  от константы `REPO_ROOT` и юнит-тестами не покрывались. На 2026-11-11
+  `checkLayers(docsDirs(root))` и `checkProject(root)` параметризованы;
+  `check-docs-layout.test.ts` проверяет раскладку, непустой обход и часть
+  ошибочных фикстур, тесты входят в успешный `npm run check` (211/211).
+  Полное покрытие правил не заявляется; `checkModules()` ещё использует
+  `REPO_ROOT`. Оставшаяся работа — цель `toolchain` и convention `testing`,
+  раздел «Известный пробел». Исторические игровые проверки не повторялись.

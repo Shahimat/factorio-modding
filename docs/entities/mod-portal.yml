@@ -54,6 +54,12 @@ api_keys:
     Имя задано CLI `fmtk` и имеет приоритет над Keychain. Этим же именем
     пользуются примеры `curl` в манулах, чтобы не держать три имени под один
     ключ.
+    Собственный `publish:mod` ищет значение в окружении, затем в `.env.local`
+    и `.env` в корне. Его разбор env допускает `export`, кавычки вокруг
+    значения и `\r`, но не inline-комментарии: комментарий после значения
+    становится частью значения. Источник — статическое чтение
+    `tools/publish.ts` (`loadApiKey`) и `tools/lib/portal-upload.ts`
+    (`parseEnvLine`), 2026-11-12, без обращения к секретам и порталу.
   scopes:
     ModPortal_Publish_Mods: первая публикация нового мода
     ModPortal_Upload_Mods: новый релиз существующего мода
@@ -80,6 +86,14 @@ endpoints:
     finish: POST <upload_url из ответа init>
     init_body: mod=<name>
     finish_body: file=<zip>
+    note: |
+      В `publish:mod` успешная загрузка и её подтверждение публичным Browse-API
+      — разные шаги. `tools/publish.ts:verifyRelease` делает до пяти GET-попыток
+      с паузой 4 с между ними; ответ API кэшируется. Ошибка «не удалось
+      подтвердить релиз» не означает, что загрузка не состоялась: релиз может
+      уже быть опубликован, а проверка ещё не видеть его. Источник —
+      статическое чтение `uploadZip` / `verifyRelease` и порядка их вызова
+      в `tools/publish.ts`, 2026-11-12; новая публикация не выполнялась.
   edit_details:
     url: POST https://mods.factorio.com/api/v2/mods/edit_details
     body: mod, title?, summary?, description?, category?, tags?, license?, homepage?, deprecated?, source_url?, faq?

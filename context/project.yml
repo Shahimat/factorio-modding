@@ -20,7 +20,6 @@ stack:
   - npm-workspaces
 
 reality: [this-repo]
-preset: operational
 
 target:
   factorio_stable: "2.1"
@@ -46,6 +45,10 @@ namespaces:
     convention `engine-facts`
 
 paths:
+  handoff: context/main.md
+  index: context/index.yml
+  workflow: context/workflow.md
+  goals: context/views/goals.yaml
   mods: mods/
   tools: tools/
   specs: specs/
@@ -53,6 +56,8 @@ paths:
   poc: poc/
 
 external:
+  ai_prompts_upstream: https://github.com/Shahimat/ai-prompts
+  ai_prompts_upstream_index: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
   mod_portal: https://mods.factorio.com/
   mod_portal_profile: https://mods.factorio.com/user/Shahimat
   api_keys: https://factorio.com/profile
@@ -65,25 +70,13 @@ external:
     Детальные release notes самой игры и обсуждения на форуме в проектный
     CHANGELOG.md не мигрируют — только ссылка здесь.
 
-roles:
-  exceptions: []
-  models: {}
-
 sync:
   index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
-  index_sha: 17eb2b206c40167b9268d5579fe0a4d257504d75caf5ce07eb2d6120ec0105f9
+  index_sha: 678c6db5ad9d4fe8377221cfdca8f3790821da13bf64432e32e0beabed26ff63
   contract:
-    key: agent-operational-contract-v3
-    edition: operator-centric
-    synced_sha: 0b15270ca4364461c80222c6332171f6f6edc2d2182d0ad10601107844be43cb
-    synced_at: 2026-11-04
+    key: agent-operational-contract-v2
+    synced_sha: de59e401d0ff1ba5a6c96b4112dbe377b448659351b26d04430ea9bbfd50a3f0
+    synced_at: 2026-11-12
     parts:
       skills:
-        contract-setup: 26d80808fa4bc284d23e6ca48208643edf1a9e74c6e5af78732acd401d07dc84
-        workflow: 557b8923f7fe7fc0b9a1ce162af36b0e0945fa20810b4c2970cd6573e85e8b9c
-        librarian: 8a82af5779f68e066097cc0965719b4adcbb789f73071c78a0a19340b561a879
-      agents:
-        researcher: d693e85f1c0aa9f757a491e94a933743abc1fe4d3208e9a9b7067966287bdbb1
-        executor: 44a8ca297ec8578d6453faf1d6d58987554b339f05285564c805502686bbef99
-        judge: 8b763fde0f28ba02593cfd6976b1753671e256977c4fb0920e999978dd7d27ff
-        librarian: 9e50614b7c9735cec85853c39542bfbb4cd8cdf70de39650ec3a03628b0d66d2
+        manuals: 9897e55896035cdbe158caae8ce56ec67cdb92d1445707d37707e39ddfde0e44

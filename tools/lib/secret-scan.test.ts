@@ -93,7 +93,7 @@ test('30-символьная hex-строка ловится', () => {
 });
 
 test('hex рядом с полем хеша не считается секретом', () => {
-  const sha = fx('e9217055c51a2b4f26ae1e33ad82a1·36cf1288a0a51322dd8b96dccf99fa7ff9');
+  const sha = fx('e9217055c51a2b4f·26ae1e33ad82a136·cf1288a0a51322dd·8b96dccf99fa7ff9');
   assert.deepEqual(ids(`  index_sha: ${sha}`), []);
   assert.deepEqual(ids(`    synced_sha: ${sha}`), []);
   assert.deepEqual(ids(`"integrity": "sha512-${sha}"`), []);
@@ -118,6 +118,95 @@ test('файловый путь не принимается за base64', () => 
     ),
     [],
   );
+});
+
+// Синтетические checksum/token значения собираются только в runtime.
+const checksum = 'a1b2c3d4'.repeat(8);
+const commit = 'a1b2c3d4'.repeat(5);
+const otherHex = 'c9d8e7f6'.repeat(8);
+const publicRaw = `https://raw.githubusercontent.com/Shahimat/ai-prompts/${commit}/prompts/modules/domain.md`;
+
+test('публичный ai-prompts commit pin разрешён только в точном URL segment', () => {
+  assert.deepEqual(ids(`source: ${publicRaw}`), []);
+  for (const url of [
+    publicRaw.replace('https:', 'http:'),
+    publicRaw.replace('raw.githubusercontent.com', 'raw.githubusercontent.com.evil.test'),
+    publicRaw.replace('Shahimat', 'another-owner'),
+    publicRaw.replace('ai-prompts', 'another-repo'),
+    publicRaw.replace(commit, checksum),
+    `https://example.test/?redirect=${publicRaw}`,
+    `https://raw.githubusercontent.com/Shahimat/ai-prompts/main/file?ref=${commit}`,
+  ]) {
+    assert.ok(ids(url).includes('long-hex'), url);
+  }
+});
+
+test('Markdown SHA checksum column с inline или соседним label разрешена', () => {
+  assert.deepEqual(ids(`${checksum}  file.md SHA-256`), []);
+  for (const label of ['SHA-256', 'SHA локального index.yml:']) {
+    assert.deepEqual(scanText('evidence.md', `${label}\n\`${checksum}\`.`), []);
+  }
+  assert.deepEqual(scanText('evidence.md',
+    `## File-content SHA-256\n\n\`\`\`text\n${checksum}  startup\n${otherHex}  closeout\n\`\`\``), []);
+});
+
+test('bare hex, assignments и неверная checksum column не получают исключение', () => {
+  for (const text of [
+    checksum,
+    `ordinary text\n\`${checksum}\``,
+    `SHA-256\nvalue=${checksum}`,
+    `SHA-256\nrandom ${checksum}`,
+    `SHA-256\n${commit}  short`,
+    `SHA-256\n${checksum}abcd  too-long`,
+    `SHA-256\n${checksum}/not-a-column`,
+    `SHA-256\n\`\`\`js\n${checksum}\n\`\`\``,
+    `SHA-256\n\n\n${checksum}`,
+    `SHA-256\n\`\`\`text\n${checksum}\n\`\`\`\n${otherHex}`,
+  ]) {
+    assert.ok(scanText('f.md', text).some((p) => p.message.includes('[long-hex]')), text);
+  }
+  assert.ok(scanText('f.ts', `SHA-256\n${checksum}`).some((p) => p.message.includes('[long-hex]')));
+});
+
+test('commit pin не скрывает query credentials или второй hex на строке', () => {
+  assert.ok(ids(`${publicRaw}?token=${otherHex}`).includes('long-hex'));
+  const querySecret = fx('?api·_key=');
+  assert.ok(ids(`${publicRaw}${querySecret}${otherHex}`).includes('secret-assignment'));
+  assert.ok(ids(`${publicRaw} ${otherHex}`).includes('long-hex'));
+  assert.ok(ids(publicRaw.replace('https://', fx('https·://user:password1234@')))
+    .includes('url-embedded-credentials'));
+});
+
+test('SHA label не скрывает token assignment, второй hex или base64', () => {
+  for (const assignment of ['api_key', 'service-token', 'password']) {
+    assert.ok(scanText('f.md', `SHA-256\n${assignment}=${checksum}`)
+      .some((p) => p.message.includes('[secret-assignment]')));
+  }
+  assert.ok(ids(`${checksum}  SHA-256 ${otherHex}`).includes('long-hex'));
+  assert.ok(ids(`${checksum}  SHA-256 Zz9${'Qq7'.repeat(20)}`).includes('long-base64'));
+});
+
+test('checksum occurrence не скрывает известный token или private home path', () => {
+  const token = fx('ghp·_AbCdEfGhIjKlMnOpQrStUvWxYz012345');
+  const home = fx('/Users·/ivan/project/');
+  for (const prefix of [`${checksum}  SHA-256`, publicRaw, `hash: ${checksum}`]) {
+    assert.ok(ids(`${prefix} ${token}`).includes('github-token'));
+    assert.ok(ids(`${prefix} ${home}`).includes('home-absolute-path'));
+  }
+  const block = `SHA-256\n\`\`\`text\n${checksum}  ${home}\n${otherHex}  ${token}\n\`\`\``;
+  const found = scanText('f.md', block);
+  assert.ok(found.some((p) => p.message.includes('[home-absolute-path]')));
+  assert.ok(found.some((p) => p.message.includes('[github-token]')));
+});
+
+test('поле hash исключает только своё значение, не остальные hex/base64', () => {
+  assert.ok(ids(`hash: ${checksum}, other: ${otherHex}`).includes('long-hex'));
+  assert.ok(ids(`hash: ${checksum}, other: Zz9${'Qq7'.repeat(20)}`).includes('long-base64'));
+  assert.deepEqual(ids(`{"hash":"${checksum}","public_hash":"${otherHex}"}`), []);
+  const sri = `sha512-Zz9${'Qq7'.repeat(16)}/DG0${'aB2'.repeat(16)}==`;
+  assert.deepEqual(ids(`"integrity": "${sri}"`), []);
+  assert.ok(ids(`"integrity": "${sri}", "other": "${otherHex}"`).includes('long-hex'));
+  assert.ok(ids(`hash: ${publicRaw}?token=${otherHex}`).includes('long-hex'));
 });
 
 test('base64 без смешанного регистра и цифр не считается токеном', () => {

@@ -6,14 +6,18 @@ import { parse } from 'yaml';
 import { REPO_ROOT } from './packages.ts';
 import { error, type Problem } from './problems.ts';
 
-export const DIRS = {
-  entities: join(REPO_ROOT, 'docs', 'entities'),
-  behaviors: join(REPO_ROOT, 'docs', 'behavior'),
-  manuals: join(REPO_ROOT, 'docs', 'manuals'),
-  conventions: join(REPO_ROOT, 'context', 'conventions'),
-  modules: join(REPO_ROOT, 'context', 'modules'),
-  specs: join(REPO_ROOT, 'specs'),
-} as const;
+export function docsDirs(root: string) {
+  return {
+    entities: join(root, 'docs', 'entities'),
+    behaviors: join(root, 'docs', 'behavior'),
+    manuals: join(root, 'docs', 'manuals'),
+    conventions: join(root, 'context', 'conventions'),
+    modules: join(root, 'context', 'modules'),
+    specs: join(root, 'specs'),
+  } as const;
+}
+
+export const DIRS = docsDirs(REPO_ROOT);
 
 export type YamlRecord = Record<string, unknown>;
 

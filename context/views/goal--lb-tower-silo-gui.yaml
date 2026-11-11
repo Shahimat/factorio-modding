@@ -1,0 +1,28 @@
+key: lb-tower-silo-gui
+program: logistic-buildings
+title: Башня, шахта и панель у окна здания
+status: planned
+why: Проверить наличие трёх возможностей API до выбора дизайна мода.
+description: |
+  plan_item: iter-01 §1.6; spec: specs/03102026_spec_logistic_buildings.md;
+  plan: plans/logistic-buildings/iter-01.html.
+  Тикет lb-tower-silo-gui.
+  Критерии по исходному порядку: crit — обязательный, warn — предупреждение.
+  1. crit: сельскохозяйственная башня: хранилища семян и урожая, продукт по семени — зелёные на стенде
+  2. crit: ракетная шахта: детали загружаются скриптом, признак «ракета собрана» — зелёные на стенде
+  3. crit: пробная панель привязывается к штатному окну: производящие, печи, лаборатории, буры, котлы, реакторы, турели
+  4. warn: сборка без Space Age не роняет прототип — башня и шахта пропускаются: node tools/lua-test.ts ./poc/shm-logistic-buildings-probe
+  Внешний вид панели — глазами в lb-session-facts; здесь бинарный ответ по каждому
+  типу здания «есть»/«нет». Общая проверка: npm run check-lua --
+  poc/shm-logistic-buildings-probe; npm run test:ingame с измеренным результатом.
+  Чеклист feat: сценарии башни/шахты/привязки; проверка без Space Age — внутри
+  тикета, warn не повышается до обязательного.
+tasks:
+  blocker: []
+  high:
+    - 'lb-tower-silo-gui: проверить башню, шахту и привязку панели → feat → после каркаса и стенда'
+  medium: []
+  low: []
+depends_on:
+  - lb-probe-frame
+  - lb-ingame-stand

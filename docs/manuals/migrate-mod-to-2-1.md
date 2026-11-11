@@ -3,9 +3,8 @@
 ## Когда использовать
 
 Когда чужой мод под Factorio 2.0 форкается или берётся за основу и
-переводится на 2.1. Проект поддерживает только 2.1 (с 2026-10-25 поддержки
-2.0 нет вовсе), так что своего кода под 2.0 не бывает — manual нужен для
-чужого.
+переводится на 2.1. Проект поддерживает только 2.1, так что своего кода
+под 2.0 не бывает — manual нужен для чужого.
 
 Правила дорожек — `context/conventions/factorio-version-track.yml`.
 
@@ -33,7 +32,8 @@
 2. Проверь актуальную версию игры и прогони мод на ней:
 
    ```bash
-   curl -fsSL https://factorio.com/api/latest-releases
+   curl -q -fsSL https://factorio.com/api/latest-releases -o /tmp/factorio-latest-releases.json
+   cat /tmp/factorio-latest-releases.json
    ```
 
 3. Прогон по `test-mod-locally.md` целиком, включая
@@ -53,25 +53,15 @@
    и что релизов под другие версии у мода нет:
 
    ```bash
-   curl -fsS https://mods.factorio.com/api/mods/shm-<mod-key> \
-     | python3 -c 'import json,sys,collections; j=json.load(sys.stdin); \
+   curl -q -fsSL "https://mods.factorio.com/api/mods/shm-<mod-key>" -o /tmp/factorio-mod-releases.json
+   python3 -c 'import json,collections; j=json.load(open("/tmp/factorio-mod-releases.json")); \
 print(collections.Counter(r["info_json"]["factorio_version"] for r in j["releases"]))'
    ```
 
-## Контекст перехода
+## Если что-то пошло не так
 
-- 2.1 — последнее крупное обновление Factorio; после него Wube переходит в
-  режим поддержки (багфиксы, платформа, моддинг).
-- Experimental-период 2.1 растянут специально, чтобы мод-авторы успели
-  переехать.
-- Миграция экосистемы уже массовая: на 2026-10-03 у 7 377 модов последний
-  релиз помечен `2.0`, у 4 419 — уже `2.1`.
-
-## Переход проекта на 2.1
-
-Выполнен в два шага: 2026-10-23, когда 2.1 вышла в stable, дорожка 2.0
-была заморожена; 2026-10-25 поддержка 2.0 снята полностью —
-`target.factorio_stable` в `context/project.yml` — `2.1`, `validate`
-принимает только `2.1`, прототип в `poc/` переведён на 2.1, строки о
-переходе — в `CHANGELOG.md`. При следующей мажорной версии этот manual
-переписывается под неё.
+- Ошибка загрузки или устаревший API → вернись к шагам 3–4 и точному
+  сообщению в `factorio-current.log`; не считай смену `factorio_version`
+  доказательством совместимости.
+- На портале нет релиза 2.1 → проверь результат публикации по `release-mod.md`;
+  не публикуй повторно без проверки версии и подтверждения владельца.

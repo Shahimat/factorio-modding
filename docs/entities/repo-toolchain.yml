@@ -9,12 +9,13 @@ structure:
   mods/: пакеты модов, один каталог на мод, он же npm-workspace
   tools/: TypeScript-инструменты (валидация, упаковка, публикация)
   tools/lua/: харнесс и заглушки для Lua-тестов модов — единственный Lua в tools/
-  specs/: входящие ТЗ автора, см. convention spec-intake
-  plans/: согласованные планы итераций в HTML, см. convention spec-program
-  poc/: моды-прототипы для проверки допущений спеки, вне mods/, см. convention spec-program
-  docs/: слои manual и домен
-  context/: слой агента
-  .work/: пруфы, раунды ревью и рабочий каталог стенда, вне git, см. convention spec-program
+  specs/: входящие ТЗ автора по convention spec-intake
+  plans/: согласованные планы итераций в HTML по convention spec-program
+  poc/: моды-прототипы для проверки допущений спеки, вне mods/, по convention spec-program
+  docs/: канон manual и домена — entities и behavior
+  context/: открытый слой агента — реквизиты, workflow, conventions, индекс
+  context/views/: YAML-очередь целей и программ, не история прогресса
+  .work/: пруфы, раунды ревью и рабочий каталог стенда, вне git, по convention spec-program
   factorio-test.json: конфиг стенда тестов внутри игры, читается и обёрткой, и CLI
   .npmrc: |
     публичный реестр npm, задан явно и версионируется. Глобальный `~/.npmrc`
@@ -34,7 +35,23 @@ language_split:
     Единственный Lua внутри `tools/` — харнесс и заглушки в `tools/lua/`:
     тесты мода исполняет тот же язык, что и игра, иначе они не проверяли бы
     настоящий код. Обнаружение файлов и разбор результата при этом остались
-    в TypeScript, см. convention `testing`.
+    в TypeScript по convention `testing`.
+
+agent_protection:
+  settings: opencode.jsonc
+  owner: владелец проектных настроек
+  mechanism: native policies OpenCode; независимые запреты сохраняются при смене контракта
+  limitations: |
+    В прежних наблюдениях прямые edit/patch в известные memory-пути получали
+    отказ, запись в проектные документы проходила, а shell-перенаправление
+    записало синтетический маркер. Это не полная изоляция shell, MCP/API или
+    кода плагинов; symlink, подкаталоги и соответствующие каналы не подтверждены.
+    Отдельные сервер, HOME/XDG и тестовые MCP для прежних проб не были
+    подготовлены. Эти ограничения не разрешают параллельное хранилище знания.
+  evidence: >-
+    Наблюдения сессии перехода на v2 от 2026-11-11: прямые синтетические пробы
+    с проверкой наличия или отсутствия маркера чтением назначения. Это источник
+    перечисленных ограничений, не новая техническая приёмка защиты.
 
 typescript_requirements:
   strict: true
@@ -43,7 +60,7 @@ typescript_requirements:
     `tsconfig.json` нельзя — вместо этого правится код инструмента.
 
 runtime:
-  node: ">=22.6.0"
+  node: ">=24"
   typescript_execution: |
     Node исполняет `.ts` напрямую через встроенное type stripping, отдельной
     сборки нет. Поэтому в `tsconfig.json` включён `erasableSyntaxOnly`: enum,
@@ -51,7 +68,7 @@ runtime:
     используется только как `--noEmit` для проверки типов.
   external_cli:
     zip: нужен для сборки архива релиза; на macOS и типовых Linux есть из коробки
-    jq: нужен страховочному hook, см. manual setup-safety-hooks
+    jq: чтение имени аккаунта из player-data.json в manual setup-dev-environment
     lua: |
       нужен для Lua-тестов модов (`npm run check:mod`). В игре патченный
       5.2. Тесты берут `lua5.2` из `PATH`, если он есть (пакет `lua52` в
@@ -81,22 +98,31 @@ tools_implemented:
   tools/check-secrets.ts: |
     Защита публичного репозитория от утечек, convention `secrets`.
     Сканирует множество `git ls-files` + неигнорируемые untracked, то есть
-    ровно то, что попадёт в git. Образцы — в `tools/lib/secret-rules.ts`,
-    там же белый список публичных адресов Wube и правило, по которому
-    контрольные суммы не считаются секретами. Отдельно проверяет через
+    ровно то, что попадёт в git. Образцы и публичные адреса Wube — в
+    `tools/lib/secret-rules.ts`; контекстные исключения — в `secret-scan.ts`.
+    Кроме явно обозначенных hash/integrity значений разрешены 40hex commit-pin
+    в HTTPS raw URL upstream Shahimat/ai-prompts и ведущая отдельная 64hex
+    SHA-256-колонка в Markdown с явной маркировкой. Это исключения конкретного
+    checksum-значения, не всей строки или блока: соседние токены, другие
+    hex/base64 и приватные пути продолжают проверяться. Исключений для всего
+    каталога или файла нет; узкие случаи покрыты регрессиями `secret-scan.test.ts`.
+    Отдельно проверяет через
     `git check-ignore`, что `.gitignore` действительно скрывает `.env*`,
     `secrets/`, `*.key` и `player-data.json`, но не `.env.example`.
   tools/check-docs.ts: |
     Машинно проверяемая часть чек-листа из convention `consistency`:
     двусторонние ссылки entity ↔ behavior, имя файла против `id`/`key`,
     механика verified, полнота сценариев, ссылки на manuals и conventions,
-    покрытие `context/index.yml` в обе стороны, регистрация файлов `specs/`,
-    полнота блока `sync`, manifest'ы модулей, структура целей
-    (индекс против файлов, осиротевшие зависимости, циклы, приоритет против
-    зависимости, дубли задач, секции приоритетов, длина строк), ссылка
-    подцели на существующую программу, полнота блока `dod`, размеры
-    namespace. Часть «проверяется только головой» из convention не
-    заменяет.
+    покрытие `context/index.yml` по entities/behaviors/conventions/manuals,
+    полнота блока `sync`, manifest'ы модулей, размеры namespace.
+    `tools/lib/check-docs-navigation.ts` проверяет структуру views: индекс
+    против файлов, key/file/status/kind, принадлежность подцели программе,
+    четыре секции tasks с непустыми строками, существование depends_on и
+    отсутствие циклов. Семантика приоритетов/интентов, дубли работы и полнота
+    критериев dod в description требуют ручной проверки по goal-consistency
+    и spec-program; checker их не доказывает. Регистрацию ТЗ и соответствие
+    критериев approved-плану агент сверяет отдельно. Часть «проверяется
+    только головой» из convention инструмент не заменяет.
   tools/lib/conventions.ts: |
     Единственное место с числовыми и строковыми значениями конвенций —
     префикс, лимиты длин, дорожки версий, длина разделителя changelog,
@@ -129,11 +155,6 @@ tools_implemented:
   tools/lib/lua-tests.ts: |
     Обнаружение `*.test.lua` в пакете мода и запуск `tools/lua/run.lua`.
     Отсутствие тестов — ошибка, а не «нечего делать».
-  tools/lib/dod.ts: |
-    Проверка блока `dod` в программах и подцелях: обязательные поля пункта,
-    набор `kind`, уникальность `id`, ссылка на существующий behavior и
-    требование хотя бы одного машинного пункта у подцели. Правила —
-    convention `spec-program`.
   tools/lua/harness.lua: |
     `describe` / `it` / сравнения с глубоким обходом таблиц. Тесты
     исполняются сразу при объявлении; падение внутри `it` становится
@@ -217,7 +238,7 @@ ingame_test_stand:
     Steam Cloud, где CLI его не ищет, поэтому обёртка при незаданных
     `FACTORIO_USERNAME` / `FACTORIO_TOKEN` берёт их оттуда и передаёт
     процессу CLI только через окружение, manual `setup-dev-environment`,
-    шаг 13.
+    шаг 12.
   per_mod_config: |
     Мод со своими тестами держит конфиг в `mods/<name>/tests/ingame/`
     (каталог `tests/` вырезается упаковкой) и npm-скрипты в своём
@@ -267,8 +288,8 @@ ingame_test_stand:
       запасного пути convention `testing`, только с чужим ядром.
     factestio: |
       Требует Lua 5.2.x на `PATH` — которого в проекте принципиально нет
-      (локально 5.5, формул `lua@5.2` в Homebrew не существует, см.
-      convention `testing`), плюс LuaRocks и bash-обвязку. Лицензии в
+      (локально 5.5, формул `lua@5.2` в Homebrew не существует;
+      граница проверки — convention `testing`), плюс LuaRocks и bash-обвязку. Лицензии в
       репозитории нет вовсе, поддержка 2.0 и 2.1 не заявлена, последняя
       правка — сентябрь 2026.
     own_stand: |
@@ -294,7 +315,7 @@ editor_tooling:
       Не нужен при связке FMTK + EmmyLua: определения API генерирует FMTK.
   overlap_with_own_tools: |
     FMTK умеет Package, Upload и Details, включая хранение API-ключа в
-    Keychain. Релиз с 2026-11-03 публикует свой `publish:mod` (см.
+    Keychain. Релиз с 2026-11-03 публикует свой `publish:mod` (поле
     `tools_implemented.npm-scripts`): решение «свой publish не пишем»
     пересмотрено после запрета /tmp-скриптов. Package и правка страницы
     мода остаются за FMTK и руками. Собственные `validate` и `pack`
@@ -341,13 +362,12 @@ dev_dependencies:
     `FACTORIO_USERNAME` / `FACTORIO_TOKEN`.
 
 external_deps_considered:
-  typed-factorio: отклонён вместе с транспиляцией, см. language_split
+  typed-factorio: отклонён вместе с транспиляцией по решению language_split
   create-typed-factorio: отклонён, последний релиз три года назад
 
 manuals:
   - setup-dev-environment
   - test-mod-locally
-  - setup-safety-hooks
 behaviors:
   - toolchain-builds-under-strict-ts
   - no-secrets-in-versioned-files
@@ -357,3 +377,4 @@ conventions:
   - spec-program
   - secrets
   - testing
+  - project-knowledge

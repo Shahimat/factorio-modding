@@ -20,11 +20,46 @@ import {
   SECRET_RULES,
 } from './secret-rules.ts';
 
+const SHA_LABEL_PATTERN = /\bSHA(?:-?256)?\b/i;
+
+/** Только само значение поля хеша, не остальные значения той же строки. */
+function isHashFieldValue(line: string, offset: number): boolean {
+  for (const key of line.matchAll(new RegExp(HASH_KEY_PATTERN.source, 'gi'))) {
+    const start = key.index + key[0].length;
+    const value = /^\s*["'`]?([^\s"'`,;]+)/.exec(line.slice(start));
+    if (value?.[1] === undefined) continue;
+    if (!/^(?:[a-f0-9]{30,}|sha(?:1|256|384|512)-[a-z0-9+/=]+)$/i.test(value[1])) continue;
+    const valueStart = start + value[0].indexOf(value[1]);
+    if (offset >= valueStart && offset < valueStart + value[1].length) return true;
+  }
+  return false;
+}
+
+/** Публичный commit pin только указанного upstream, не URL целиком. */
+function isPublicCommit(line: string, offset: number, value: string): boolean {
+  if (value.length !== 40) return false;
+  const urls = /(?<![\w/?=&:%.-])https:\/\/raw\.githubusercontent\.com\/Shahimat\/ai-prompts\/([a-fA-F0-9]{40})\/[^\s<>"'`]+/g;
+  for (const url of line.matchAll(urls)) {
+    const commitOffset = url.index + url[0].indexOf('/ai-prompts/') + '/ai-prompts/'.length;
+    if (offset === commitOffset) return true;
+  }
+  return false;
+}
+
+/** Колонка checksum в Markdown; label сам по себе ничего не исключает. */
+function checksumOffset(file: string, line: string, context: boolean): number | undefined {
+  if (extname(file).toLowerCase() !== '.md') return undefined;
+  if (!context && !SHA_LABEL_PATTERN.test(line)) return undefined;
+  const column = /^\s*`?([a-f0-9]{64})(?:`(?=[\s.]|$)|(?=\s|$))/i.exec(line);
+  return column?.[1] === undefined ? undefined : line.indexOf(column[1]);
+}
+
 /** Находки по одной строке файла. */
 export function scanLine(
   file: string,
   line: string,
   lineNo: number,
+  checksumContext = false,
 ): Problem[] {
   const problems: Problem[] = [];
 
@@ -70,8 +105,12 @@ export function scanLine(
   const isHashValueLine =
     /^\s*["']?[\w.-]+["']?\s*:\s*["']?[A-Fa-f0-9]{30,}["']?,?\s*$/.test(line);
 
-  if (!HASH_KEY_PATTERN.test(line) && !isHashValueLine) {
+  if (!isHashValueLine) {
+    const checksum = checksumOffset(file, line, checksumContext);
     for (const match of line.matchAll(LONG_HEX_PATTERN)) {
+      if (isHashFieldValue(line, match.index) ||
+          (match.index === checksum && match[0].length === 64) ||
+          isPublicCommit(line, match.index, match[0])) continue;
       problems.push(
         error(
           file,
@@ -81,6 +120,9 @@ export function scanLine(
       );
     }
     for (const match of line.matchAll(LONG_BASE64_PATTERN)) {
+      if (isHashFieldValue(line, match.index) ||
+          (match.index === checksum && match[0].length === 64) ||
+          isPublicCommit(line, match.index, match[0])) continue;
       if (!looksLikeToken(match[0])) continue;
       problems.push(
         error(
@@ -98,8 +140,25 @@ export function scanLine(
 /** Все находки по тексту файла. */
 export function scanText(file: string, text: string): Problem[] {
   const problems: Problem[] = [];
-  for (const [index, line] of text.split('\n').entries()) {
-    problems.push(...scanLine(file, line, index + 1));
+  const lines = text.split('\n');
+  let fence: string | undefined;
+  let checksumBlock = false;
+  for (const [index, line] of lines.entries()) {
+    const marker = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    const nearbyLabel = lines.slice(Math.max(0, index - 2), index)
+      .some((previous) => SHA_LABEL_PATTERN.test(previous));
+    if (marker !== null) {
+      const delimiter = marker[1] ?? '';
+      if (fence === undefined) {
+        fence = delimiter;
+        checksumBlock = nearbyLabel && /^\s*(?:text)?\s*$/.test(marker[2] ?? '');
+      } else if (delimiter[0] === fence[0] && delimiter.length >= fence.length) {
+        fence = undefined;
+        checksumBlock = false;
+      }
+    }
+    problems.push(...scanLine(file, line, index + 1,
+      fence === undefined ? nearbyLabel : checksumBlock));
   }
   return problems;
 }

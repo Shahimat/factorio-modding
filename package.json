@@ -13,7 +13,7 @@
     "mods/*"
   ],
   "scripts": {
-    "session": "claude \"/startup\"",
+    "session": "opencode --prompt \"/startup\"",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tools/**/*.test.ts\"",
     "test:mod": "node tools/lua-test.ts",
@@ -31,14 +31,11 @@
     "orbital-art": "node tools/orbital-art.ts"
   },
   "devDependencies": {
-    "@shahimat/ai-core": "^0.1.6",
-    "@shahimat/oc3": "^0.1.3",
     "@types/node": "^24.9.2",
     "@types/pngjs": "^6.0.5",
     "factorio-test-cli": "^3.6.0",
     "pngjs": "^7.0.0",
     "typescript": "^5.9.3",
-    "vitest": "^5.1.0",
     "yaml": "^2.9.1"
   }
 }

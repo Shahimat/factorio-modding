@@ -1,0 +1,50 @@
+# Порядок = приоритет. Только оставшаяся работа; история — git/CHANGELOG.md.
+goals:
+  - key: toolchain
+    file: goal--toolchain.yaml
+    status: active
+    one_liner: Проверить и довести инструменты репозитория, не отменяя принятую publish:mod.
+  - key: logistic-buildings
+    kind: program
+    file: program--logistic-buildings.yaml
+    status: active
+    one_liner: Логистические здания — согласованный PoC iter-01 и последующий план iter-02.
+    subgoals:
+      - key: lb-probe-frame
+        file: goal--lb-probe-frame.yaml
+        status: active
+        one_liner: Проверить и довести каркас прототипа и формат отчёта.
+      - key: lb-ingame-stand
+        file: goal--lb-ingame-stand.yaml
+        status: active
+        one_liner: Проверить и довести стенд без графики и демонстрационный сценарий.
+      - key: lb-storage-chest
+        file: goal--lb-storage-chest.yaml
+        status: planned
+        one_liner: Проверки хранилищ зданий и невидимого сундука.
+      - key: lb-network-requests
+        file: goal--lb-network-requests.yaml
+        status: planned
+        one_liner: Проверки запросов сети и события смены запроса.
+      - key: lb-request-proxy
+        file: goal--lb-request-proxy.yaml
+        status: planned
+        one_liner: Проверки призраков запроса и доставки расходников.
+      - key: lb-tower-silo-gui
+        file: goal--lb-tower-silo-gui.yaml
+        status: planned
+        one_liner: Проверки башни, шахты и привязки панели.
+      - key: lb-session-facts
+        file: goal--lb-session-facts.yaml
+        status: planned
+        one_liner: Сеанс в игре, ручная оценка и фиксация фактов engine.
+  - key: orbital-02
+    kind: program
+    file: program--orbital-02.yaml
+    status: active
+    one_liner: Остаток раунда аудита и фидбека Orbital Logistics 0.2.
+    subgoals:
+      - key: orbital-behavior-fixes
+        file: goal--orbital-behavior-fixes.yaml
+        status: active
+        one_liner: Проверить и довести очистку storage и защиту от nil-фрейма.

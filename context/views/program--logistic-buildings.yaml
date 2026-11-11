@@ -1,0 +1,33 @@
+key: logistic-buildings
+kind: program
+title: Мод «Логистические здания» по ТЗ владельца
+status: active
+why: |
+  Мод даёт зданиям логистический режим — база без манипуляторов, где всё возят
+  дроны по запросам. PoC проверяет механики до реализации ядра.
+description: |
+  Согласованный 2026-10-04 состав iter-01 — семь подцелей в порядке индекса.
+  Параметры программы:
+  stage: wip
+  spec: specs/03102026_spec_logistic_buildings.md
+  mod_key: logistic-buildings
+  mod_name: shm-logistic-buildings
+  plan: plans/logistic-buildings/iter-01.html
+  Стадия wip принята; отдельного dod программы нет, приёмка мода
+  формулируется к review по процедуре spec-program. Не вводить mandatory dod/stage.
+  Здесь только оставшаяся работа, не утверждение готовности реализации.
+  Выясненное записывается в namespace engine; устройство и поведение — в domain.
+
+  Тикет lb-iter-02 — планирование следующей итерации.
+  Результат: по итогам итерации 01 собрать план iter-02 и согласовать с владельцем.
+  Процедура: spec-program, раздел «План программы»; чеклист docs.
+  Gate: закрыты все семь целей lb-probe-frame, lb-ingame-stand, lb-storage-chest,
+  lb-network-requests, lb-request-proxy, lb-tower-silo-gui, lb-session-facts.
+tasks:
+  blocker: []
+  high: []
+  medium:
+    - 'lb-iter-02: собрать план iter-02 и согласовать с владельцем → docs → после закрытия всех семи целей iter-01; provenance=a78c1cc'
+  low: []
+depends_on:
+  - toolchain

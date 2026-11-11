@@ -10,15 +10,18 @@
  */
 import { checkLayers } from './lib/check-docs-layers.ts';
 import { checkModules, checkProject } from './lib/check-docs-context.ts';
+import { checkIndex, checkQueue } from './lib/check-docs-navigation.ts';
 import { countErrors, formatProblem, type Problem } from './lib/problems.ts';
 
 async function main(): Promise<void> {
   const layers = await checkLayers();
 
   const sections: Array<{ title: string; problems: readonly Problem[] }> = [
-    { title: 'слои docs/ и conventions/', problems: layers.problems },
+    { title: 'слои docs/ и context/', problems: layers.problems },
     { title: 'context/project.yml', problems: await checkProject() },
     { title: 'context/modules/', problems: await checkModules() },
+    { title: 'context/index.yml', problems: await checkIndex() },
+    { title: 'context/views/', problems: await checkQueue() },
   ];
 
   let errorsTotal = 0;
