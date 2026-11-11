@@ -4,8 +4,8 @@ rule: |
   Работа по входящей спеке из `specs/` ведётся как **программа**: одна спека
   (один мод) — одна `context/views/program--<key>.yaml`, цели —
   `context/views/goal--<goal>.yaml`, работа внутри цели — тикеты в `tasks`.
-  Индекс — `context/views/goals.yaml`; термины и приоритеты — convention
-  `goals`. Протоколы работы — `context/workflow.md`; планирование
+  Индекс — `context/views/goals.yaml`; термины, приоритеты и `goal-consistency` —
+  skill `goals`. Протоколы работы — `context/workflow.md`; планирование
   программы по спеке — скилл `/plan-spec`, сверка заведённых целей с планом —
   `/verify-plan`, ревью закрытой подцели — `/review`.
 

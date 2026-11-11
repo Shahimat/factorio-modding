@@ -86,7 +86,8 @@ open plans/<mod-key>/iter-NN.html
 
 Создай только текущую итерацию: context/views/program--<mod-key>.yaml,
 goal--<goal-key>.yaml; регистрация в context/views/goals.yaml с kind:program
-и subgoals. Порядок в индексе — приоритет; поля и значения — convention goals.
+и subgoals. Для полей, приоритетов и проверки очереди загрузи skill goals;
+при создании файлов используй его references/yaml-templates.md.
 Существующую программу не дублируй. status только active/planned/paused;
 tasks — строки в четырёх секциях blocker/high/medium/low. Один тикет — одна
 строка с результатом, итоговым типом коммита и зависимостями, не одна фаза.

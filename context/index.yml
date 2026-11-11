@@ -14,16 +14,23 @@ skills:
   manuals:
     path: .agents/skills/manuals/SKILL.md
     trigger: Работа с manuals или вопрос «как сделать руками X».
+  goals:
+    path: .agents/skills/goals/SKILL.md
+    trigger: Планирование, работа с YAML-очередью, статус или «что дальше».
+  contract-setup:
+    path: .agents/skills/contract-setup/SKILL.md
+    trigger: Установка или миграция документации; для этого проекта — протокол v2.
+  source-sync:
+    path: .agents/skills/source-sync/SKILL.md
+    trigger: Сверка источников, обновление контракта, подключение или отключение модулей; протокол v2.
 conventions:
   consistency: "Чек-лист внутренней непротиворечивости перед сохранением сущности: машинная часть — npm run check-docs, остальное — головой."
   engine-facts: Особенности движка из живых прогонов живут в namespace engine с версией игры и переиспользуются следующими модами.
   factorio-version-track: Одна мажорная версия игры на релиз; проект поддерживает только Factorio 2.1.
-  goal-consistency: "Перед созданием или изменением цели проверить интенты, дубли, циклы, покрытие зависимостей и порядок приоритетов."
-  goals: "YAML-очередь v2: программа, цели и tasks по приоритету; критерии тикетов в description, статуса done нет."
   licensing: MIT на собственный код и ассеты; производные от ассетов Wube и чужих модов — по их лицензии, с оговоркой в LICENSE пакета.
   localization: Строка для игрока выходит сразу переведённой на базовый набор из 11 языков; перевод — часть фичи, а не задача «потом».
   mod-naming: Приписка shm- в name и прототипах, title без ника; форк — суффикс -fork вместо shm-; правила проверяет npm run validate.
-  project-knowledge: "Существенные проектные сведения — в индексируемых переносимых документах; memory не альтернативный и не параллельный слой."
+  project-knowledge: "Существенное проектное знание — в переносимом каноне с одним владельцем каждого определения; memory не параллельный слой."
   publication: Любое видимое изменение на мод-портале — только после явного «да» владельца на показанный текст и действие.
   secrets: "Ничего чувствительного и приватного в версионируемых файлах: репозиторий публичный, утечка необратима."
   spec-intake: "specs/ — входящие ТЗ автора: имя файла авторское, сопоставление с модом по mod_key, раскладка по слоям после прочтения целиком."
@@ -33,7 +40,7 @@ conventions:
 namespaces:
   platform:
     description: репозиторий, npm-workspaces, инструменты сборки на TypeScript
-    conventions: [consistency, secrets, testing, spec-intake, spec-program, verification, project-knowledge, goals, goal-consistency]
+    conventions: [consistency, secrets, testing, spec-intake, spec-program, verification, project-knowledge]
     entities:
       repo-toolchain: "npm-workspaces монорепозиторий: моды на Lua без транспиляции, инструменты сборки, валидации и публикации — TypeScript в strict-режиме."
     behaviors:

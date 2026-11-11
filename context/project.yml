@@ -72,11 +72,14 @@ external:
 
 sync:
   index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
-  index_sha: 678c6db5ad9d4fe8377221cfdca8f3790821da13bf64432e32e0beabed26ff63
+  index_sha: 98b84c93dd5a36f90123a868fbe8dbc443fc58679c6783632619c628ba99870f
   contract:
     key: agent-operational-contract-v2
-    synced_sha: de59e401d0ff1ba5a6c96b4112dbe377b448659351b26d04430ea9bbfd50a3f0
+    synced_sha: 9fb9c2f355122503796759b455ea76b096bfa57283b9c4ef05cc1277ac0b4563
     synced_at: 2026-11-12
     parts:
       skills:
         manuals: 9897e55896035cdbe158caae8ce56ec67cdb92d1445707d37707e39ddfde0e44
+        goals: cc56bf68f1882f5d332c62662e7e999556ec9110253585e4832bb4870231ce67
+        contract-setup: be2890fbd4137c995a49aa81d7bb7df981eeb57ee31bd3d21be4e1a1e7dc42d7
+        source-sync: 8b6f52202298a6db884c9983817045fff79c0d1219ec782b2c26b56844760999
