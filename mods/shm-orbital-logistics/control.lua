@@ -36,7 +36,10 @@ end)
 
 script.on_nth_tick(controller.SLICE_TICKS, controller.slice)
 
-script.on_event(defines.events.on_space_platform_changed_state, controller.on_platform_changed)
+script.on_event(defines.events.on_space_platform_changed_state, function(event)
+  controller.on_platform_changed(event)
+  overview.on_platform_changed(event)
+end)
 
 script.on_event(defines.events.on_entity_logistic_slot_changed, controller.on_slot_changed)
 
@@ -75,6 +78,15 @@ end)
 -- Отладочная сборка: настройка «Режим отладки» есть, только если в моде
 -- лежат отладочные файлы (`tests/debug.lua`), а в zip релиза их нет.
 local debug_build = settings.startup['shm-orbital-logistics-debug'] ~= nil
+if debug_build then
+  -- Наблюдатели только считают настоящие отправления/доставки демо-сети.
+  -- Они нужны и FactorioTest, где настройка демо-команды может быть выключена.
+  local demo_network = require('tests.demo.network')
+  script.on_event(defines.events.on_rocket_launch_ordered, demo_network.on_launch)
+  script.on_event({ defines.events.on_cargo_pod_started_ascending, defines.events.on_cargo_pod_finished_ascending }, demo_network.on_departure)
+  script.on_event(defines.events.on_cargo_pod_delivered_cargo, demo_network.on_delivery)
+  script.on_event(defines.events.on_forces_merging, demo_network.on_forces_merging)
+end
 if debug_build and script.active_mods['shm-ui-test-engine'] then
   require('tests.ui.adapter').register()
 end
@@ -128,5 +140,6 @@ if debug_build and script.active_mods['factorio-test'] then
     'tests.ingame.groups',
     'tests.ingame.lines',
     'tests.ingame.gui',
+    'tests.ingame.network',
   }, { default_timeout = 5 * 60 * 60 })
 end

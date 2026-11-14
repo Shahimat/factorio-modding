@@ -99,13 +99,17 @@ namespaces:
       orbital-card-collapses-by-native-input: "Нативный сценарий Orbital открывает обзор, разворачивает и сворачивает реальную карточку; проверяет события, GUI-state, заголовок и исчезновение содержимого на PNG."
       orbital-cargo-held-outside-destination: Груз с назначением держится вне назначения и отдаётся на нём
       orbital-controller-fits-tick-budget: Контроллер укладывается в бюджет тика на нагрузке поздней игры
+      orbital-demo-network-exchanges-with-planets: "Dev-only network создаёт пять планетарных узлов, склады и челноки; реальные отправления, приём, повторный запуск и безопасная очистка проверяются в игре."
       orbital-depot-filled-from-planet: Склад наполняется с планеты ракетами по ванили, с множителем секции
       orbital-depot-serves-its-orbits: Склад раздаёт на своих орбитах, держит вне их и уступает привезённому грузу
       orbital-hub-panel-sets-purpose: Панель у окна хаба ставит назначение секции и показывает состояние предметов
       orbital-mod-off-removes-own-sections: Выключение мода снимает всё, что он поставил на хабы
+      orbital-overview-button-matches-mod-gui: "Кнопка Orbital использует общую рамку mod-gui и собственный стиль по образцу Helmod; старая кнопка переносится без дублей и повреждения соседей."
+      orbital-overview-layout-stays-stable: "Обычное раскрытие меняет высоту карточки, но не положение окна, ширину viewport и колонок; лишних рамок, padding и горизонтального scroll нет."
       orbital-panel-collapses-to-button: Панель у окна хаба и площадки сворачивается целиком и по блокам, имеет потолок высоты, состояние помнит на игрока
       orbital-providing-flag-keeps-vanilla-meaning: Флаг «снабжать другие платформы» сохраняет ванильный смысл
       orbital-reserve-never-given: Свой запас не отдаётся ни другим платформам, ни планете
+      orbital-route-shows-schedule-loop: "Все остановки в порядке расписания, включая повторы; на стоянке выделена планета, в пути — стрелка, возврат к первой остановке обозначен круговой стрелкой."
       orbital-section-purpose-from-group-tag: Назначение секции хаба задаётся меткой в имени ванильной группы, без метки — ваниль
       orbital-supply-line-syncs-participants: Линия снабжения держит у участников свои группы, правка шапки доходит до всех
       orbital-transit-into-depot: Груз для орбиты склада сдаётся на склад, и склад раздаёт его дальше
@@ -117,6 +121,7 @@ namespaces:
       migrate-mod-to-2-1: Перевести мод на дорожку Factorio 2.1
       publish-new-mod: Опубликовать новый мод на портале
       release-mod: Выпустить новый релиз существующего мода
+      run-orbital-demo: Запустить планетарную демо-сеть Orbital Logistics
       test-mod-locally: Протестировать мод локально
       test-orbital-manually: Прогнать Orbital Logistics руками перед релизом 1.0.0
   engine:

@@ -9,6 +9,8 @@ local lines_gui = require('runtime.lines_gui')
 local lines = require('runtime.lines')
 local picker = require('runtime.places_picker')
 local controller = require('runtime.controller')
+local mod_gui = require('mod-gui')
+local demo_commands = require('tests.demo.commands')
 
 local function player()
   local p = game.players[1]
@@ -226,13 +228,17 @@ local function route_parts(card)
   assert(route, 'потока маршрута нет в карточке')
   local planets = {}
   local arrows = {}
-  for _, child in ipairs(route.children) do
-    if child.type == 'sprite-button' then
-      planets[#planets + 1] = child
-    elseif child.type == 'sprite' then
-      arrows[#arrows + 1] = child
+  local function scan(root)
+    for _, child in ipairs(root.children) do
+      if child.tags.route_stop then
+        planets[#planets + 1] = child
+      elseif child.tags.route_leg then
+        arrows[#arrows + 1] = child
+      end
+      scan(child)
     end
   end
+  scan(route)
   return planets, arrows
 end
 
@@ -267,15 +273,58 @@ describe('интерфейс', function()
   end)
 
   it('кнопка окна есть в левом верхнем углу, клик открывает и закрывает окно', function()
-    assert(player().gui.top[overview.BUTTON], 'кнопки окна нет в gui.top')
+    local button = mod_gui.get_button_flow(player())[overview.BUTTON]
+    assert(button, 'кнопки окна нет в mod-gui')
     local frame = open_window()
     assert(frame.parent == player().gui.screen, 'окно не в screen gui')
-    click(player().gui.top[overview.BUTTON])
+    click(button)
     assert(window() == nil, 'клик по кнопке не закрыл открытое окно')
-    click(player().gui.top[overview.BUTTON])
+    click(button)
     assert(window(), 'клик по кнопке не открыл окно')
     click(find(window(), 'shm_ol_overview_close'))
     assert(window() == nil, 'крестик не закрыл окно')
+  end)
+
+  it('кнопка переносится в общую рамку, чинит старые размеры и не трогает соседей', function()
+    local p = player()
+    local flow = mod_gui.get_button_flow(p)
+    local button = flow[overview.BUTTON]
+    if button then button.destroy() end
+    local neighbor = flow.add({ type = 'button', name = 'shm-test-neighbor', caption = 'neighbor' })
+    local legacy = p.gui.top.add({ type = 'sprite-button', name = overview.BUTTON, style = 'slot_button' })
+    overview.refresh_all()
+    button = flow[overview.BUTTON]
+    assert(not legacy.valid and p.gui.top[overview.BUTTON] == nil, 'старая отдельная кнопка осталась')
+    assert(button and button.get_mod() == 'shm-orbital-logistics', 'нет собственной кнопки в общей рамке')
+    button.style = 'slot_button'
+    button.style.size = 12
+    assert(overview.ensure_button(p) == button, 'исправление создало другую кнопку')
+    assert(overview.ensure_button(p) == button, 'повторный вызов создал дубль')
+    assert(button.style.name == 'shm_ol_mod_button', 'не тот стиль меню')
+    assert(button.style.minimal_width == 37 and button.style.minimal_height == 37, 'размеры не как у Helmod')
+    assert(button.style.top_padding == -2 and button.style.left_padding == -2, 'отступы уменьшают иконку')
+    assert(button.sprite == 'shm-ol-gui-button', 'значок мода потерян')
+    assert(button.tooltip[1] == 'shm-orbital-logistics.overview-open', 'подсказка потеряна')
+    assert(neighbor.valid and neighbor.parent == flow, 'соседняя кнопка затронута')
+    neighbor.destroy()
+  end)
+
+  it('обычный игрок не может удалить демо-сеть ни отдельной, ни общей командой', function()
+    local p = player()
+    storage.shm_demo_network = storage.shm_demo_network or {}
+    local previous, admin = storage.shm_demo_network[p.force.index], p.admin
+    local marker = { platforms = {}, groups = {}, cells = {}, pods = {}, rockets = {} }
+    storage.shm_demo_network[p.force.index] = marker
+    p.admin = false
+    local ok, err = pcall(function()
+      for _, parameter in ipairs({ 'network-clear', 'clear' }) do
+        demo_commands.handle({ player_index = p.index, parameter = parameter, tick = game.tick })
+        assert(storage.shm_demo_network[p.force.index] == marker, 'admin-защита обойдена через ' .. parameter)
+      end
+    end)
+    p.admin = admin
+    storage.shm_demo_network[p.force.index] = previous
+    assert(ok, err)
   end)
 
   it('карточки по умолчанию свёрнуты, разворот показывает настройки, переоткрытие окна всё сворачивает', function()
@@ -301,6 +350,83 @@ describe('интерфейс', function()
     assert(find(card, 'shm_ol_content') == nil, 'переоткрытое окно открыло карточку развёрнутой')
   end)
 
+  it('раскрытие карточки сохраняет геометрию окна и не добавляет padding или горизонтальный scroll', function()
+    local first, hub = f.platform('layout-first')
+    f.request(hub, 100, { group = 'Test layout reserve [reserve]', from = 'planet', import_from = f.PLANET })
+    f.request(hub, 2000, { group = 'Test layout export [depot:nauvis]', from = 'planet', import_from = f.PLANET })
+    f.request(hub, 600, { item = 'holmium-plate', group = 'Test layout imports [depot:nauvis]', from = 'platforms', import_from = f.PLANET })
+    for index = 2, 10 do f.platform('layout-' .. index) end
+    local frame = open_window()
+    local location
+    local width, height = frame.style.minimal_width, frame.style.minimal_height
+
+    local function check_scroll(element)
+      if element.type == 'scroll-pane' then
+        assert(element.style.name == 'naked_scroll_pane', 'при активации появляется внутренняя рамка: ' .. element.name)
+        assert(element.horizontal_scroll_policy == 'never', 'горизонтальный overflow разрешён: ' .. element.name)
+        assert(element.vertical_scroll_policy == 'auto-and-reserve-space', 'ширина меняется при появлении вертикального scroll: ' .. element.name)
+        for _, side in ipairs({ 'top', 'right', 'bottom', 'left' }) do
+          assert(element.style['extra_' .. side .. '_padding_when_activated'] == 0, 'scroll добавляет padding: ' .. element.name .. '/' .. side)
+        end
+      end
+      for _, child in pairs(element.children) do check_scroll(child) end
+    end
+
+    local function check_geometry()
+      assert(window() == frame and frame.location.x == location.x and frame.location.y == location.y, 'окно сдвинулось или перестроилось')
+      assert(frame.style.minimal_width == width and frame.style.minimal_height == height, 'размеры окна изменились')
+      check_scroll(frame)
+    end
+
+    local function screenshot(name, next_step)
+      game.take_screenshot({ player = player(), show_gui = true, force_render = true, path = 'orbital-layout/' .. name .. '.png' })
+      game.set_wait_for_screenshots_to_finish()
+      after_ticks(1, next_step or function() end)
+    end
+
+    after_ticks(2, function()
+      -- force_auto_center применяется движком при раскладке, не внутри open.
+      location = frame.location
+      screenshot('collapsed', function()
+        click(find(card_of(first), 'shm_ol_card_toggle'))
+        after_ticks(2, function()
+          check_geometry()
+          screenshot('expanded', function()
+            local card = card_of(first)
+            local sections = find(card, 'shm_ol_block_sections')
+            local now = find(card, 'shm_ol_block_now')
+            local section_width, now_width = sections.style.minimal_width, now.style.minimal_width
+            click(details_toggle(card, first_filtered_index(hub)))
+            overview.refresh_all()
+            assert(sections.valid and now.valid and sections.style.minimal_width == section_width and now.style.minimal_width == now_width,
+              'раскрытие деталей или обновление сдвинуло колонки')
+            local details = details_toggle(card, first_filtered_index(hub))
+            assert(details.tags.expanded, 'детали не раскрылись')
+            click(block_toggle(card, 'now'))
+            assert(sections.valid and now.valid and details.valid and details.tags.expanded, 'переключение соседнего блока пересоздало поля или сбросило детали')
+            click(find(now, 'shm_ol_block_summary'))
+            assert(sections.valid and now.valid and details.valid and details.tags.expanded, 'разворот соседнего блока сбросил детали')
+            check_geometry()
+            click(find(card_of(first), 'shm_ol_card_toggle'))
+            after_ticks(2, function()
+              check_geometry()
+              local state = frame.tags
+              state.layout_version = nil
+              frame.tags = state
+              local scroll = find(frame, 'shm_ol_overview_scroll')
+              scroll.horizontal_scroll_policy = 'auto'
+              scroll.vertical_scroll_policy = 'auto'
+              scroll.style.extra_padding_when_activated = 4
+              overview.refresh_all()
+              check_geometry()
+              screenshot('collapsed-again')
+            end)
+          end)
+        end)
+      end)
+    end)
+  end)
+
   it('клик по имени карточки открывает окно хаба платформы', function()
     local platform, hub = f.platform('a')
     open_window()
@@ -313,28 +439,298 @@ describe('интерфейс', function()
     player().opened = nil
   end)
 
-  it('маршрут: остановки расписания иконками, планета сейчас — в рамке, без расписания — текущее место', function()
+  it('узкие колонки переносят выбор мест и ограничивают длинные подписи своей шириной', function()
+    local platform, hub = f.platform('layout-widths')
+    f.request(hub, 2000, {
+      group = 'Test layout long depot name [depot:nauvis,vulcanus,fulgora,gleba,aquilo]',
+      from = 'platforms', import_from = f.PLANET,
+    })
+    local frame = open_window()
+    local widths, index = { 560, 760, 1200 }, 0
+    local function next_width()
+      index = index + 1
+      local width = widths[index]
+      if not width then return end
+      frame.style.width = width
+      frame.force_auto_center()
+      overview.fill_cards(player(), frame)
+      local card = open_card(platform)
+      local places = find(card, 'shm_ol_places_' .. platform.index .. '_' .. first_filtered_index(hub, 'Test layout'))
+      assert(places and places.type == 'table' and #places.children == 6, 'выбор мест не перенёс все пять планет и «+»')
+      local sections = find(card, 'shm_ol_block_sections')
+      assert(places.style.maximal_width <= sections.style.maximal_width - 16, 'пикер шире колонки')
+      local warnings = find(card, 'shm_ol_warnings')
+      for _, label in pairs(warnings.children) do
+        assert(label.style.maximal_width <= warnings.style.maximal_width, 'предупреждение шире колонки')
+      end
+      click(details_toggle(card, first_filtered_index(hub, 'Test layout')))
+      after_ticks(2, function()
+        game.take_screenshot({ player = player(), show_gui = true, force_render = true, path = 'orbital-layout/width-' .. width .. '.png' })
+        game.set_wait_for_screenshots_to_finish()
+        after_ticks(1, next_width)
+      end)
+    end
+    next_width()
+  end)
+
+  it('строки исключений разного размера не складывают максимумы ширины из разных строк', function()
+    local platform, hub = f.platform('layout-exceptions')
+    f.request(hub, 100, { group = 'Test layout one [depot:nauvis]', from = 'planet', import_from = f.PLANET })
+    local mixed = f.request(hub, 100, { item = 'copper-plate', group = 'Test layout many [depot:nauvis]', from = 'all', import_from = f.PLANET })
+    for index, item in ipairs({ 'steel-plate', 'stone', 'coal' }) do
+      mixed.set_slot(index + 1, { value = { type = 'item', name = item, quality = 'normal' }, min = 100, request_from = 'all', import_from = f.PLANET })
+    end
+    mixed.set_slot(5, { value = { type = 'item', name = 'sulfur', quality = 'normal' }, min = 100, request_from = 'planet', import_from = f.OTHER_PLANET })
+    controller.pass()
+    local frame = open_window()
+    for _, width in ipairs({ 760, 1200 }) do
+      frame.style.width = width
+      overview.fill_cards(player(), frame)
+      local card = open_card(platform)
+      local now = find(card, 'shm_ol_now')
+      local grid = find(now, 'shm_ol_exception_grid')
+      assert(grid, 'исключения не созданы')
+      local list = grid.parent.parent
+      assert(#list.children == 4, 'нужны два разных типа исключений')
+      local one, many = list.children[1], list.children[3]
+      assert(#one.children[1].children ~= #many.children[1].children, 'строки должны содержать разное число иконок')
+      assert(one.style.minimal_width == many.style.minimal_width, 'таблица получила разные бюджеты одной колонки')
+      for index = 1, #list.children, 2 do
+        local icons, status = list.children[index], list.children[index + 1]
+        assert(icons.style.minimal_width + status.style.minimal_width + list.style.horizontal_spacing == now.style.minimal_width,
+          'общая таблица исключений шире колонки')
+      end
+    end
+  end)
+
+  it('маршрут: полное расписание с повторами, замыкающая стрелка и одно текущее место без перестроения', function()
     local platform, hub = f.platform('a')
-    platform.schedule = {
-      { station = 'nauvis', wait_conditions = { { type = 'time', ticks = 60, compare_type = 'and' } } },
-      { station = 'vulcanus', wait_conditions = { { type = 'time', ticks = 60, compare_type = 'and' } } },
-    }
+    local stops = { 'nauvis', 'vulcanus', 'nauvis', 'fulgora' }
+    local records = {}
+    for _, name in ipairs(stops) do records[#records + 1] = { station = name, wait_conditions = { { type = 'time', ticks = 60 } } } end
+    platform.schedule = { current = 1, records = records }
+    platform.paused = true
+    open_window()
+    local card = card_of(platform)
+    local planets, arrows = route_parts(card)
+    assert(#planets == #stops and #arrows == #stops, 'полный цикл расписания не собрался')
+    assert(arrows[#stops].sprite == 'shm-ol-route-loop', 'нет замыкающей круговой стрелки')
+    assert(arrows[#stops].style.minimal_width == arrows[1].style.minimal_width
+      and arrows[#stops].style.stretch_image_to_widget_size and not arrows[#stops].resize_to_sprite,
+      'видимый размер возврата снова уменьшен масштабом utility-спрайта')
+    for current, name in ipairs(stops) do
+      platform.space_location = name
+      platform.schedule = { current = current, records = records }
+      platform.paused = true
+      overview.refresh_all()
+      local refreshed_planets, refreshed_arrows = route_parts(card)
+      for index, expected in ipairs(stops) do
+        assert(refreshed_planets[index] == planets[index] and refreshed_arrows[index] == arrows[index], 'изменение подсветки пересоздало цепочку')
+        assert(planets[index].sprite == 'space-location/' .. expected, 'маршрут сменил порядок')
+        assert((planets[index].style.name == 'shm_ol_route_planet_active') == (index == current), 'выделено неверное посещение планеты')
+        assert(not string.find(arrows[index].sprite, '-active', 1, true), 'на стоянке выделена стрелка')
+      end
+    end
+    -- Платформа без расписания: цепочка из одной планеты — текущее место,
+    -- в рамке (решение владельца: цепочка видна всегда).
+    platform.schedule = nil
+    overview.refresh_all()
+    card = card_of(platform)
+    local alone, no_arrows = route_parts(card)
+    assert(#alone == 1 and #no_arrows == 0, 'без расписания маршрут не сжался до места')
+    assert(alone[1].sprite == 'space-location/fulgora' and alone[1].style.name == 'shm_ol_route_planet_active', 'место без расписания не в рамке')
+    assert(hub and hub.valid)
+  end)
+
+  it('маршрут: настоящие рейсы в обе стороны выделяют правильные стрелки и замыкание при повторных остановках', function()
+    local platform = f.platform('route-flights')
+    f.equip_shuttle(platform)
+    local stops = { 'nauvis', 'vulcanus', 'nauvis', 'vulcanus' }
+    local records = {}
+    for _, name in ipairs(stops) do records[#records + 1] = { station = name, wait_conditions = { { type = 'time', ticks = 120 } } } end
+    platform.schedule = { current = 2, records = records }
+    platform.paused = true
     local frame = open_window()
     local card = card_of(platform)
     local planets, arrows = route_parts(card)
-    assert(#planets == 2 and #arrows == 1, 'маршрут из двух остановок и стрелки не собрался')
-    assert(planets[1].style.name == 'shm_ol_route_planet_active', 'текущая планета не в рамке')
-    assert(planets[2].style.name == 'slot_button', 'чужая планета в рамке')
-    -- Платформа без расписания: цепочка из одной планеты — текущее место,
-    -- в рамке (решение владельца: цепочка видна всегда).
-    platform.schedule = {}
-    overview.refresh_all()
-    card = card_of(platform)
-    local alone = find(card, 'shm_ol_route')
-    assert(alone and #alone.children == 1, 'без расписания маршрут не сжался до места')
-    assert(alone.children[1].type == 'sprite-button', 'место без расписания не кнопка')
-    assert(alone.children[1].style.name == 'shm_ol_route_planet_active', 'место без расписания не в рамке')
-    assert(hub and hub.valid)
+    local legs, visits, captures = {}, {}, {}
+    local pending, last_leg = false, nil
+    local expected_leg = { [1] = 4, [2] = 1, [3] = 2, [4] = 3 }
+    after_ticks(2, function() platform.paused = false end)
+    f.watch(15000, function()
+      if pending then return false end
+      for _, asteroid in pairs(platform.surface.find_entities_filtered({ type = 'asteroid' })) do asteroid.destroy() end
+      local location, schedule = platform.space_location, platform.schedule
+      overview.refresh_all()
+      local actual_planets, actual_arrows = route_parts(card)
+      for index, name in ipairs(stops) do
+        assert(actual_planets[index] == planets[index] and actual_arrows[index] == arrows[index], 'рейс пересоздал элементы маршрута')
+        assert(planets[index].sprite == 'space-location/' .. name, 'рейс переставил остановки')
+      end
+      local key
+      if location then
+        -- Ожидание — из известной последовательности реальных рейсов,
+        -- не из production tags.active_stop, который сам проверяется.
+        local active = last_leg and (last_leg % #stops + 1) or 1
+        assert(stops[active] == location.name, 'платформа прибыла не на ожидаемую планету')
+        for index, planet in ipairs(planets) do
+          assert((planet.style.name == 'shm_ol_route_planet_active') == (index == active), 'неверно выделено повторное посещение планеты')
+        end
+        visits[active] = true
+        key = 'stop-' .. active
+        for _, arrow in ipairs(arrows) do assert(not string.find(arrow.sprite, '-active', 1, true), 'на стоянке горит стрелка') end
+      else
+        local leg = expected_leg[schedule.current]
+        assert(leg, 'неизвестное назначение в пути')
+        legs[leg], last_leg = true, leg
+        key = 'leg-' .. leg
+        for index, arrow in ipairs(arrows) do
+          assert((string.find(arrow.sprite, '-active', 1, true) ~= nil) == (index == leg), 'в пути выделено неверное плечо')
+          assert(planets[index].style.name == 'slot_button', 'в пути выделена планета')
+        end
+      end
+      if not captures[key] then
+        captures[key] = true
+        log('[OL-ROUTE-PROOF] ' .. helpers.table_to_json({ key = key, current = schedule.current,
+          location = location and location.name, last = platform.last_visited_space_location and platform.last_visited_space_location.name,
+          connection = platform.space_connection and platform.space_connection.name, state = platform.state, distance = platform.distance }))
+        -- На время снимка останавливаем физическое движение, не вызывая GUI-обработчик.
+        pending = true
+        platform.paused = true
+        if not location then platform.speed = 0 end
+        after_ticks(2, function()
+          game.take_screenshot({ player = player(), show_gui = true, force_render = true, path = 'orbital-route/' .. key .. '.png' })
+          game.set_wait_for_screenshots_to_finish()
+          after_ticks(1, function() pending = false; platform.paused = false end)
+        end)
+        return false
+      end
+      if not location then platform.speed = 100 end
+      return last_leg == 4 and location and location.name == 'nauvis'
+    end, function(_, reached)
+      assert(reached, 'не дождались замыкания настоящего цикла')
+      for index = 1, 4 do assert(legs[index] and visits[index], 'не пройдены все повторные остановки и плечи') end
+      assert(frame == window() and frame.style.minimal_width == frame.style.maximal_width, 'маршрут изменил окно')
+    end)
+  end)
+
+  it('маршрут: короткая стоянка не теряет историю между секундными обновлениями', function()
+    local platform = f.platform('route-short-stop')
+    f.equip_shuttle(platform)
+    platform.schedule = { current = 2, records = {
+      { station = 'nauvis', wait_conditions = { { type = 'time', ticks = 1 } } },
+      { station = 'vulcanus', wait_conditions = { { type = 'time', ticks = 1 } } },
+    } }
+    platform.paused = true
+    open_window()
+    local card = card_of(platform)
+    local planets, arrows = route_parts(card)
+    local route = find(card, 'shm_ol_route')
+    local fast_tick
+    -- Согласуем прилёт с фазой 60-тактового обновления: быстро пролететь
+    -- остаток прямого плеча сразу после refresh. Стоянка и начало возврата
+    -- пройдут до следующего refresh, history должна прийти от реальных событий.
+    platform.paused = false
+    f.watch(5000, function()
+      for _, asteroid in pairs(platform.surface.find_entities_filtered({ type = 'asteroid' })) do asteroid.destroy() end
+      local location, schedule = platform.space_location, platform.schedule
+      if not location and schedule.current == 2 then
+        if platform.distance < 0.9 or fast_tick then
+          platform.speed = 100
+        elseif game.tick % 60 == 1 then
+          fast_tick = game.tick
+          platform.speed = 100
+        else
+          platform.speed = 0
+        end
+      elseif not location and schedule.current == 1 then
+        assert(fast_tick and math.floor(game.tick / 60) == math.floor(fast_tick / 60), 'стоянка не поместилась между refresh')
+        assert(platform.last_visited_space_location.name == 'vulcanus', 'обратный рейс не из Вулкана')
+        assert(route.tags.departure == 2, 'короткая стоянка оставила старый departure')
+        assert(arrows[2].valid and arrows[2].sprite == 'shm-ol-route-loop-active', 'замыкающая стрелка не обновилась на событии')
+        assert(planets[1].style.name == 'slot_button' and planets[2].style.name == 'slot_button', 'после отлёта осталась выделена планета')
+        return true
+      end
+      return false
+    end, function(_, reached)
+      assert(reached, 'не проверен короткий заход между секундными обновлениями: ' .. helpers.table_to_json({
+        state = platform.state, current = platform.schedule.current, distance = platform.distance,
+        location = platform.space_location and platform.space_location.name, fast_tick = fast_tick,
+      }))
+    end)
+  end)
+
+  it('маршрут: ручной пропуск остановки не подсвечивает несуществующий перегон', function()
+    local platform = f.platform('route-skip')
+    f.equip_shuttle(platform)
+    platform.schedule = { current = 1, records = {
+      { station = 'nauvis', wait_conditions = { { type = 'time', ticks = 120 } } },
+      { station = 'vulcanus', wait_conditions = { { type = 'time', ticks = 120 } } },
+      { station = 'fulgora', wait_conditions = { { type = 'time', ticks = 120 } } },
+    } }
+    platform.paused = true
+    open_window()
+    platform.get_schedule().go_to_station(3)
+    f.watch(1500, function() return platform.space_location == nil end, function(_, reached)
+      assert(reached, 'ручной рейс не начался')
+      overview.refresh_all()
+      local planets, arrows = route_parts(card_of(platform))
+      for index, arrow in ipairs(arrows) do
+        assert(not string.find(arrow.sprite, '-active', 1, true), 'пропущенная остановка показана источником рейса')
+        assert(planets[index].style.name == 'slot_button', 'в пути выделена планета')
+      end
+    end)
+  end)
+
+  it('маршрут: штатный перелёт через промежуточную планету сохраняет активное плечо', function()
+    local platform = f.platform('route-via')
+    f.equip_shuttle(platform)
+    platform.schedule = { current = 2, records = {
+      { station = 'nauvis', wait_conditions = { { type = 'time', ticks = 120 } } },
+      { station = 'aquilo', wait_conditions = { { type = 'time', ticks = 120 } } },
+    } }
+    platform.paused = true
+    open_window()
+    local planets, arrows = route_parts(card_of(platform))
+    local intermediate = false
+    platform.paused = false
+    f.watch(15000, function()
+      for _, asteroid in pairs(platform.surface.find_entities_filtered({ type = 'asteroid' })) do asteroid.destroy() end
+      local location = platform.space_location
+      overview.refresh_all()
+      if not location then
+        local last = platform.last_visited_space_location
+        if last and last.name ~= 'nauvis' then intermediate = true end
+        assert(arrows[1].valid and arrows[1].sprite == 'shm-ol-route-arrow-active', 'промежуточная связь погасила штатное плечо')
+        assert(planets[1].style.name == 'slot_button' and planets[2].style.name == 'slot_button', 'в пути выделена планета')
+        platform.speed = 100
+      end
+      return location and location.name == 'aquilo'
+    end, function(_, reached)
+      assert(reached and intermediate, 'не пройдено многозвенное плечо до Аквило')
+    end)
+  end)
+
+  it('маршрут: длинное расписание переносится в заголовке узкой карточки без потери остановок', function()
+    local platform = f.platform('route-wrap')
+    local records = {}
+    for _ = 1, 4 do
+      for _, name in ipairs({ 'nauvis', 'vulcanus', 'fulgora', 'gleba', 'aquilo' }) do
+        records[#records + 1] = { station = name, wait_conditions = { { type = 'time', ticks = 60 } } }
+      end
+    end
+    platform.schedule = { current = 1, records = records }
+    platform.paused = true
+    local frame = open_window()
+    frame.style.width = 560
+    overview.fill_cards(player(), frame)
+    local planets, arrows = route_parts(card_of(platform))
+    assert(#planets == 20 and #arrows == 20, 'длинное расписание обрезано')
+    local route = find(card_of(platform), 'shm_ol_route')
+    local grid = route.children[1]
+    assert(grid.column_count == 3, 'узкий маршрут не перенёс остановки')
+    assert(grid.children[1].style.minimal_width * grid.column_count + grid.style.horizontal_spacing * (grid.column_count - 1) <= route.style.minimal_width,
+      'маршрут шире своего остатка заголовка')
   end)
 
   it('карточка ставит метку секции без группы и с группой', function()

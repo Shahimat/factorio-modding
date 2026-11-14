@@ -67,6 +67,7 @@ test('конфиг содержит подобранный read-data и зада
   const text = configIniText('__PATH__executable__/../data', '/repo/.work/x');
   assert.equal(readDataOf(text), '__PATH__executable__/../data');
   assert.match(text, /^write-data=\/repo\/\.work\/x$/m);
+  assert.match(text, /^locale=en$/m);
 });
 
 test('read-data читается из существующего конфига', () => {
@@ -85,6 +86,17 @@ test('перезапись нужна, когда файла нет или read-
     true,
   );
   assert.equal(needsRewrite(`[path]\nread-data=${wanted}\n`, wanted), false);
+});
+
+test('пустой язык стенда чинится до графического запуска, явный язык не стирается', () => {
+  const wanted = '__PATH__executable__/../data';
+  const prefix = `[path]\nread-data=${wanted}\n[general]\n`;
+  // Регрессия: locale= вызвал ROOT.sound в графической Factorio 2.1.24,
+  // хотя тот же профиль успешно запускал headless-тесты.
+  assert.equal(needsRewrite(`${prefix}locale=\n`, wanted), true);
+  assert.equal(needsRewrite(`${prefix}locale= \t\r\n`, wanted), true);
+  assert.equal(needsRewrite(`${prefix}locale=en\n`, wanted), false);
+  assert.equal(needsRewrite(`${prefix}locale=ru\n`, wanted), false);
 });
 
 test('FACTORIO_BIN идёт первым кандидатом, пустое значение игнорируется', () => {

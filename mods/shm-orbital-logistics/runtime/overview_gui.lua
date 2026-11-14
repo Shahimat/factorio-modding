@@ -17,6 +17,9 @@ local controller = require('runtime.controller')
 local lines_gui = require('runtime.lines_gui')
 local lines_logic = require('logic.lines')
 local picker = require('runtime.places_picker')
+local mod_gui = require('mod-gui')
+local layout = require('logic.overview_layout')
+local route_logic = require('logic.overview_route')
 
 local overview = {}
 
@@ -26,12 +29,32 @@ local L = 'shm-orbital-logistics.'
 
 local PURPOSES = { 'none', 'reserve', 'cargo', 'depot' }
 local CARD_PREFIX = 'shm_ol_card_'
-local NAME_WIDTH = 220   --- ширина имени карточки: столбец имён выровнен
 local WINDOW_SHARE = 0.6 --- ширина окна, доля экрана
 local WINDOW_MIN = 760
 local WINDOW_MAX = 1200
 local WINDOW_HEIGHT_SHARE = 0.82
 local SHIFT_WIDTH = 560  --- ширина окна, сдвинутого при открытом окне хаба
+
+local function sized(element, width)
+  element.style.width = width
+  return element
+end
+
+local function block_width(element)
+  return element.style.minimal_width - 2 * layout.BLOCK_PADDING
+end
+
+local function configure_scroll(scroll)
+  -- Окно уже имеет рамку: у viewport не появляется ещё одна при overflow.
+  scroll.style = 'naked_scroll_pane'
+  scroll.horizontal_scroll_policy = 'never'
+  scroll.vertical_scroll_policy = 'auto-and-reserve-space'
+  scroll.style.padding = 0
+  scroll.style.extra_padding_when_activated = 0
+  scroll.style.horizontally_stretchable = true
+  scroll.style.vertically_stretchable = true
+  scroll.style.horizontally_squashable = true
+end
 
 -- ---------------------------------------------------------------- детали ---
 
@@ -384,14 +407,21 @@ end
 --- поэтому живёт в своём контейнере.
 local function fill_now(flow, hub)
   flow.clear()
+  local width = flow.style.minimal_width
   local rows, exceptions = now_data(hub)
   if #rows == 0 then
-    flow.add({ type = 'label', caption = { L .. 'now-nothing' } })
+    local label = flow.add({ type = 'label', caption = { L .. 'now-nothing' } })
+    label.style.single_line = false
+    label.style.maximal_width = width
     return
   end
   local groups_grid = flow.add({ type = 'table', column_count = 3 })
+  groups_grid.style.cell_padding = 0
+  groups_grid.style.horizontal_spacing = layout.GAP
+  local name_width = math.floor((width - layout.ITEM - 2 * layout.GAP) / 2)
+  local status_width = width - layout.ITEM - 2 * layout.GAP - name_width
   for column = 1, 3 do
-    groups_grid.style.column_alignments[column] = 'middle-left'
+    groups_grid.style.column_alignments[column] = 'top-left'
   end
   for _, row in ipairs(rows) do
     groups_grid.add({
@@ -399,26 +429,36 @@ local function fill_now(flow, hub)
       sprite = row.anchor and ('item/' .. row.anchor.name) or 'utility/questionmark',
       style = 'slot_button',
       tooltip = row.group,
-    }).style.size = 32
+    }).style.size = layout.ITEM
     local name = groups_grid.add({ type = 'label', caption = row.group })
-    name.style.maximal_width = 170
+    name.style.width = name_width
     name.style.font = 'default-semibold'
+    name.tooltip = row.group
     local status = groups_grid.add({ type = 'label', caption = { '', icon(row.kind), row.caption } })
     status.style.single_line = false
-    status.style.maximal_width = 170
+    status.style.width = status_width
   end
   if #exceptions > 0 then
     flow.add({ type = 'label', caption = { L .. 'now-exceptions' }, style = 'caption_label' })
     local list = flow.add({ type = 'table', column_count = 2 })
+    list.style.cell_padding = 0
+    list.style.horizontal_spacing = layout.GAP
     for column = 1, 2 do
-      list.style.column_alignments[column] = 'middle-left'
+      list.style.column_alignments[column] = 'top-left'
     end
     local inventory = hub.get_inventory(defines.inventory.hub_main)
+    local max_items = 0
+    for _, entry in ipairs(exceptions) do max_items = math.max(max_items, #entry.items) end
+    -- Таблица делит ширины колонок между всеми строками: бюджет общий,
+    -- иначе максимумы от двух разных строк складываются в overflow.
+    local widths = layout.exceptions(width, max_items)
     -- Одна строка на тип состояния: сетка иконок до 10 и «+N ещё», полный
     -- список предметов — в тултипе строки.
     for _, entry in ipairs(exceptions) do
-      local cell = list.add({ type = 'flow', direction = 'horizontal' })
-      local grid = cell.add({ type = 'table', name = 'shm_ol_exception_grid', column_count = 8 })
+      local cell = sized(list.add({ type = 'flow', direction = 'vertical' }), widths.icons)
+      local grid = cell.add({ type = 'table', name = 'shm_ol_exception_grid', column_count = widths.columns })
+      grid.style.cell_padding = 0
+      grid.style.horizontal_spacing = layout.GAP
       local tooltip = items_tooltip(entry.items)
       for i, one in ipairs(entry.items) do
         if i > 10 then
@@ -430,17 +470,18 @@ local function fill_now(flow, hub)
           style = 'slot_button',
           number = inventory.get_item_count({ name = one.item.name, quality = one.item.quality }),
           tooltip = '[item=' .. one.item.name .. (one.item.quality and (',quality=' .. one.item.quality) or '') .. ']',
-        }).style.size = 32
+        }).style.size = layout.ITEM
       end
       if #entry.items > 10 then
         local more = cell.add({ type = 'label', name = 'shm_ol_exception_more', caption = { L .. 'now-more', #entry.items - 10 } })
         more.style.font_color = { 0.7, 0.7, 0.7 }
-        more.style.left_padding = 4
+        more.style.single_line = false
+        more.style.maximal_width = widths.icons
         more.tooltip = tooltip
       end
       local status = list.add({ type = 'label', caption = { '', icon(entry.kind), entry.text } })
       status.style.single_line = false
-      status.style.maximal_width = 220
+      status.style.width = widths.status
       status.tooltip = tooltip
     end
   end
@@ -470,7 +511,7 @@ local function warn(flow, name, caption)
   local label = flow.add({ type = 'label', name = name, caption = caption })
   label.style.font_color = { 1, 0.3, 0.3 }
   label.style.single_line = false
-  label.style.maximal_width = 500
+  label.style.maximal_width = flow.style.minimal_width
 end
 
 --- Красные предупреждения: выключенная раздача и ловушки источников склада.
@@ -495,20 +536,26 @@ end
 --- Вызывается, только когда линии есть: пустой блок линий — одна кнопка.
 --- Столбец узкий: выпадающий список и кнопки в ряд, с ограниченной шириной.
 local function add_lines(frame, player, entity, plat)
+  local width = block_width(frame)
   local member = lines.of_entity(player.force, entity)
   for _, entry in ipairs(member) do
-    frame.add({ type = 'label', caption = { L .. 'lines-member', entry.line.name } })
+    local label = frame.add({ type = 'label', caption = { L .. 'lines-member', entry.line.name } })
+    label.style.single_line = false
+    label.style.maximal_width = width
   end
   local items = {}
   for i, line in ipairs(lines.list(player.force)) do
     items[i] = line.name
   end
-  local flow = frame.add({ type = 'flow', direction = 'horizontal' })
+  local flow = frame.add({ type = 'flow', direction = width < 260 and 'vertical' or 'horizontal' })
   local dropdown = flow.add({ type = 'drop-down', name = 'shm_ol_attach_line', items = items, selected_index = 1 })
-  dropdown.style.minimal_width = 120
-  dropdown.style.maximal_width = 150
-  flow.add({ type = 'button', name = 'shm_ol_attach', caption = { L .. 'lines-attach' }, tags = { card = plat } })
-  frame.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } })
+  dropdown.style.width = math.min(150, width)
+  local attach = flow.add({ type = 'button', name = 'shm_ol_attach', caption = { L .. 'lines-attach' }, tags = { card = plat } })
+  attach.style.maximal_width = width < 260 and width or width - 150 - layout.GAP
+  attach.tooltip = { L .. 'lines-attach' }
+  local open = frame.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } })
+  open.style.maximal_width = width
+  open.tooltip = { L .. 'lines-open' }
 end
 
 --- Отпечаток групп хаба: если игрок добавил, убрал, переименовал группу или
@@ -558,7 +605,7 @@ local function toggle_button(parent, name, to_collapsed, tags)
       tooltip = { L .. key },
       tags = tags,
     })
-    button.style.size = 24
+    button.style.size = layout.TOGGLE
     return button
   end
   return parent.add({
@@ -613,19 +660,23 @@ end
 local function block_header(parent, plat, key, title_key)
   local header = parent.add({ type = 'flow', direction = 'horizontal', name = 'shm_ol_header_' .. key })
   toggle_button(header, 'shm_ol_block_toggle', true, { card = plat, block = key })
-  header.add({ type = 'label', caption = { L .. title_key }, style = 'caption_label' })
+  local label = header.add({ type = 'label', caption = { L .. title_key }, style = 'caption_label' })
+  label.style.single_line = false
+  label.style.maximal_width = block_width(parent) - layout.TOGGLE - layout.GAP
 end
 
 --- Свёрнутый блок: строка-итог; клик по ней разворачивает. Треугольника
 --- рядом нет — один итог (решение владельца 2026-11-05: пустой экспанд
 --- лишний).
 local function collapsed_block(parent, plat, key, summary)
-  parent.add({
+  local button = parent.add({
     type = 'button',
     name = 'shm_ol_block_summary',
     caption = summary,
     tags = { card = plat, block = key },
   })
+  button.style.width = block_width(parent)
+  button.tooltip = summary
 end
 
 --- Поиск по имени на любой глубине: контейнеры «Отдачи», предупреждений и
@@ -848,11 +899,12 @@ local function detail_row(container, line)
     style = 'slot_button',
     number = line.count,
     tooltip = '[item=' .. line.name .. (line.quality and (',quality=' .. line.quality) or '') .. ']',
-  }).style.size = 32
-  local text = item_flow.add({ type = 'flow', direction = 'vertical' })
+  }).style.size = layout.ITEM
+  local text_width = container.style.minimal_width - layout.ITEM - layout.GAP
+  local text = sized(item_flow.add({ type = 'flow', direction = 'vertical' }), text_width)
   local phrase = text.add({ type = 'label', caption = { '', icon(line.kind), line.phrase } })
   phrase.style.single_line = false
-  phrase.style.maximal_width = 380
+  phrase.style.maximal_width = text_width
   local second = { '' }
   if line.status then
     second[#second + 1] = line.status
@@ -861,14 +913,14 @@ local function detail_row(container, line)
   second[#second + 1] = line.amounts
   local numbers = text.add({ type = 'label', caption = second })
   numbers.style.single_line = false
-  numbers.style.maximal_width = 380
+  numbers.style.maximal_width = text_width
   numbers.style.font_color = { 0.7, 0.7, 0.7 }
 end
 
 local function detail_label(container, caption)
   local label = container.add({ type = 'label', caption = caption })
   label.style.single_line = false
-  label.style.maximal_width = 380
+  label.style.maximal_width = container.style.minimal_width
   return label
 end
 
@@ -1023,6 +1075,8 @@ end
 --- Секции с одинаковым именем группы — одна строка со счётчиком ×N:
 --- представитель — активная секция, статусы и детали считаются по ней.
 local function add_sections(parent, hub, plat)
+  local width = block_width(parent)
+  local row_layout = layout.section_row(width)
   local snap = controller.snapshot(hub)
   local cargo_here = orbit_cargo(hub.surface.platform)
   local result = resolver.resolve(snap, cargo_here)
@@ -1056,14 +1110,17 @@ local function add_sections(parent, hub, plat)
     if #bucket.sections > 1 then
       caption = { '', caption, ' ×' .. #bucket.sections }
     end
-    local row = parent.add({ type = 'flow', direction = 'vertical', name = 'shm_ol_row_' .. plat .. '_' .. index })
-    local grid = row.add({ type = 'table', column_count = 5 })
+    local row = sized(parent.add({ type = 'flow', direction = 'vertical', name = 'shm_ol_row_' .. plat .. '_' .. index }), width)
+    local grid = row.add({ type = 'table', column_count = row_layout.below and 2 or 4 })
+    grid.style.cell_padding = 0
+    grid.style.horizontal_spacing = layout.GAP
+    for column = 1, grid.column_count do grid.style.column_alignments[column] = 'top-left' end
     -- Треугольник у каждой строки: колонки строк выровнены, у группы с
     -- меткой развёрнутость показывает детали предметов.
     toggle_button(grid, 'shm_ol_expand', false, { card = plat, details = index })
     local label = grid.add({ type = 'label', caption = caption, style = 'label' })
-    label.style.maximal_width = 180
-    label.style.minimal_width = 180
+    label.style.width = row_layout.name
+    label.tooltip = caption
     -- Снятая галочка у группы груза — дело мода, а не поломка: подсказать.
     -- Вернувший галочку игрок включает секцию — метки «до отлёта» на ней быть
     -- не должно.
@@ -1076,7 +1133,8 @@ local function add_sections(parent, hub, plat)
     for i, purpose in ipairs(PURPOSES) do
       items[i] = { L .. 'purpose-' .. purpose }
     end
-    grid.add({
+    local controls = row_layout.below and row.add({ type = 'flow', direction = 'horizontal' }) or grid
+    local dropdown = controls.add({
       type = 'drop-down',
       name = 'shm_ol_purpose_' .. plat .. '_' .. index,
       items = items,
@@ -1085,12 +1143,15 @@ local function add_sections(parent, hub, plat)
       enabled = locked == nil,
       tooltip = locked,
     })
+    dropdown.style.width = layout.PURPOSE
     -- У запаса нет мест: пикер не показывается строкам с меткой запаса.
     if tag == nil or tag.kind ~= 'reserve' then
-      picker.add(grid, 'shm_ol_places_' .. plat .. '_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
+      local places = picker.add(controls, 'shm_ol_places_' .. plat .. '_' .. index, hub.force, tag and (tag.dests or tag.orbits) or {}, {
         tooltip = locked or { L .. 'places-tooltip' },
         enabled = locked == nil,
+        columns = row_layout.places,
       })
+      places.style.width = row_layout.picker
     end
     local container = row.add({
       type = 'flow',
@@ -1098,6 +1159,7 @@ local function add_sections(parent, hub, plat)
       name = 'shm_ol_details_' .. plat .. '_' .. index,
       tags = { card = plat, details = index },
     })
+    container.style.width = width
     fill_details(container, snap, result, cargo_here)
   end
 end
@@ -1151,109 +1213,128 @@ local function open_platform_gui(player, hub)
   player.opened = hub
 end
 
---- Остановка расписания: имя места. В расписании строка, но нормализуем
---- на случай прототипа.
-local function station_name(record)
-  local station = record.station
-  if type(station) == 'table' then
-    return station.name
-  end
-  return station
-end
-
---- Отпечаток маршрута и положения платформы: расписание, где стоит,
---- каким перегоном летит. Меняется — маршрут перерисовывается.
-local function route_sig(platform)
-  local parts = {}
-  local schedule = platform.schedule or {}
-  for i, record in ipairs(schedule) do
-    parts[#parts + 1] = tostring(station_name(record))
-  end
-  local location = platform.space_location
-  parts[#parts + 1] = location and location.name or '-'
-  local connection = platform.space_connection
-  if connection and connection.from and connection.to then
-    parts[#parts + 1] = connection.from.name .. '>' .. connection.to.name
-  end
-  parts[#parts + 1] = platform.paused and 'p' or 'r'
-  return table.concat(parts, '|')
-end
-
---- Узлы цепочки маршрута: текущее положение всегда первое, остановки
---- расписания — дальше по порядку (первое вхождение текущего положения
---- среди остановок не дублируется). Платформа без расписания получает
---- цепочку из своего положения: стоит — одна планета, летит — перегон
---- «откуда → куда» из space_connection. Решение владельца 2026-11-05:
---- цепочка видна всегда, не только с расписанием.
-local function route_nodes(platform)
+--- PlatformSchedule — снимок {current, records}, не массив записей.
+local function route_model(platform, old)
   local stops = {}
-  local schedule = platform.schedule or {}
-  for i, record in ipairs(schedule) do
-    stops[#stops + 1] = station_name(record)
+  local schedule = platform.schedule
+  for index, record in ipairs(schedule and schedule.records or {}) do
+    stops[index] = record.station or '?'
   end
   local location = platform.space_location
   local connection = platform.space_connection
-  local origin = (location and location.name)
-    or (connection and connection.from and connection.from.name)
-    or (platform.last_visited_space_location and platform.last_visited_space_location.name)
-  local nodes = {}
-  if origin then
-    nodes[#nodes + 1] = origin
-  end
-  local skipped = false
-  for _, stop in ipairs(stops) do
-    if origin ~= nil and stop == origin and not skipped then
-      -- Текущее положение уже первая нода цепочки.
-      skipped = true
-    else
-      nodes[#nodes + 1] = stop
+  local last = platform.last_visited_space_location
+  local from, to
+  if connection and last then
+    -- Концы прототипа связи фиксированы и при обратном рейсе не меняются.
+    if last.name == connection.from.name then
+      from, to = last.name, connection.to.name
+    elseif last.name == connection.to.name then
+      from, to = last.name, connection.from.name
     end
   end
-  return nodes, origin, connection
+  local records_signature = helpers.table_to_json(stops)
+  local departure = old.records_signature == records_signature and old.departure or nil
+  local model = route_logic.build(stops, schedule and schedule.current, location and location.name, from, to, departure)
+  if location then departure = model.active_stop end
+  return model, records_signature, departure
 end
 
---- Маршрут: цепочка иконок мест со стрелками перегонов. Планета, где
---- платформа сейчас (или откуда летит), — в оранжевой рамке; перегоном
---- полёта — активная стрелка.
+--- Полная петля расписания. Состав перестраивается только при изменении
+--- остановок/числа колонок; стоянка и полёт меняют оформление существующих узлов.
 local function fill_route(flow, platform)
-  flow.clear()
-  local nodes, origin, connection = route_nodes(platform)
-  if #nodes == 0 then
-    flow.add({
-      type = 'sprite',
-      sprite = 'utility/questionmark',
-      tooltip = { L .. 'route-none' },
-    })
-    return
+  local card = card_of(flow)
+  local widths = layout.route(card.style.minimal_width)
+  flow.style.width = widths.width
+  local old = flow.tags
+  local model, records_signature, departure = route_model(platform, old)
+  local signature = helpers.table_to_json({ 2, model.stops, model.loop, widths.columns })
+  local rebuild = old.signature ~= signature
+  if rebuild then
+    flow.clear()
+    if #model.stops == 0 then
+      flow.add({ type = 'sprite', sprite = 'utility/questionmark', tooltip = { L .. 'route-none' } }).style.size = layout.ROUTE_PLANET
+    else
+      local grid = flow.add({ type = 'table', column_count = widths.columns })
+      grid.style.cell_padding = 0
+      grid.style.horizontal_spacing = layout.GAP
+      for index in ipairs(model.stops) do
+        local cell = sized(grid.add({ type = 'flow', direction = 'horizontal' }), widths.cell)
+        cell.style.height = layout.ROUTE_PLANET
+        cell.style.horizontal_spacing = layout.GAP
+        cell.style.vertical_align = 'center'
+        cell.add({ type = 'sprite-button', name = 'shm_ol_route_planet', tags = { route_stop = index } }).style.size = layout.ROUTE_PLANET
+        if index < #model.stops or model.loop then
+          local loop = index == #model.stops
+          local arrow = cell.add({ type = 'sprite', name = 'shm_ol_route_arrow', tags = { route_leg = index, route_loop = loop } })
+          arrow.resize_to_sprite = false
+          arrow.style.width = layout.ROUTE_ARROW
+          arrow.style.height = loop and layout.ROUTE_ARROW or 10
+          arrow.style.stretch_image_to_widget_size = true
+        end
+      end
+    end
   end
-  local flying_to = connection and connection.to and connection.to.name or nil
-  for i, name in ipairs(nodes) do
-    if i > 1 then
-      local flying = flying_to ~= nil and name == flying_to
-      local arrow = flow.add({
-        type = 'sprite',
-        sprite = flying and 'shm-ol-route-arrow-active' or 'shm-ol-route-arrow',
-        tooltip = flying and { L .. 'route-flying', place_link(connection.from.name), place_link(name) } or nil,
-      })
-      arrow.style.width = 20
-      arrow.style.height = 10
+  if not rebuild and old.active_stop == model.active_stop and old.active_leg == model.active_leg and old.departure == departure then return end
+  if #model.stops > 0 then
+    for index, cell in ipairs(flow.children[1].children) do
+      local name = model.stops[index]
+      local here = model.active_stop == index
+      local prototype = prototypes.space_location[name]
+      local button = cell.children[1]
+      button.sprite = prototype and ('space-location/' .. name) or 'utility/questionmark'
+      button.style = here and 'shm_ol_route_planet_active' or 'slot_button'
+      button.style.size = layout.ROUTE_PLANET
+      button.tooltip = here and { '', prototype and prototype.localised_name or name, '\n', { L .. 'route-here' } }
+        or (prototype and prototype.localised_name or name)
+      local arrow = cell.children[2]
+      if arrow then
+        local active = model.active_leg == index
+        local target = model.stops[index % #model.stops + 1]
+        local sprite = arrow.tags.route_loop and 'shm-ol-route-loop' or 'shm-ol-route-arrow'
+        arrow.sprite = sprite .. (active and '-active' or '')
+        arrow.tooltip = active and { L .. 'route-flying', place_link(name), place_link(target) }
+          or { '', place_link(name), ' → ', place_link(target) }
+      end
     end
-    local here = name == origin
-    local prototype = prototypes.space_location[name]
-    local tooltip = { '' }
-    tooltip[#tooltip + 1] = prototype and prototype.localised_name or name
-    if here then
-      tooltip[#tooltip + 1] = '\n'
-      tooltip[#tooltip + 1] = { L .. 'route-here' }
+  end
+  flow.tags = { signature = signature, records_signature = records_signature, departure = departure,
+    active_stop = model.active_stop, active_leg = model.active_leg }
+end
+
+--- Обновить один блок, не уничтожая соседние поля и раскрытые детали.
+local function fill_block(container, player, platform, key)
+  container.clear()
+  local hub, plat = platform.hub, platform.index
+  local width = block_width(container)
+  if key == 'sections' then
+    if block_collapsed(player.index, plat .. ':sections') then
+      collapsed_block(container, plat, key, { L .. 'collapsed-sections', section_rows(hub) })
+    else
+      block_header(container, plat, key, 'sections')
+      local warnings = sized(container.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), width)
+      fill_warnings(warnings, hub)
+      add_sections(container, hub, plat)
     end
-    local button = flow.add({
-      type = 'sprite-button',
-      name = 'shm_ol_route_planet',
-      sprite = prototype and ('space-location/' .. name) or 'utility/questionmark',
-      style = here and 'shm_ol_route_planet_active' or 'slot_button',
-      tooltip = tooltip,
-    })
-    button.style.size = 32
+  elseif key == 'now' then
+    if block_collapsed(player.index, plat .. ':now') then
+      local rows, exceptions = now_data(hub)
+      collapsed_block(container, plat, key, { L .. 'collapsed-now', #rows, #exceptions })
+    else
+      block_header(container, plat, key, 'now')
+      fill_now(sized(container.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), width), hub)
+    end
+  elseif key == 'lines' then
+    local member = lines.of_entity(player.force, hub)
+    if #member == 0 and #lines.list(player.force) == 0 then
+      local button = container.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } })
+      button.style.maximal_width = width
+      button.tooltip = { L .. 'lines-open' }
+    elseif block_collapsed(player.index, plat .. ':lines') then
+      collapsed_block(container, plat, key, { L .. 'collapsed-lines', #member })
+    else
+      block_header(container, plat, key, 'lines')
+      add_lines(container, player, hub, plat)
+    end
   end
 end
 
@@ -1262,60 +1343,33 @@ end
 --- скроллит окно, у блоков своих прокруток нет. Ширина окна делится между
 --- столбцами в фиксированных долях.
 local function fill_content(card, player, platform)
-  local hub = platform.hub
-  local plat = platform.index
   local frame = card.parent
   while frame and frame.valid and frame.name ~= overview.NAME do
     frame = frame.parent
   end
   local width = (frame and frame.valid and frame.style.minimal_width) or 1100
-  local inner = math.max(560, width - 56)
-  local sections_w = math.floor(inner * 0.42)
-  local now_w = math.floor(inner * 0.33)
-  local lines_w = inner - sections_w - now_w
-  local content = card.add({ type = 'flow', name = 'shm_ol_content', direction = 'horizontal' })
+  local widths = layout.widths(width)
+  local content = sized(card.add({ type = 'flow', name = 'shm_ol_content', direction = 'horizontal' }), widths.content)
+  content.style.horizontal_spacing = layout.GAP
   local separated = false
   local function block(name, block_width)
     if separated then
-      content.add({ type = 'line', direction = 'vertical' })
+      local divider = content.add({ type = 'line', direction = 'vertical' })
+      divider.style.width = layout.DIVIDER
     end
     separated = true
     local container = content.add({ type = 'flow', direction = 'vertical', name = name })
-    container.style.minimal_width = block_width
-    container.style.maximal_width = block_width
-    container.style.left_padding = 8
-    container.style.right_padding = 8
+    container.style.width = block_width
+    container.style.left_padding = layout.BLOCK_PADDING
+    container.style.right_padding = layout.BLOCK_PADDING
     return container
   end
   -- «Группы»: предупреждения и секции.
-  local sections_block = block('shm_ol_block_sections', sections_w)
-  if block_collapsed(player.index, plat .. ':sections') then
-    collapsed_block(sections_block, plat, 'sections', { L .. 'collapsed-sections', section_rows(hub) })
-  else
-    block_header(sections_block, plat, 'sections', 'sections')
-    fill_warnings(sections_block.add({ type = 'flow', name = 'shm_ol_warnings', direction = 'vertical' }), hub)
-    add_sections(sections_block, hub, plat)
-  end
+  fill_block(block('shm_ol_block_sections', widths.sections), player, platform, 'sections')
   -- «Отдача на этой орбите».
-  local now_block = block('shm_ol_block_now', now_w)
-  if block_collapsed(player.index, plat .. ':now') then
-    local rows, exceptions = now_data(hub)
-    collapsed_block(now_block, plat, 'now', { L .. 'collapsed-now', #rows, #exceptions })
-  else
-    block_header(now_block, plat, 'now', 'now')
-    fill_now(now_block.add({ type = 'flow', name = 'shm_ol_now', direction = 'vertical' }), hub)
-  end
+  fill_block(block('shm_ol_block_now', widths.now), player, platform, 'now')
   -- «Линии»: пустой блок — одна кнопка, без заголовка и подписи «пока нет».
-  local lines_block = block('shm_ol_block_lines', lines_w)
-  local member = lines.of_entity(player.force, hub)
-  if #member == 0 and #lines.list(player.force) == 0 then
-    lines_block.add({ type = 'button', name = 'shm_ol_open_lines', caption = { L .. 'lines-open' } }).style.minimal_width = 100
-  elseif block_collapsed(player.index, plat .. ':lines') then
-    collapsed_block(lines_block, plat, 'lines', { L .. 'collapsed-lines', #member })
-  else
-    block_header(lines_block, plat, 'lines', 'lines')
-    add_lines(lines_block, player, hub, plat)
-  end
+  fill_block(block('shm_ol_block_lines', widths.lines), player, platform, 'lines')
 end
 
 --- Пересобрать контент карточки: разворот, смена групп, применение метки.
@@ -1339,10 +1393,12 @@ local function add_card(cards, player, platform)
     name = CARD_PREFIX .. plat,
     style = 'inside_shallow_frame_with_padding',
     direction = 'vertical',
-    tags = { card = plat, route_sig = route_sig(platform) },
+    tags = { card = plat },
   })
-  card.style.horizontally_stretchable = true
+  card.style.width = cards.style.minimal_width
+  card.style.padding = layout.CARD_PADDING
   local header = card.add({ type = 'flow', direction = 'horizontal' })
+  header.style.horizontal_spacing = layout.GAP
   header.style.vertical_align = 'center'
   toggle_button(header, 'shm_ol_card_toggle', false, { card = plat })
   local tooltip = { L .. 'card-open', platform.name }
@@ -1354,7 +1410,7 @@ local function add_card(cards, player, platform)
     tooltip = tooltip,
     tags = { card = plat },
   })
-  open_icon.style.size = 28
+  open_icon.style.size = layout.CARD_ICON
   local open_button = header.add({
     type = 'button',
     name = 'shm_ol_card_open',
@@ -1362,8 +1418,7 @@ local function add_card(cards, player, platform)
     tooltip = tooltip,
     tags = { card = plat },
   })
-  open_button.style.minimal_width = NAME_WIDTH
-  open_button.style.maximal_width = NAME_WIDTH
+  open_button.style.width = layout.NAME
   open_button.style.horizontal_align = 'left'
   local route = header.add({ type = 'flow', name = 'shm_ol_route', direction = 'horizontal' })
   route.style.horizontally_stretchable = true
@@ -1373,17 +1428,28 @@ local function add_card(cards, player, platform)
 end
 
 function overview.ensure_button(player)
-  if player.gui.top[overview.BUTTON] == nil then
-    local button = player.gui.top.add({
+  -- Сохранения до mod-gui содержат отдельную кнопку прямо в gui.top.
+  -- Общую рамку и кнопки других модов не трогаем.
+  local legacy = player.gui.top[overview.BUTTON]
+  if legacy and legacy.get_mod() == script.mod_name then
+    legacy.destroy()
+  end
+  local flow = mod_gui.get_button_flow(player)
+  local button = flow[overview.BUTTON]
+  if button == nil then
+    button = flow.add({
       type = 'sprite-button',
       name = overview.BUTTON,
       sprite = 'shm-ol-gui-button',
-      style = 'slot_button',
-      tooltip = { L .. 'overview-open' },
     })
-    button.style.width = 40
-    button.style.height = 40
   end
+  -- Присваивание стиля сбрасывает и старые runtime overrides размеров.
+  button.style = 'shm_ol_mod_button'
+  button.style.size = 37
+  button.style.padding = -2
+  button.sprite = 'shm-ol-gui-button'
+  button.tooltip = { L .. 'overview-open' }
+  return button
 end
 
 --- Список карточек по живым платформам силы; окно с размером «как helmod» —
@@ -1394,8 +1460,10 @@ function overview.open(player)
     type = 'frame',
     name = overview.NAME,
     direction = 'vertical',
-    tags = {},
+    tags = { layout_version = layout.VERSION },
   })
+  frame.style.left_padding = layout.FRAME_PADDING
+  frame.style.right_padding = layout.FRAME_PADDING
   local title = frame.add({ type = 'flow', direction = 'horizontal' })
   title.add({ type = 'label', caption = { L .. 'panel-title' }, style = 'frame_title' })
   local drag = title.add({ type = 'empty-widget', style = 'draggable_space_header' })
@@ -1409,10 +1477,11 @@ function overview.open(player)
     style = 'frame_action_button',
     tooltip = { L .. 'overview-close' },
   })
-  local scroll = frame.add({ type = 'scroll-pane', name = 'shm_ol_overview_scroll', direction = 'vertical' })
-  scroll.style.horizontally_stretchable = true
-  scroll.style.vertically_stretchable = true
-  scroll.style.horizontally_squashable = true
+  local scroll = frame.add({
+    type = 'scroll-pane', name = 'shm_ol_overview_scroll', direction = 'vertical',
+    horizontal_scroll_policy = 'never', vertical_scroll_policy = 'auto-and-reserve-space',
+  })
+  configure_scroll(scroll)
   local cards = scroll.add({ type = 'flow', name = 'shm_ol_cards', direction = 'vertical' })
   cards.style.horizontally_stretchable = true
   cards.style.vertical_spacing = 6
@@ -1438,6 +1507,7 @@ function overview.fill_cards(player, frame)
     return
   end
   local cards = find_named(scroll, 'shm_ol_cards')
+  cards.style.width = layout.widths(frame.style.minimal_width).cards
   cards.clear()
   local list = platforms_of(player.force)
   local indices = {}
@@ -1452,6 +1522,24 @@ function overview.fill_cards(player, frame)
   local t = frame.tags or {}
   t.setsig = table.concat(indices, ',')
   frame.tags = t
+end
+
+--- Ширина меняется только при намеренном открытии/закрытии окна хаба.
+local function resize_cards(player, frame)
+  local cards = find_named(frame, 'shm_ol_cards')
+  if not cards then return end
+  local width = layout.widths(frame.style.minimal_width).cards
+  cards.style.width = width
+  for _, card in ipairs(cards.children) do
+    if card.tags.card then
+      card.style.width = width
+      card.style.padding = layout.CARD_PADDING
+      local route = find_named(card, 'shm_ol_route')
+      local platform = platform_of(player, card.tags.card)
+      if platform and route then fill_route(route, platform) end
+      if platform and card.tags.expanded then rebuild_content(card, player, platform) end
+    end
+  end
 end
 
 function overview.close(player)
@@ -1470,12 +1558,27 @@ function overview.toggle(player)
 end
 
 --- Раз в секунду: состав платформ изменился — пересобрать список карточек;
---- маршрут по отпечатку, контент развёрнутой карточки по сигнатуре групп,
+--- структура маршрута по отпечатку, его подсветка без пересоздания элементов;
+--- контент развёрнутой карточки по сигнатуре групп,
 --- иначе перечитать «Отдачу», предупреждения и детали групп.
 function overview.refresh_all()
   for _, player in pairs(game.connected_players) do
+    -- Рабочая копия сохраняет номер до релиза: обычная загрузка не обязана
+    -- вызвать on_configuration_changed. Ремонтируем кнопку и без открытого окна.
+    overview.ensure_button(player)
     local frame = player.gui.screen[overview.NAME]
     if frame then
+      -- Номер пакета до релиза не меняется: открытый GUI из сохранения
+      -- ремонтируется один раз без пересоздания окна и заголовков карточек.
+      if frame.tags.layout_version ~= layout.VERSION then
+        frame.style.left_padding = layout.FRAME_PADDING
+        frame.style.right_padding = layout.FRAME_PADDING
+        configure_scroll(find_named(frame, 'shm_ol_overview_scroll'))
+        resize_cards(player, frame)
+        local state = frame.tags
+        state.layout_version = layout.VERSION
+        frame.tags = state
+      end
       local list = platforms_of(player.force)
       local indices = {}
       for _, platform in ipairs(list) do
@@ -1492,15 +1595,8 @@ function overview.refresh_all()
             local platform = platform_of(player, t.card)
             if platform then
               local hub = platform.hub
-              local rsig = route_sig(platform)
-              if t.route_sig ~= rsig then
-                local route = find_named(card, 'shm_ol_route')
-                if route then
-                  fill_route(route, platform)
-                end
-                t.route_sig = rsig
-                card.tags = t
-              end
+              local route = find_named(card, 'shm_ol_route')
+              if route then fill_route(route, platform) end
               if t.expanded then
                 local sig = content_sig(platform)
                 if t.signature ~= sig then
@@ -1535,6 +1631,21 @@ end
 
 -- --------------------------------------------------------------- события ---
 
+--- Стоянка может быть короче секундного refresh. Запомнить её и обновить
+--- только маршрут этой платформы на самом событии, не теряя источник рейса.
+function overview.on_platform_changed(event)
+  local platform = event.platform
+  if not (platform and platform.valid and platform.hub and platform.hub.valid and platform.scheduled_for_deletion == 0) then return end
+  for _, player in pairs(game.connected_players) do
+    if player.force == platform.force then
+      local frame = player.gui.screen[overview.NAME]
+      local card = frame and find_named(frame, CARD_PREFIX .. platform.index)
+      local route = card and find_named(card, 'shm_ol_route')
+      if route then fill_route(route, platform) end
+    end
+  end
+end
+
 --- Окно хаба или площадки открылось: окно обзора — налево и поуже, чтобы не
 --- накрывать ванильное окно: экранные окна модов рисуются поверх игровых.
 --- Позиция запоминается — по закрытию окна хаба вернётся.
@@ -1568,6 +1679,7 @@ function overview.on_opened(event)
     else
       frame.location = { x = 0, y = 0 }
     end
+    resize_cards(player, frame)
   end
 end
 
@@ -1593,6 +1705,7 @@ function overview.on_closed(event)
     t.restore_y = nil
     t.restore_w = nil
     frame.tags = t
+    resize_cards(player, frame)
   end
 end
 
@@ -1809,7 +1922,8 @@ function overview.on_click(event)
       local platform = platform_of(player, t.card)
       local card = card_of(element)
       if platform and card then
-        rebuild_content(card, player, platform)
+        local block = find_named(card, 'shm_ol_block_' .. t.block)
+        if block then fill_block(block, player, platform, t.block) end
       end
       return true
     end

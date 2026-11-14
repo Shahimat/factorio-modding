@@ -5,6 +5,7 @@
 -- контейнера и читается по «Применить».
 
 local picker = {}
+local SIZE = require('logic.overview_layout').PLACE
 
 local function sorted(set)
   local names = {}
@@ -28,7 +29,7 @@ local function render(grid)
       enabled = opts.enabled,
       tooltip = opts.tooltip,
       tags = { picker_add = true },
-    }).style.size = 28
+    }).style.size = SIZE
     return
   end
   for _, name in ipairs(opts.selected) do
@@ -42,7 +43,7 @@ local function render(grid)
       style = 'slot_sized_button',
       tags = { picker_remove = name },
     })
-    button.style.size = 28
+    button.style.size = SIZE
   end
   grid.add({
     type = 'choose-elem-button',
@@ -51,16 +52,15 @@ local function render(grid)
     enabled = opts.enabled,
     tooltip = opts.tooltip,
     tags = { picker_add = true },
-  }).style.size = 28
+  }).style.size = SIZE
 end
 
 --- Выбор мест под именем `name`. `single` — не больше одного места.
 function picker.add(parent, name, _, selected, opts)
   opts = opts or {}
-  local flow = parent.add({
-    type = 'flow',
+  local definition = {
+    type = opts.columns and 'table' or 'flow',
     name = name,
-    direction = 'horizontal',
     tags = {
       picker = true,
       single = opts.single == true,
@@ -68,7 +68,14 @@ function picker.add(parent, name, _, selected, opts)
       tooltip = opts.tooltip,
       selected = sorted(selected),
     },
-  })
+  }
+  if opts.columns then
+    definition.column_count = opts.columns
+  else
+    definition.direction = 'horizontal'
+  end
+  local flow = parent.add(definition)
+  if opts.columns then flow.style.cell_padding = 0 end
   flow.style.horizontal_spacing = 0
   render(flow)
   return flow

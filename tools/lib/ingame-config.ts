@@ -52,7 +52,7 @@ read-data=${readData}
 write-data=${dataDir}
 
 [general]
-locale=
+locale=en
 `;
 }
 
@@ -64,14 +64,15 @@ export function readDataOf(configIni: string): string | undefined {
 
 /**
  * Нужно ли перезаписать конфиг. Да — если файла нет либо `read-data` в нём
- * указывает не туда: иначе прогон упадёт, а причина будет не видна.
+ * указывает не туда. Пустой locale также чинится: графическая 2.1.24 падает
+ * ещё до загрузки модов с ошибкой ROOT.sound. Явно выбранный язык сохраняется.
  */
 export function needsRewrite(
   existing: string | undefined,
   readData: string,
 ): boolean {
   if (existing === undefined) return true;
-  return readDataOf(existing) !== readData;
+  return readDataOf(existing) !== readData || /^locale=[ \t\r]*$/m.test(existing);
 }
 
 /** Корни клиента Steam: macOS и Linux. */

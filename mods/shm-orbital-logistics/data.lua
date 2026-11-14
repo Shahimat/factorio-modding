@@ -38,11 +38,33 @@ data:extend({
   mod_sprite('shm-ol-route-arrow-active', 'route-arrow-active.png', 20, 10),
 })
 
+-- Замыкание расписания — круговая стрелка Wube, а не ещё одна планета.
+-- Обычная и активная используют одну маску, поэтому меняется только цвет.
+for _, active in ipairs({ false, true }) do
+  local sprite = table.deepcopy(data.raw['utility-sprites'].default.reset_white)
+  sprite.type = 'sprite'
+  sprite.name = active and 'shm-ol-route-loop-active' or 'shm-ol-route-loop'
+  sprite.scale = 1
+  sprite.tint = active and { 1, 0.65, 0.3 } or { 0.72, 0.72, 0.72 }
+  data:extend({ sprite })
+end
+
+-- Кнопка меню в общей рамке mod-gui, как у Helmod: те же размеры и
+-- ванильные графические наборы, но собственный значок и никакой зависимости.
+data.raw['gui-style'].default['shm_ol_mod_button'] = {
+  type = 'button_style',
+  parent = 'button',
+  horizontal_align = 'center',
+  default_graphical_set = { base = { position = { 0, 0 }, corner_size = 8 } },
+  hovered_graphical_set = { base = { position = { 34, 17 }, corner_size = 8 } },
+  clicked_graphical_set = { base = { position = { 51, 17 }, corner_size = 8 } },
+  disabled_graphical_set = { base = { position = { 386, 17 }, corner_size = 8 } },
+}
+
 -- Рамка планеты, где платформа стоит сейчас: фон слота с оранжевой обводкой,
 -- под иконкой места. Рисуется вместо штатного фона `slot_button`.
 local function active_slot_sprite()
   return {
-    type = 'sprite',
     filename = '__shm-orbital-logistics__/graphics/route-slot-active.png',
     priority = 'extra-high-no-scale',
     width = 32,
@@ -54,7 +76,7 @@ end
 data.raw['gui-style'].default['shm_ol_route_planet_active'] = {
   type = 'button_style',
   parent = 'slot_button',
-  default_sprite = active_slot_sprite(),
-  hovered_sprite = active_slot_sprite(),
-  clicked_sprite = active_slot_sprite(),
+  default_graphical_set = { base = active_slot_sprite() },
+  hovered_graphical_set = { base = active_slot_sprite() },
+  clicked_graphical_set = { base = active_slot_sprite() },
 }

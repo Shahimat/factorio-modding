@@ -42,6 +42,24 @@ function fixture.platform(label, planet)
   return platform, hub
 end
 
+--- Настоящий двигатель для проверок маршрута; топливо бесконечное, но
+--- отлёт, выбор связи, индекс расписания и прибытие выполняет движок.
+function fixture.equip_shuttle(platform)
+  local floor = {}
+  for x = -6, 5 do
+    for y = -5, 11 do floor[#floor + 1] = { name = 'space-platform-foundation', position = { x, y } } end
+  end
+  platform.surface.set_tiles(floor)
+  platform.hub.destructible = false
+  local thruster = assert(platform.surface.create_entity({ name = 'thruster', position = { 0, 9.5 }, force = platform.force }))
+  thruster.destructible = false
+  for _, fluid in ipairs({ { x = -2.5, name = 'thruster-fuel' }, { x = 2.5, name = 'thruster-oxidizer' } }) do
+    local pipe = assert(platform.surface.create_entity({ name = 'infinity-pipe', position = { fluid.x, 7.5 }, force = platform.force }))
+    pipe.destructible = false
+    pipe.set_infinity_pipe_filter({ name = fluid.name, percentage = 1, mode = 'at-least' })
+  end
+end
+
 --- Секция с одним фильтром запроса на предмет.
 --- opts: item, max, from (`planet` / `platforms` / `all`), import_from, group.
 function fixture.request(entity, min, opts)
