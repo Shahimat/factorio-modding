@@ -1,5 +1,9 @@
 # Порядок = приоритет. Только оставшаяся работа; история — git/CHANGELOG.md.
 goals:
+  - key: ui-test-engine
+    file: goal--ui-test-engine.yaml
+    status: planned
+    one_liner: Развить нативный UI test engine от fixture-PoC до первого реального мода.
   - key: toolchain
     file: goal--toolchain.yaml
     status: active

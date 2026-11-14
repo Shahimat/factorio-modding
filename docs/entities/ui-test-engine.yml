@@ -1,0 +1,86 @@
+id: ui-test-engine
+kind: entity
+namespace: platform
+version: "1"
+title: Движок нативных UI-тестов Factorio
+summary: "Отдельный UI test engine на TypeScript и Lua: нативный ввод в Factoriopedia simulation, outer screenshots и JSON-отчёт; первый сценарий — counter PoC."
+
+scope: |
+  Дополнительный графический контур, не замена FactorioTest. Проверяет ввод,
+  зарегистрированный обработчик, состояние и видимый результат. Реализован
+  один PoC на собственном fixture-моде, не на опубликованном моде и не на
+  произвольном сохранении. Подтверждён на Factorio 2.1.24 mac-arm64;
+  другие ОС не проверены, кроссплатформенность сейчас не требуется.
+
+paths:
+  ui-test-engine/src/cli.ts: точка входа команды
+  ui-test-engine/src/runner.ts: изолированный профиль, моды, артефакты и итог
+  ui-test-engine/src/options.ts: канон аргументов CLI и поддерживаемой дорожки игры
+  ui-test-engine/src/process.ts: потоки строк, watchdog и ограниченное ожидание завершения
+  ui-test-engine/src/protocol.ts: канон native events, порядка событий и утверждений
+  ui-test-engine/src/visual.ts: канон семантических PNG-проверок по маркерам fixture
+  ui-test-engine/native/: runtime-драйвер и внешний сценарий screenshot host
+  ui-test-engine/scenarios/counter.lua: setup, нативный locator и утверждения сценария
+  ui-test-engine/fixtures/counter/: отдельный мод с настоящей кнопкой и on_gui_click
+  tools/lib/game-install.ts: переиспользуемое обнаружение установленной игры
+  package.json: npm-команды и включение unit-тестов в общий прогон
+  tsconfig.json: включение движка в strict typecheck
+
+execution: |
+  Node создаёт новый каталог в .work/ui-test-engine/, копирует туда driver,
+  сценарий и fixture. Параметры генерируются отдельным Lua-модулем внутри
+  каталога прогона; исходники не переписываются. Игра запускается через
+  --load-scenario с отдельными config.ini, write-data и mod-directory.
+
+  Обычный сценарий открывает entity-backed Factoriopedia entry.
+  SimulationDefinition.mods загружает runtime-драйвер и fixture. Создаётся
+  test player, setup строит GUI. get_widget_position находит кнопку,
+  move_cursor/mouse_click доставляют ввод. Fixture меняет counter только
+  в зарегистрированном on_gui_click; тест не импортирует обработчик.
+
+  OUTER game делает before/after через take_screenshot(show_gui=true), ждёт
+  screenshot writer и сообщает complete на следующем тике. Node проверяет
+  протокол, состояние, декодируемость PNG и видимые маркеры, затем формирует
+  report.json. Отсутствие complete, ошибка, таймаут или аварийный выход — FAIL.
+
+commands:
+  positive: npm run test:ui:poc
+  negative: npm run test:ui:poc -- --negative
+  help: npm run test:ui:poc -- --help
+  unit: node --test "ui-test-engine/src/**/*.test.ts"
+  lua_dialect: npm run check-lua -- ./ui-test-engine
+  note: |
+    Положительный прогон возвращает 0. --negative отключает кнопку, но сохраняет
+    ожидания: обязан получиться FAIL и код 1, не инвертированный PASS.
+    Игровой прогон требует графической сессии; в npm run check не входит.
+    Unit-тесты и strict typecheck движка входят в общий check.
+
+artifacts: |
+  В каталоге прогона: report.json с проверками и native events, process.log,
+  полные script-output/ui-test/before.png и after.png; при найденном GUI —
+  before-ui.png и after-ui.png с диагностическим crop. Пропавший или
+  недекодируемый PNG валит прогон. Профиль и артефакты игнорируются в .work/.
+
+isolation: |
+  Launcher не читает и не копирует личные моды, конфиг, сохранения и player-data.json.
+  Креды портала и скачивание модов не нужны: game-install используется для
+  бинаря и read-data, не для steamCloudCredentials. Steam app ID берётся из
+  tools/lib/ingame-config.ts. На POSIX создаётся собственная process group:
+  сигналы и эскалация относятся только к ней, не к существующей игре или Steam.
+  Ожидание stdout/stderr ограничено даже при выходе родителя раньше потомка.
+  Fixture не находится в mods/ и не упаковывается для портала.
+
+limitations:
+  - "Пока один сценарий: список модов и подключение counter фиксированы, публичного API произвольных сценариев нет."
+  - "Viewport Factoriopedia мал; locator может найти кнопку за видимой границей. PNG отдельно проверяет видимый текст кнопки и counter, не полные bounding boxes."
+  - "Capture привязан к outer ticks, ввод — к inner updates. Атомарной синхронизации миров нет: проверяются порядок событий, стабильное конечное состояние и пиксели."
+  - "Цветные маркеры — семантический image oracle PoC, не golden comparison, OCR, vision-модель или общая проверка layout."
+  - "PNG использует реальный drawable; --window-size не обещает тот же размер на Retina. Координаты берутся native locator, не вычисляются по display_resolution test player."
+  - "Hover, текст, клавиатура, другие виджеты и восстановление произвольного сохранения не проверены."
+  - "Fixture-PoC не закрывает визуальные пробелы существующих модов и их FactorioTest-наборов."
+
+engine_evidence: docs/entities/engine-ui-simulations.yml
+features_enabled: [native-simulation-input, outer-game-screenshots, isolated-profile, json-report, semantic-png-checks]
+features_disabled: [desktop-automation, mcp, direct-handler-invocation, golden-image-regression]
+behaviors: [ui-test-engine-native-poc]
+conventions: [testing, verification, secrets, engine-facts]

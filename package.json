@@ -15,10 +15,11 @@
   "scripts": {
     "session": "opencode --prompt \"/startup\"",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"tools/**/*.test.ts\"",
+    "test": "node --test \"tools/**/*.test.ts\" \"ui-test-engine/src/**/*.test.ts\"",
     "test:mod": "node tools/lua-test.ts",
     "test:lua:all": "node tools/lua-test.ts --all",
     "test:ingame": "node tools/ingame-test.ts",
+    "test:ui:poc": "node ui-test-engine/src/cli.ts",
     "check-docs": "node tools/check-docs.ts",
     "check-lua": "node tools/check-lua.ts",
     "check-secrets": "node tools/check-secrets.ts",

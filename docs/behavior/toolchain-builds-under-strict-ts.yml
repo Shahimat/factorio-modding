@@ -30,12 +30,15 @@ scenarios:
 verified: false
 verified_at: null
 verified_note: >-
+  2026-11-14: npm run typecheck прошёл; include охватывает tools/**/*.ts и
+  ui-test-engine/src/**/*.ts без ослабления strict. Сценарий npm-workspaces
+  в этом тикете отдельно не перепроверялся; исторические сведения ниже.
   Три сценария из четырёх закрыты 2026-10-03: `npm run typecheck`
   (tsc --noEmit) прошёл с кодом 0, `tsc --listFiles` подтвердил охват всех
   файлов `tools/`; в `tsconfig.json` включены strict и дополнительные флаги
   строгости, ни один не отключён, `grep` по `tools/` не находит
   `@ts-ignore`, `@ts-expect-error` и явных `any`; Lua в сборку не входит,
-  `include` ограничен `tools/**/*.ts`, и инструменты исполняются как `.ts`
+  прежний `include` был ограничен `tools/**/*.ts`, и инструменты исполняются как `.ts`
   напрямую без промежуточной сборки. Сценарий про npm-workspaces проверять
   не на чем: ни одного пакета мода в `mods/` ещё нет. Переподтвердить после
   заведения первого мода.

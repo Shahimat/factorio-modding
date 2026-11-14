@@ -22,6 +22,7 @@
   [setup-dev-environment.md](docs/manuals/setup-dev-environment.md)
 - прогнать мод локально —
   [test-mod-locally.md](docs/manuals/test-mod-locally.md)
+- нативный PoC GUI-кликов и снимков — [UI test engine](ui-test-engine/README.md)
 - опубликовать новый мод —
   [publish-new-mod.md](docs/manuals/publish-new-mod.md)
 - выпустить новую версию —
@@ -46,6 +47,7 @@ specs/           входящие ТЗ автора, по файлу на мод
 plans/           согласованные планы итераций, по HTML на итерацию
 mods/            пакеты модов, npm-workspaces
 tools/           инструменты на TypeScript
+ui-test-engine/  движок нативных UI-тестов, первый графический PoC
 ```
 
 Канон `docs/` читают человек и агент. Точка входа агента —

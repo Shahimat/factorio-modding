@@ -35,7 +35,7 @@ conventions:
   secrets: "Ничего чувствительного и приватного в версионируемых файлах: репозиторий публичный, утечка необратима."
   spec-intake: "specs/ — входящие ТЗ автора: имя файла авторское, сопоставление с модом по mod_key, раскладка по слоям после прочтения целиком."
   spec-program: "Работа по спеке: YAML-программа в context/views/, согласованный HTML-план, PoC в poc/, критерии и стадия в description, пруфы и ревью в .work/."
-  testing: Каждый инструмент покрыт юнит-тестами на node:test, логика модов — Lua-тестами своего harness; npm test входит в npm run check.
+  testing: Инструменты tools/ и ui-test-engine/ покрыты node:test, логика модов — Lua-тестами своего harness; npm test входит в npm run check.
   verification: "verified меняется по семантике поведения и только по свежей проверке; перенос путей сам по себе его не сбрасывает."
 namespaces:
   platform:
@@ -43,10 +43,12 @@ namespaces:
     conventions: [consistency, secrets, testing, spec-intake, spec-program, verification, project-knowledge]
     entities:
       repo-toolchain: "npm-workspaces монорепозиторий: моды на Lua без транспиляции, инструменты сборки, валидации и публикации — TypeScript в strict-режиме."
+      ui-test-engine: "Отдельный UI test engine на TypeScript и Lua: нативный ввод в Factoriopedia simulation, outer screenshots и JSON-отчёт; первый сценарий — counter PoC."
     behaviors:
       no-secrets-in-versioned-files: В версионируемые файлы не попадает ничего чувствительного
       toolchain-builds-under-strict-ts: Инструменты собираются TypeScript в strict-режиме без ослаблений
       tools-covered-by-unit-tests: Логика покрыта юнит-тестами своего скоупа, тесты входят в проверку
+      ui-test-engine-native-poc: "Counter PoC проходит только с native lifecycle, настоящим on_gui_click и видимым переходом PNG; disabled button, неполный протокол и ошибки не дают ложного PASS."
     manuals:
       setup-dev-environment: Развернуть окружение разработки мода
       test-mod-locally: Протестировать мод локально
@@ -125,6 +127,7 @@ namespaces:
       engine-inserters: Факты о манипуляторах из тестов в игре при разработке shm-k2-superior-inserters-full-hand-switcher.
       engine-loaders: Факты о лоадерах из тестов в игре при разработке shm-advanced-belts; пара к engine-inserters — механика та же, поля другие.
       engine-space-platforms: Факты о ванильной логистике платформ 2.1 — когда хаб отдаёт предмет другой платформе на орбите и когда сбрасывает на планету; выяснены прототипом к ТЗ Orbital Logistics.
+      engine-ui-simulations: "Проверенные сочетания API: custom button находится native locator и получает on_gui_click; GUI simulation попадает в PNG через внешний Factoriopedia host."
 specs:
   advanced-belts:
     path: specs/25102026_spec_advanced_belts.md

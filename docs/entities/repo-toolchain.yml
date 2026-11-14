@@ -9,6 +9,7 @@ structure:
   mods/: пакеты модов, один каталог на мод, он же npm-workspace
   tools/: TypeScript-инструменты (валидация, упаковка, публикация)
   tools/lua/: харнесс и заглушки для Lua-тестов модов — единственный Lua в tools/
+  ui-test-engine/: отдельный нативный движок графических UI-тестов, entity ui-test-engine
   specs/: входящие ТЗ автора по convention spec-intake
   plans/: согласованные планы итераций в HTML по convention spec-program
   poc/: моды-прототипы для проверки допущений спеки, вне mods/, по convention spec-program
@@ -86,7 +87,7 @@ runtime:
 
 tools_implemented:
   npm-scripts: |
-    typecheck, test, test:mod, test:lua:all, test:ingame, check-secrets,
+    typecheck, test, test:mod, test:lua:all, test:ingame, test:ui:poc, check-secrets,
     check-docs, check-lua, validate, pack, recolor-sprites, orbital-art,
     publish:mod, check, check:mod. Скоупы разделены
     сознательно: `check` не заходит в моды, `check:mod -- <mod-key>`
@@ -171,6 +172,11 @@ tools_implemented:
     установленной игры, затем запускает `factorio-test run`, пробрасывая
     аргументы и код возврата. Код возврата важен сам по себе: падение
     сценария обязано валить команду, иначе зелёный прогон ничего не значит.
+  ui-test-engine/: |
+    Дополнительный графический контур с нативным вводом через LuaSimulation,
+    не save-based FactorioTest и не замена ему. Устройство, команды и ограничения —
+    docs/entities/ui-test-engine.yml; unit-тесты входят в npm test,
+    TypeScript — в общий strict typecheck, игровой прогон — только test:ui:poc.
   tools/lib/game-install.ts: |
     Поиск установленной игры для всех инструментов, которым она нужна
     (`test:ingame`, `recolor-sprites`, `orbital-art`): бинарь, каталог её

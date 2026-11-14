@@ -1,0 +1,44 @@
+id: engine-ui-simulations
+kind: entity
+namespace: engine
+version: "1"
+title: Нативный GUI-ввод и захват интерфейса simulation
+summary: "Проверенные сочетания API: custom button находится native locator и получает on_gui_click; GUI simulation попадает в PNG через внешний Factoriopedia host."
+
+facts:
+  - claim: |
+      Runtime-мод, загруженный через SimulationDefinition.mods, может создать
+      кнопку в test_player.gui.screen. get_widget_position с type=text-button
+      и точным caption находит такую custom button; move_cursor с полученной
+      позицией и mouse_click вызывают зарегистрированный on_gui_click другого
+      мода. Вызов обработчика напрямую не нужен. В отрицательной пробе disabled
+      button находилась locator, но события и изменения counter не было.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — counter fixture ui-test-engine, положительный и disabled-button прогоны"
+  - claim: |
+      take_screenshot с player=test_player, show_gui=true и force_render=true
+      внутри проверенной menu simulation создал PNG мира без её custom GUI;
+      снимки до/после реального клика совпадали. Успешный вызов и наличие PNG
+      не доказывают захват GUI. Причина и общность ограничения для других
+      версий/контекстов неизвестны: это наблюдение, не универсальный запрет API.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — предварительная menu-simulation проба нативного UI-драйвера"
+  - claim: |
+      Entity prototype с factoriopedia_simulation можно открыть из обычного
+      сценария через player.open_factoriopedia_gui(prototypes.entity[...]).
+      take_screenshot(show_gui=true), запрошенный OUTER game, включает custom
+      GUI вложенной simulation. После native click видны изменённый caption
+      и цвет counter. Это рабочая композиция API для UI-test PoC.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — entity на основе wooden-chest, screenshot host и counter fixture ui-test-engine"
+  - claim: |
+      Нативный locator нашёл и позволил кликнуть custom button, расположенную
+      ниже видимого края маленького Factoriopedia viewport. Успешный ввод не
+      доказывает видимость кнопки на изображении. После переноса компактного
+      GUI в видимую часть PNG показал и текст кнопки, и counter.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — первые и компактные варианты counter fixture ui-test-engine"
+
+sources:
+  simulation: https://lua-api.factorio.com/2.1.24/classes/LuaSimulation.html
+  definition: https://lua-api.factorio.com/2.1.24/types/SimulationDefinition.html
+  screenshot: https://lua-api.factorio.com/2.1.24/classes/LuaGameScript.html#take_screenshot
+  host: https://lua-api.factorio.com/2.1.24/classes/LuaControl.html#open_factoriopedia_gui
+  note: Документация задаёт отдельные API; сочетания проверены игровыми прогонами, их механизм не выводится из одной ссылки.
+behaviors: []

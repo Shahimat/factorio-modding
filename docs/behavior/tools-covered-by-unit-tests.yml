@@ -7,8 +7,8 @@ scenarios:
   - given: репозиторий со свежим `npm ci`
     when: запускается `npm test`
     then: >-
-      встроенный раннер Node находит тесты по glob `tools/**/*.test.ts` и все
-      проходят; внешних зависимостей для тестов не требуется, и в `mods/`
+      встроенный раннер Node находит тесты инструментов tools/ и ui-test-engine/
+      по glob из package.json и все проходят; внешнего тестового раннера не требуется, и в `mods/`
       прогон не заходит
   - given: '`npm run check`'
     when: он запускается
@@ -70,8 +70,11 @@ scenarios:
       для файла в сканере не появляется — иначе в правиле `secrets` возникла
       бы дыра
 verified: true
-verified_at: 2026-10-04
+verified_at: 2026-11-14
 verified_note: >-
+  2026-11-14: npm test включает unit-тесты UI test engine вместе с tools/;
+  проверки протокола, изображений и lifecycle дочернего процесса прошли.
+  Исторические проверки модов и упаковки ниже этим тикетом не менялись.
   `npm test` 2026-10-04: 107 тестов, все проходят, 0 внешних зависимостей.
   Покрыты `problems`, `changelog` (parseChangelog), `info-json`
   (checkInfoJsonText), `secret-scan`, `docs-model`, `packages`,

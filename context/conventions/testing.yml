@@ -1,12 +1,12 @@
 key: testing
-summary: "Каждый инструмент покрыт юнит-тестами на node:test, логика модов — Lua-тестами своего harness; npm test входит в npm run check."
+summary: "Инструменты tools/ и ui-test-engine/ покрыты node:test, логика модов — Lua-тестами своего harness; npm test входит в npm run check."
 rule: |
-  Каждый инструмент в `tools/` покрывается юнит-тестами. Это базовое правило
+  Каждый инструмент в `tools/` и `ui-test-engine/` покрывается юнит-тестами. Это базовое правило
   проверки, а не опция: `npm test` входит в `npm run check`.
 
   Тестируемого кода в проекте два вида, и у них разные раннеры:
 
-  - инструменты в `tools/` — TypeScript, встроенный `node:test`;
+  - инструменты в `tools/` и `ui-test-engine/` — TypeScript, встроенный `node:test`;
   - логика модов в `mods/<name>/` — Lua, собственный harness.
 
   Правила ниже про «что именно тестируем» и «чего не делаем» общие для
@@ -18,11 +18,12 @@ rule: |
   зависимостей для тестов нет и не вводим — Node исполняет `.ts` напрямую.
 
   Раннер не находит `.ts` при обходе каталога, поэтому запуск только через
-  glob: `node --test "tools/**/*.test.ts"`. Это и есть `npm test`.
+  glob по обоим каталогам; точная команда — `package.json` → `scripts.test`.
 
   ## Где лежат тесты
 
   Рядом с кодом: `tools/lib/<module>.test.ts` для `tools/lib/<module>.ts`.
+  У UI test engine — `ui-test-engine/src/<module>.test.ts` рядом с модулем.
   Отдельного каталога `test/` нет — так ближе к коду и виднее, у какого
   модуля тестов нет.
 
@@ -73,7 +74,7 @@ rule: |
   превратился бы в налог на любую правку в `tools/`. Поэтому запуски
   раздельные:
 
-  - `npm test` — только `tools/**/*.test.ts`, в моды не заходит;
+  - `npm test` — тесты `tools/` и `ui-test-engine/src/`, в моды не заходит;
   - `npm test -w shm-<mod>` — Lua-тесты одного мода, через скрипт его
     собственного `package.json`;
   - `npm run check` — typecheck, тесты инструментов, `check-secrets`,
@@ -123,6 +124,12 @@ rule: |
   отвергнутыми альтернативами и устройство запуска — entity
   `repo-toolchain`, раздел `ingame_test_stand`; здесь только правило, по
   которому выбирали.
+
+  Для настоящего GUI-ввода и PNG используется дополнительный графический
+  `ui-test-engine/`, entity `ui-test-engine`: нативный LuaSimulation,
+  отдельные fixture-моды и внешний screenshot host. Это не замена обычных
+  FactorioTest-тестов; условие headless не относится к визуальному контуру.
+  Существующий save-based FactorioTest не предоставляет нужную доставку ввода.
 
   ## Диалект Lua
 

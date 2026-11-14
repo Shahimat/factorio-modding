@@ -1,0 +1,47 @@
+id: ui-test-engine-native-poc
+kind: behavior
+namespace: platform
+entities: [ui-test-engine]
+title: Нативный GUI-клик меняет состояние и изображение, отрицательная проба валит команду
+summary: "Counter PoC проходит только с native lifecycle, настоящим on_gui_click и видимым переходом PNG; disabled button, неполный протокол и ошибки не дают ложного PASS."
+feature_refs: [native-simulation-input, outer-game-screenshots, isolated-profile, json-report, semantic-png-checks]
+scenarios:
+  - given: установленная графическая Factorio 2.1 и доступная графическая сессия
+    when: запускается npm run test:ui:poc
+    then: >-
+      driver находит custom button и нажимает её через LuaSimulation;
+      fixture регистрирует on_gui_click, counter становится 1 и caption Clicks: 1;
+      before/after PNG содержат текст кнопки и переход красного counter в зелёный;
+      report.json содержит успешные проверки, команда возвращает 0
+  - given: та же сцена с отключённой кнопкой
+    when: запускается npm run test:ui:poc -- --negative
+    then: >-
+      native input выполняется, но события нет, counter остаётся 0 и PNG красным;
+      report.json содержит проваленные проверки, код команды — 1
+  - given: дочерний процесс без полного протокола или с ошибкой/таймаутом
+    when: runner завершает прогон
+    then: >-
+      exit 0 без complete не считается успехом; повреждённые, пропущенные,
+      повторные, чужие или переставленные события не проходят проверку;
+      watchdog ограничивает ожидание и закрывает свою process group,
+      даже если родитель уже вышел, а потомок держит потоки вывода
+  - given: PNG отсутствует, не декодируется либо не содержит GUI и текста кнопки
+    when: выполняется анализ снимков
+    then: >-
+      прогон провален независимо от успешных утверждений состояния;
+      PNG мира или неизменный красный counter не принимаются за визуальное доказательство
+  - given: личный профиль Factorio и исходники fixture в репозитории
+    when: запускается следующий PoC
+    then: >-
+      создаётся новый профиль в .work/ui-test-engine; личный профиль
+      и исходники не переписываются, креды портала не нужны
+verified: true
+verified_at: 2026-11-14
+verified_note: >-
+  Factorio 2.1.24 mac-arm64: положительный прогон дал настоящий on_gui_click,
+  state=1, видимые counter и кнопку на обоих PNG, красный → зелёный, код 0;
+  disabled-button — state=0, отсутствие события, красный PNG, код 1.
+  Диагностические crop просмотрены. Unit-тесты options/protocol/process/visual
+  проверяют повреждённые события, аварийный выход, watchdog, потомка с открытыми
+  stdout/stderr и отсутствие маркеров. Strict typecheck и Lua-диалект пройдены.
+  Изоляция дополнительно сверена по launcher и каталогам живых прогонов.
