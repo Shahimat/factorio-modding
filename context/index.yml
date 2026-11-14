@@ -43,7 +43,7 @@ namespaces:
     conventions: [consistency, secrets, testing, spec-intake, spec-program, verification, project-knowledge]
     entities:
       repo-toolchain: "npm-workspaces монорепозиторий: моды на Lua без транспиляции, инструменты сборки, валидации и публикации — TypeScript в strict-режиме."
-      ui-test-engine: "Отдельный UI test engine на TypeScript и Lua: нативный ввод в Factoriopedia simulation, outer screenshots и JSON-отчёт; первый сценарий — counter PoC."
+      ui-test-engine: "UI test engine на TypeScript и Lua: нативный ввод, outer screenshots и JSON-отчёт; counter-PoC и реальная карточка Orbital Logistics."
     behaviors:
       no-secrets-in-versioned-files: В версионируемые файлы не попадает ничего чувствительного
       toolchain-builds-under-strict-ts: Инструменты собираются TypeScript в strict-режиме без ослаблений
@@ -96,6 +96,7 @@ namespaces:
       mod-loads-in-target-factorio: Мод загружается в целевой мажорной версии игры и не загружается в чужой
       mod-name-carries-author-prefix: Каждый мод несёт авторскую приписку shm- в name, форк — суффикс -fork, title без ника, и проходит ограничения портала
       mod-script-fits-tick-budget: Скрипт мода укладывается в тиковый бюджет на базе из 10 000 зданий
+      orbital-card-collapses-by-native-input: "Нативный сценарий Orbital открывает обзор, разворачивает и сворачивает реальную карточку; проверяет события, GUI-state, заголовок и исчезновение содержимого на PNG."
       orbital-cargo-held-outside-destination: Груз с назначением держится вне назначения и отдаётся на нём
       orbital-controller-fits-tick-budget: Контроллер укладывается в бюджет тика на нагрузке поздней игры
       orbital-depot-filled-from-planet: Склад наполняется с планеты ракетами по ванили, с множителем секции

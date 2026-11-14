@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test": "node ../../tools/lua-test.ts .",
+    "test:ui": "node ../../ui-test-engine/src/cli.ts --scenario orbital",
     "test:ingame": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.json",
     "test:ingame:gui": "node ../../tools/ingame-test.ts -c tests/ingame/factorio-test.gui.json -g"
   }

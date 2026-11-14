@@ -20,6 +20,7 @@
     "test:lua:all": "node tools/lua-test.ts --all",
     "test:ingame": "node tools/ingame-test.ts",
     "test:ui:poc": "node ui-test-engine/src/cli.ts",
+    "test:ui:orbital": "node ui-test-engine/src/cli.ts --scenario orbital",
     "check-docs": "node tools/check-docs.ts",
     "check-lua": "node tools/check-lua.ts",
     "check-secrets": "node tools/check-secrets.ts",

@@ -75,6 +75,9 @@ end)
 -- Отладочная сборка: настройка «Режим отладки» есть, только если в моде
 -- лежат отладочные файлы (`tests/debug.lua`), а в zip релиза их нет.
 local debug_build = settings.startup['shm-orbital-logistics-debug'] ~= nil
+if debug_build and script.active_mods['shm-ui-test-engine'] then
+  require('tests.ui.adapter').register()
+end
 local demo = nil
 if debug_build and settings.startup['shm-orbital-logistics-debug'].value then
   demo = require('tests.demo.commands')

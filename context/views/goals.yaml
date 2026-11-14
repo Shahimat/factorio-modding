@@ -3,7 +3,7 @@ goals:
   - key: ui-test-engine
     file: goal--ui-test-engine.yaml
     status: planned
-    one_liner: Развить нативный UI test engine от fixture-PoC до первого реального мода.
+    one_liner: Обобщить профили и заменить фиксированные таймеры явной синхронизацией input/capture.
   - key: toolchain
     file: goal--toolchain.yaml
     status: active

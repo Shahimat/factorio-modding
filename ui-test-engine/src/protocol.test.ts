@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { checkTrace, parseEvent, type NativeEvent } from './protocol.ts';
+import { profileFor } from './profiles.ts';
 
 function event(fields: Readonly<Record<string, unknown>>): NativeEvent {
   const parsed = parseEvent(`  12.3 Script control.lua: SHM_UI_TEST ${JSON.stringify({ protocol: 1, run_id: 'run-test', tick: 12, ...fields })}`);
@@ -74,4 +75,35 @@ test('assertions compare primitive values without coercion', () => {
   assert.equal(checks.find((check) => check.name === 'bool')?.passed, true);
   assert.equal(checks.find((check) => check.name === 'null')?.passed, true);
   assert.equal(checks.find((check) => check.name === 'number versus text')?.passed, false);
+});
+
+test('real-mod trace requires all three native actions, a pre-capture checkpoint and correct scenario', () => {
+  const frame = { x: 100, y: 40, width: 760, height: 600 };
+  const checks = [{ name: 'state', actual: true, expected: true }];
+  const events: NativeEvent[] = [
+    event({ type: 'started', scenario: 'orbital' }),
+    ...['open', 'expand'].flatMap((step) => [
+      event({ type: 'located', step, position: { x: 1, y: 2 } }),
+      event({ type: 'input', step, action: 'mouse_click' }),
+    ]),
+    event({ type: 'checkpoint', checks, frame }),
+    event({ type: 'capture', role: 'before' }),
+    event({ type: 'located', step: 'collapse', position: { x: 1, y: 2 } }),
+    event({ type: 'input', step: 'collapse', action: 'mouse_click' }),
+    event({ type: 'result', checks, frame }),
+    event({ type: 'capture', role: 'after' }), event({ type: 'complete' }),
+  ];
+  assert.ok(checkTrace(events, 'run-test', profileFor('orbital')).every((check) => check.passed));
+  assert.ok(checkTrace(events.filter((item) => item.type !== 'checkpoint'), 'run-test', profileFor('orbital')).some((check) => !check.passed));
+  assert.ok(checkTrace(events, 'run-test', profileFor('counter')).some((check) => !check.passed));
+  const wrong = [event({ type: 'started', scenario: 'counter' }), ...events.slice(1)];
+  assert.equal(checkTrace(wrong, 'run-test', profileFor('orbital')).find((check) => check.name === 'scenario identity')?.passed, false);
+});
+
+test('checkpoint geometry and action names are validated, not trusted JSON', () => {
+  const checks = [{ name: 'state', actual: true, expected: true }];
+  assert.throws(() => event({ type: 'checkpoint', checks }), /\[protocol\]/);
+  assert.throws(() => event({ type: 'checkpoint', checks, frame: { x: 0, y: 0, width: 0, height: 10 } }), /\[protocol\]/);
+  assert.throws(() => event({ type: 'result', checks, frame: { x: null, y: 0, width: 10, height: 10 } }), /\[protocol\]/);
+  assert.throws(() => event({ type: 'input', action: 'mouse_click', step: '' }), /\[protocol\]/);
 });

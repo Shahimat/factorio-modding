@@ -327,6 +327,14 @@ debug: |
   отладочной сборке: иначе релиз у игрока с установленным `factorio-test`
   искал бы отсутствующие тесты.
 
+ui_test_adapter: |
+  В рабочей копии с tests/ и активным shm-ui-test-engine подключается
+  tests/ui/adapter.lua. Dev-only remote shm-orbital-ui-tests.prepare_player
+  подготавливает storage и вызывает overview.ensure_button в sandbox мода:
+  test player simulation не получил эту кнопку обычным путём.
+  Адаптер не экспортирует обработчики кликов и не открывает/не сворачивает
+  overview сам. Релиз не содержит tests/, а guard требует debug_build и engine.
+
 places_picker: |
   Выбор мест (`runtime/places_picker.lua`) — без ввода имён и без ряда всех
   планет, которых у модов планет бывает очень много: выбранные места
@@ -387,6 +395,17 @@ testing: |
   переставляются записью `space_location`, перелёты не нужны. Таймаут теста
   поднят до 5 минут игры: сценарии ждут несколько передач по ~950 тиков.
 
+native_ui_testing: |
+  npm run test:ui:orbital из корня или npm run test:ui -w shm-orbital-logistics
+  запускает настоящий мод со Space Age в изолированном ui-test-engine.
+  Три native клика открывают overview, разворачивают и сворачивают одну
+  карточку платформы. Проверяются исходные GUI-цели и get_mod(), expanded,
+  наличие контента, tooltip и PNG. Отрицательная проба с --negative отключает
+  только финальный переключатель и должна вернуть код 1.
+  Нативное покрытие текущей карточки — behavior orbital-card-collapses-by-native-input;
+  устройство engine, локатора и image oracle — entity ui-test-engine.
+  Старую относительную панель и весь набор GUI-тестов эта проверка не принимает.
+
 demo: |
   Демо-сцены для визуальной проверки владельцем — в отладочной сборке
   (раздел `debug`), команда `/shm-orbital-demo`:
@@ -420,6 +439,7 @@ behaviors:
   - orbital-section-purpose-from-group-tag
   - orbital-hub-panel-sets-purpose
   - orbital-panel-collapses-to-button
+  - orbital-card-collapses-by-native-input
   - orbital-supply-line-syncs-participants
   - orbital-controller-fits-tick-budget
   - orbital-reserve-never-given

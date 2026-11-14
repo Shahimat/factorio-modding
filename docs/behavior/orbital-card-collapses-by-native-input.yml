@@ -1,0 +1,45 @@
+id: orbital-card-collapses-by-native-input
+kind: behavior
+namespace: mods
+entities: [orbital-logistics, ui-test-engine]
+title: Карточка платформы в текущем обзоре сворачивается настоящим GUI-кликом
+summary: "Нативный сценарий Orbital открывает обзор, разворачивает и сворачивает реальную карточку; проверяет события, GUI-state, заголовок и исчезновение содержимого на PNG."
+feature_refs: [real-mod-gui, native-sprite-targets, title-image-oracle]
+scenarios:
+  - given: рабочий Orbital Logistics, Space Age и test player с dev-only подготовленной штатной кнопкой обзора
+    when: выполняется npm run test:ui:orbital
+    then: >-
+      три native mouse_click доставляют on_gui_click исходным кнопкам открытия,
+      разворота и сворачивания карточки; их владелец — shm-orbital-logistics,
+      не тестовая копия GUI и не probe
+  - given: настоящая карточка созданной платформы развёрнута нативным кликом
+    when: игрок нативно нажимает её треугольник сворачивания
+    then: >-
+      окно остаётся видимым, card.tags.expanded снимается, shm_ol_content
+      удаляется и tooltip переключателя снова указывает expand;
+      оба PNG содержат production-заголовок, область содержимого визуально
+      меняется и очищается до фона GUI, полоса заголовка стабильна
+  - given: та же сцена с отключённой только финальной кнопкой
+    when: выполняется npm run test:ui:orbital -- --negative
+    then: >-
+      обзор и карточка открываются настоящими кликами, но сворачивания и третьего
+      события нет; содержимое остаётся на PNG, проверки состояния и изображения
+      провалены, код команды 1
+  - given: PNG с маркерами и изменением в ожидаемой области, но без отрисованного заголовка мода
+    when: выполняется image oracle
+    then: >-
+      отсутствие production-заголовка на любом PNG валит проверку;
+      reference pane не принимается за проверяемое окно
+check: npm run test:ui:orbital
+verified: true
+verified_at: 2026-11-14
+verified_note: >-
+  Factorio 2.1.24 mac-arm64, рабочий мод 0.1.1: положительный графический прогон
+  прошёл; три production-owned on_gui_click, expanded true→false, удаление
+  контента, восстановление expand tooltip, production title на обоих PNG,
+  839601 изменённый пиксель содержимого. Оба crop просмотрены.
+  Отрицательный прогон: два события, expanded=true, контент сохранён,
+  0 изменённых пикселей содержимого, код 1. Unit-регрессия и независимая
+  проверка удалённых production-заголовков отвергают image-only ложный PASS.
+  Это тест текущей модальной карточки, не старой панели, обычного lifecycle
+  игрока или всего интерфейса мода.

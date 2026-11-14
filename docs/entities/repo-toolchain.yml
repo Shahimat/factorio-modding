@@ -87,7 +87,7 @@ runtime:
 
 tools_implemented:
   npm-scripts: |
-    typecheck, test, test:mod, test:lua:all, test:ingame, test:ui:poc, check-secrets,
+    typecheck, test, test:mod, test:lua:all, test:ingame, test:ui:poc, test:ui:orbital, check-secrets,
     check-docs, check-lua, validate, pack, recolor-sprites, orbital-art,
     publish:mod, check, check:mod. Скоупы разделены
     сознательно: `check` не заходит в моды, `check:mod -- <mod-key>`
@@ -176,7 +176,8 @@ tools_implemented:
     Дополнительный графический контур с нативным вводом через LuaSimulation,
     не save-based FactorioTest и не замена ему. Устройство, команды и ограничения —
     docs/entities/ui-test-engine.yml; unit-тесты входят в npm test,
-    TypeScript — в общий strict typecheck, игровой прогон — только test:ui:poc.
+    TypeScript — в общий strict typecheck, графические прогоны — отдельно
+    test:ui:poc и test:ui:orbital.
   tools/lib/game-install.ts: |
     Поиск установленной игры для всех инструментов, которым она нужна
     (`test:ingame`, `recolor-sprites`, `orbital-art`): бинарь, каталог её

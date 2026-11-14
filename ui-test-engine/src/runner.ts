@@ -9,8 +9,9 @@ import { findGameBinary, gameReadData } from '../../tools/lib/game-install.ts';
 import { STEAM_APP_ID } from '../../tools/lib/ingame-config.ts';
 import { gameVersion, parseOptions, USAGE } from './options.ts';
 import { runProcess } from './process.ts';
+import { modList, profileFor, runOptions } from './profiles.ts';
 import { checkTrace, parseEvent, type Check, type NativeEvent } from './protocol.ts';
-import { checkImages, crop, type Bounds, type FrameProof, type Raster } from './visual.ts';
+import { checkImages, checkWindowImages, crop, type Bounds, type FrameProof, type Raster, type WindowProof } from './visual.ts';
 
 const ENGINE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_ROOT = resolve(ENGINE_ROOT, '..');
@@ -21,6 +22,11 @@ async function saveCrop(output: string, role: string, image: Raster, proof: Fram
     x: proof.anchor.x, y: proof.anchor.y,
     width: proof.region.width, height: proof.anchor.height + proof.region.height,
   };
+  await saveBounds(output, role, image, bounds);
+}
+
+async function saveBounds(output: string, role: string, image: Raster, bounds: Bounds | undefined): Promise<void> {
+  if (bounds === undefined) return;
   const clipped = crop(image, bounds);
   const png = new PNG({ width: clipped.width, height: clipped.height });
   png.data = Buffer.from(clipped.data);
@@ -30,6 +36,7 @@ async function saveCrop(output: string, role: string, image: Raster, proof: Fram
 export async function runPoc(args: readonly string[]): Promise<number> {
   const options = parseOptions(args);
   if (options.help) { console.log(USAGE); return 0; }
+  const profile = profileFor(options.scenario);
   const binary = findGameBinary();
   const readData = gameReadData(binary);
   const version = gameVersion(execFileSync(binary, ['--version'], { encoding: 'utf8', timeout: 10_000 }));
@@ -41,25 +48,20 @@ export async function runPoc(args: readonly string[]): Promise<number> {
   const driver = join(mods, 'shm-ui-test-engine');
   await mkdir(mods);
   await cp(join(ENGINE_ROOT, 'native'), driver, { recursive: true });
-  await cp(join(ENGINE_ROOT, 'fixtures', 'counter'), join(mods, 'shm-ui-test-fixture'), { recursive: true });
-  await cp(join(ENGINE_ROOT, 'scenarios', 'counter.lua'), join(driver, 'scenario.lua'));
-  await writeFile(join(driver, 'run-options.lua'), `return {negative = ${String(options.negative)}, run_id = ${JSON.stringify(runId)}}\n`);
-  await writeFile(join(mods, 'mod-list.json'), JSON.stringify({ mods: [
-    { name: 'base', enabled: true },
-    ...['elevated-rails', 'recycler', 'quality', 'space-age'].map((name) => ({ name, enabled: false })),
-    { name: 'shm-ui-test-engine', enabled: true },
-    { name: 'shm-ui-test-fixture', enabled: true },
-  ] }, null, 2));
+  for (const mod of profile.mods) await cp(join(REPO_ROOT, mod.source), join(mods, mod.name), { recursive: true });
+  await cp(join(ENGINE_ROOT, 'scenarios', `${profile.name}.lua`), join(driver, 'scenario.lua'));
+  await writeFile(join(driver, 'run-options.lua'), runOptions(profile, runId, options.negative));
+  await writeFile(join(mods, 'mod-list.json'), JSON.stringify(modList(profile), null, 2));
   await writeFile(join(output, 'steam_appid.txt'), `${STEAM_APP_ID}\n`);
   const config = join(output, 'config.ini');
   await writeFile(config, `[path]\nread-data=${readData}\nwrite-data=${output}\n\n[general]\nlocale=en\n\n[other]\ncheck-updates=false\nenable-blueprint-storage-cloud-sync=false\n\n[interface]\nautomatic-ui-scale=false\ncustom-ui-scale=1\n`);
-  console.log(`Factorio ${version}; ${options.negative ? 'disabled-button negative case' : 'native counter PoC'}`);
+  console.log(`Factorio ${version}; ${profile.name}${options.negative ? ' (disabled-button negative case)' : ''}`);
   console.log(`Артефакты: ${relative(REPO_ROOT, output)}`);
 
   const events: NativeEvent[] = [];
   const processResult = await runProcess({
     binary,
-    args: ['--config', config, '--mod-directory', mods, '--disable-audio', '--window-size', '1280x720', '--load-scenario', 'shm-ui-test-engine/host'],
+    args: ['--config', config, '--mod-directory', mods, '--disable-audio', '--window-size', profile.window, '--load-scenario', 'shm-ui-test-engine/host'],
     cwd: output,
     timeoutMs: options.timeoutMs,
     onLine: (line) => {
@@ -76,24 +78,36 @@ export async function runPoc(args: readonly string[]): Promise<number> {
   const checks: Check[] = [
     { name: 'process completed', passed: processResult.reason === 'complete' && (processResult.code === 0 || processResult.signal === 'SIGTERM'), detail: `${processResult.reason}; code=${processResult.code}; signal=${processResult.signal}` },
     ...processResult.diagnostics.map((detail): Check => ({ name: 'process diagnostic', passed: false, detail })),
-    ...checkTrace(events, runId),
+    ...checkTrace(events, runId, profile),
   ];
-  let images: { before: FrameProof; after: FrameProof } | undefined;
+  let images: { before: FrameProof | WindowProof; after: FrameProof | WindowProof } | undefined;
   try {
     const directory = join(output, 'script-output', 'ui-test');
     const before = PNG.sync.read(await readFile(join(directory, 'before.png')));
     const after = PNG.sync.read(await readFile(join(directory, 'after.png')));
-    const proof = checkImages(before, after);
-    images = { before: proof.before, after: proof.after };
-    checks.push(...proof.checks);
-    await saveCrop(output, 'before', before, proof.before);
-    await saveCrop(output, 'after', after, proof.after);
+    if (profile.viewport === undefined) {
+      const proof = checkImages(before, after);
+      images = { before: proof.before, after: proof.after };
+      checks.push(...proof.checks);
+      await saveCrop(output, 'before', before, proof.before);
+      await saveCrop(output, 'after', after, proof.after);
+    } else {
+      const first = events.find((event) => event.type === 'checkpoint');
+      const last = events.find((event) => event.type === 'result');
+      if (first?.type !== 'checkpoint' || last?.type !== 'result' || last.frame === undefined) throw new Error('[image] missing production frame geometry');
+      if (profile.reference === undefined) throw new Error('[image] missing title reference configuration');
+      const proof = checkWindowImages(before, after, first.frame, last.frame, profile.viewport, profile.reference);
+      images = { before: proof.before, after: proof.after };
+      checks.push(...proof.checks);
+      await saveBounds(output, 'before', before, proof.before.crop);
+      await saveBounds(output, 'after', after, proof.after.crop);
+    }
   } catch (cause: unknown) {
     checks.push({ name: 'screenshots decode', passed: false, detail: cause instanceof Error ? cause.message : String(cause) });
   }
   const passed = checks.every((check) => check.passed);
   const report = {
-    schema: 1, runId, scenario: 'counter', negative: options.negative,
+    schema: 1, runId, scenario: profile.name, negative: options.negative,
     factorio: version, platform: process.platform, arch: process.arch,
     passed, checks, events, images,
     process: { reason: processResult.reason, code: processResult.code, signal: processResult.signal },

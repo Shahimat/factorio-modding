@@ -1,11 +1,23 @@
 -- require допустим только при загрузке control.lua, не внутри callbacks.
 local options = require("run-options")
 local scenario = require("scenario")
+local locator = require("locator")
 local player
 local age = 0
 local finished = false
 local host_age = 0
 local host_failed = false
+local observed = {}
+local targets = {}
+local capture_at = scenario.capture or {before = 120, after = 420}
+local actions = scenario.actions or {{locate_at = 120, click_at = 150, query = scenario.target}}
+
+script.on_event(defines.events.on_gui_click, function(event)
+  local element = event.element
+  if element and element.valid then
+    observed[#observed + 1] = {name = element.name, owner = element.get_mod(), tick = event.tick}
+  end
+end)
 
 local function emit(event)
   event.protocol = 1
@@ -19,7 +31,7 @@ local function safely(source, callback)
   if not ok then
     finished = true
     host_failed = true
-    emit{type = "error", source = source, message = tostring(err)}
+    emit{type = "error", source = source, message = tostring(err) .. " [native events: " .. helpers.table_to_json(observed) .. "]"}
   end
 end
 
@@ -55,11 +67,11 @@ remote.add_interface("shm-ui-test-engine", {
       host_age = host_age + 1
       if host_age == 30 then
         player.open_factoriopedia_gui(prototypes.entity["shm-ui-test-scene"])
-      elseif host_age == 120 then
+      elseif host_age == capture_at.before then
         capture("before")
-      elseif host_age == 420 then
+      elseif host_age == capture_at.after then
         capture("after")
-      elseif host_age == 421 then
+      elseif host_age == capture_at.after + 1 then
         -- Новый тик после ожидания screenshot writer, не преждевременный итог.
         emit{type = "complete"}
       end
@@ -78,6 +90,13 @@ remote.add_interface("shm-ui-test-engine", {
       player.surface.daytime = 0
       player.surface.freeze_daytime = true
       scenario.setup(player, options)
+      if options.viewport then
+        for index, point in ipairs(options.markers) do
+          local marker = player.gui.screen.add{type = "label", caption = "+", ignored_by_interaction = true}
+          marker.location = point
+          marker.style.font_color = index == 1 and {1, 0, 1} or {0, 1, 1}
+        end
+      end
       emit{type = "started", scenario = scenario.name}
     end)
   end,
@@ -85,18 +104,33 @@ remote.add_interface("shm-ui-test-engine", {
     if finished then return end
     safely("simulation", function()
       age = age + 1
-      if age == 120 then
-        local position = game.simulation.get_widget_position(scenario.target)
-        assert(position, "Native locator did not find the target widget")
-        assert(game.simulation.move_cursor{position = position, speed = 1000}, "Cursor did not reach target")
-        emit{type = "located", position = position}
-      elseif age == 150 then
-        game.simulation.mouse_click()
-        emit{type = "input", action = "mouse_click"}
-      elseif age == 180 then
-        game.simulation.move_cursor{position = {1000, 1000}, speed = 10000}
-      elseif age == 240 then
-        emit{type = "result", checks = scenario.checks(player)}
+      for index, action in ipairs(actions) do
+        if age == action.locate_at then
+          targets[index] = action.element and locator.prepare(action.element(player)) or {query = action.query}
+        elseif age == action.locate_at + 1 then
+          local position = locator.position(targets[index])
+          assert(game.simulation.move_cursor{position = position, speed = 1000}, "Cursor did not reach target")
+          emit{type = "located", step = action.id, position = position}
+        elseif age == action.click_at then
+          game.simulation.mouse_click()
+          emit{type = "input", action = "mouse_click", step = action.id}
+        elseif age == action.click_at + 5 then
+          game.simulation.move_cursor{position = {1000, 1000}, speed = 10000}
+          locator.clear(targets[index])
+        end
+      end
+      if age == 180 and scenario.before then
+        if scenario.reference_title then
+          local title = scenario.reference_title(player)
+          local reference = player.gui.screen.add{type = "frame", style = "inside_shallow_frame_with_padding"}
+          reference.location = {x = options.reference.x, y = options.reference.y}
+          reference.style.width = options.reference.width
+          reference.style.height = options.reference.height
+          reference.add{type = "label", caption = title.caption, style = title.style}
+        end
+        emit{type = "checkpoint", checks = scenario.before(player), frame = scenario.frame(player)}
+      elseif age == (scenario.result_at or 240) then
+        emit{type = "result", checks = scenario.checks(player, observed), frame = scenario.frame and scenario.frame(player)}
         finished = true
       end
     end)

@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import { gameVersion, parseOptions } from './options.ts';
 
 test('PoC defaults do not invert the negative case into a passing run', () => {
-  assert.deepEqual(parseOptions([]), { negative: false, timeoutMs: 90_000, help: false });
-  assert.deepEqual(parseOptions(['--negative', '--timeout', '12']), { negative: true, timeoutMs: 12_000, help: false });
+  assert.deepEqual(parseOptions([]), { scenario: 'counter', negative: false, timeoutMs: 90_000, help: false });
+  assert.deepEqual(parseOptions(['--scenario', 'orbital', '--negative', '--timeout', '12']), { scenario: 'orbital', negative: true, timeoutMs: 12_000, help: false });
   assert.equal(parseOptions(['--help']).help, true);
 });
 
@@ -19,6 +19,9 @@ test('timeouts are bounded integers and unknown or repeated flags are rejected',
   assert.throws(() => parseOptions(['--negative', '--negative']), /\[arguments\]/);
   assert.throws(() => parseOptions(['--timeout', '1', '--timeout', '2']), /\[arguments\]/);
   assert.throws(() => parseOptions(['--mod-directory', 'personal-profile']), /\[arguments\]/);
+  assert.throws(() => parseOptions(['--scenario']), /\[arguments\]/);
+  assert.throws(() => parseOptions(['--scenario', '../untrusted']), /\[arguments\]/);
+  assert.throws(() => parseOptions(['--scenario', 'counter', '--scenario', 'orbital']), /\[arguments\]/);
 });
 
 test('only the supported Factorio version track is accepted', () => {

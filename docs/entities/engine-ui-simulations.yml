@@ -35,6 +35,33 @@ facts:
       GUI в видимую часть PNG показал и текст кнопки, и counter.
     checked_on: "2.1.24 mac-arm64, 2026-11-14 — первые и компактные варианты counter fixture ui-test-engine"
 
+  - claim: |
+      Factoriopedia simulation можно увеличить общими GUI-стилями тестового
+      профиля: entity_button_frame и wide_entity_button задают preview, а
+      factoriopedia_contents_scroll_pane и его vertical_flow_style — контейнер.
+      Одного расширения содержимого или selection/drawing box entity было
+      недостаточно. После изменения высоты контейнера и размеров preview
+      в PNG целиком поместилось штатное модальное окно Orbital без уменьшения
+      его размеров. Это наблюдение для данного host, не отдельный API viewport.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — профиль orbital ui-test-engine, снимки реального GUI"
+  - claim: |
+      Sprite-button без caption удалось найти через временный дочерний label
+      с коротким caption, нулевыми размерами, font_color.a=0 и
+      ignored_by_interaction=true. Native locator дал позицию, а mouse_click
+      доставил событие исходной кнопке с исходным get_mod(). Нулевые размеры
+      сами по себе не обеспечили невидимость длинного caption и попадание в
+      кнопку. Прошедший вариант удаляет probe до снимков; это инструментированный
+      locator, не универсальный API геометрии произвольного GUI.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — три GUI-клика по sprite-button реального Orbital, отдельный наблюдатель событий"
+  - claim: |
+      В проверенной generate_map simulation тестовый игрок не получил стартовую
+      кнопку, которую Orbital создаёт при on_init/on_player_created. Явная dev-only
+      подготовка renderer в sandbox самого мода создала кнопку с правильным
+      владельцем, после чего нативные клики прошли штатный on_gui_click.
+      Этот setup не доказывает обычный lifecycle игрока; причина отличия и
+      переносимость на другие моды/версии не установлены.
+    checked_on: "2.1.24 mac-arm64, 2026-11-14 — профиль orbital и tests/ui/adapter.lua рабочего мода"
+
 sources:
   simulation: https://lua-api.factorio.com/2.1.24/classes/LuaSimulation.html
   definition: https://lua-api.factorio.com/2.1.24/types/SimulationDefinition.html

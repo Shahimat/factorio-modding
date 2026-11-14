@@ -15,12 +15,14 @@ interface Envelope {
   readonly run_id: string;
   readonly tick: number;
 }
+export interface GuiFrame { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 
 export type NativeEvent = Envelope & (
   | { readonly type: 'started'; readonly scenario: string }
-  | { readonly type: 'located'; readonly position: { readonly x: number; readonly y: number } }
-  | { readonly type: 'input'; readonly action: 'mouse_click' }
-  | { readonly type: 'result'; readonly checks: readonly Assertion[] }
+  | { readonly type: 'located'; readonly position: { readonly x: number; readonly y: number }; readonly step?: string }
+  | { readonly type: 'input'; readonly action: 'mouse_click'; readonly step?: string }
+  | { readonly type: 'result'; readonly checks: readonly Assertion[]; readonly frame?: GuiFrame }
+  | { readonly type: 'checkpoint'; readonly checks: readonly Assertion[]; readonly frame: GuiFrame }
   | { readonly type: 'capture'; readonly role: 'before' | 'after' }
   | { readonly type: 'complete' }
   | { readonly type: 'error'; readonly source: string; readonly message: string }
@@ -48,6 +50,13 @@ function scalar(value: unknown): Scalar {
   return number(value);
 }
 
+function frameOf(raw: unknown): GuiFrame {
+  const value = record(raw);
+  const frame = { x: number(value['x']), y: number(value['y']), width: number(value['width']), height: number(value['height']) };
+  if (frame.width <= 0 || frame.height <= 0) throw new Error('[protocol] invalid GUI frame');
+  return frame;
+}
+
 /** Only complete newline-delimited Factorio log lines enter this parser. */
 export function parseEvent(line: string): NativeEvent | undefined {
   const marker = 'SHM_UI_TEST ';
@@ -60,15 +69,17 @@ export function parseEvent(line: string): NativeEvent | undefined {
   if (value['protocol'] !== 1) throw new Error('[protocol] unsupported version');
   const envelope: Envelope = { protocol: 1, run_id: text(value['run_id']), tick: number(value['tick']) };
   const type = value['type'];
+  const step = value['step'] === undefined ? {} : { step: text(value['step']) };
   switch (type) {
     case 'started': return { ...envelope, type, scenario: text(value['scenario']) };
     case 'located': {
       const point = record(value['position']);
-      return { ...envelope, type, position: { x: number(point['x']), y: number(point['y']) } };
+      return { ...envelope, type, ...step, position: { x: number(point['x']), y: number(point['y']) } };
     }
     case 'input':
       if (value['action'] !== 'mouse_click') throw new Error('[protocol] unsupported input');
-      return { ...envelope, type, action: 'mouse_click' };
+      return { ...envelope, type, ...step, action: 'mouse_click' };
+    case 'checkpoint':
     case 'result': {
       const checks = value['checks'];
       if (!Array.isArray(checks) || checks.length === 0) throw new Error('[protocol] empty assertions');
@@ -79,7 +90,9 @@ export function parseEvent(line: string): NativeEvent | undefined {
       if (new Set(assertions.map((item) => item.name)).size !== assertions.length) {
         throw new Error('[protocol] duplicate assertion');
       }
-      return { ...envelope, type, checks: assertions };
+      if (type === 'checkpoint') return { ...envelope, type, checks: assertions, frame: frameOf(value['frame']) };
+      const frame = value['frame'] === undefined ? {} : { frame: frameOf(value['frame']) };
+      return { ...envelope, type, checks: assertions, ...frame };
     }
     case 'capture':
       if (value['role'] !== 'before' && value['role'] !== 'after') throw new Error('[protocol] invalid capture');
@@ -91,16 +104,18 @@ export function parseEvent(line: string): NativeEvent | undefined {
 }
 
 /** State and capture order are checked independently of the process exit code. */
-export function checkTrace(events: readonly NativeEvent[], runId: string): Check[] {
+export function checkTrace(events: readonly NativeEvent[], runId: string, profile?: { readonly name: string; readonly order: readonly string[] }): Check[] {
   const checks: Check[] = [];
   const order = events.filter((event) => event.type !== 'error').map((event) =>
-    event.type === 'capture' ? `capture:${event.role}` : event.type);
-  const expected = ['started', 'capture:before', 'located', 'input', 'result', 'capture:after', 'complete'];
+    event.type === 'capture' ? `capture:${event.role}` :
+      (event.type === 'located' || event.type === 'input') && event.step !== undefined ? `${event.type}:${event.step}` : event.type);
+  const expected = profile?.order ?? ['started', 'capture:before', 'located', 'input', 'result', 'capture:after', 'complete'];
   checks.push({ name: 'native lifecycle', passed: JSON.stringify(order) === JSON.stringify(expected), detail: order.join(' → ') || 'no events' });
   checks.push({ name: 'run identity', passed: events.length > 0 && events.every((event) => event.run_id === runId), detail: runId });
+  if (profile !== undefined) checks.push({ name: 'scenario identity', passed: events.some((event) => event.type === 'started' && event.scenario === profile.name), detail: profile.name });
   for (const event of events) {
     if (event.type === 'error') checks.push({ name: `native ${event.source}`, passed: false, detail: event.message });
-    if (event.type === 'result') {
+    if (event.type === 'result' || event.type === 'checkpoint') {
       for (const assertion of event.checks) checks.push({
         name: assertion.name,
         passed: Object.is(assertion.actual, assertion.expected),

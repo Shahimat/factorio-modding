@@ -47,6 +47,10 @@ check: npm run test:ingame:gui -w shm-orbital-logistics
 verified: false
 verified_at: null
 verified_note: >-
+  Историческое описание прежней относительной панели: она удалена при переходе
+  на модальный overview. Нативная проверка текущей карточки платформы выделена
+  в orbital-card-collapses-by-native-input и не подтверждает старые требования
+  положения панели, её mini-button или сохранения panel_collapsed.
   Семантика расширена раундом orbital-02 — блоки со сворачиванием и
   итогами, потолок высоты, scroll-pane; прежний verified относился к
   старой редакции. Gui-прогон ol-panel-frame — 13 PASS (вердикт run 1);
